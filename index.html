@@ -17,7 +17,7 @@
   <div><button id="reload" type="button">Atualizar agora</button></div>
   <section class="card"><h2>Estado das fontes</h2><ul class="fontes" id="fontes" aria-live="polite"></ul></section>
   <section class="card"><h2>Agora</h2><div id="agora" class="mut">Carregando…</div></section>
-  <section class="card"><h2>Alertas do INMET que incluem Cajamar</h2><div id="alertas" class="mut">Carregando…</div></section>
+  <section class="card"><h2>Avisos do INMET que incluem Cajamar</h2><div id="alertas" class="mut">Carregando…</div></section>
   <section class="card"><h2>Chuva prevista — próximas 24 h (mm por hora)</h2><div id="horas" class="mut">Carregando…</div><p id="tot24" class="mut" style="margin:8px 0 0"></p></section>
   <section class="card"><h2>Radar de chuva (RainViewer)</h2><div id="mapa"></div>
     <div class="rc"><button id="play" type="button">Pausar</button><input id="slider" type="range" min="0" max="0" value="0" aria-label="Quadro do radar"><span id="rt" class="mut"></span></div>
@@ -29,7 +29,7 @@
     <a href="https://www.rainviewer.com/map.html?loc=-23.3547,-46.8764,9" target="_blank" rel="noopener">RainViewer</a>
     <a href="https://www.chuvaonline.iag.usp.br/" target="_blank" rel="noopener">Chuva Online</a>
   </section>
-  <p class="mut" style="font-size:.8rem">Previsão: Open-Meteo (modelo, não é medição). Alertas: radarmeteorologico.com.br (terceiro, repassa dados do INMET; não é oficial). Radar: RainViewer (chuva detectada, passado). Veja o README para créditos e licenças.</p>
+  <p class="mut" style="font-size:.8rem">Previsão: Open-Meteo (modelo, não é medição). Avisos: API oficial do INMET (reserva: radarmeteorologico.com.br, terceiro, só se a oficial falhar). Radar: RainViewer (chuva detectada, passado). Veja o README para créditos e licenças.</p>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="js/fontes.js"></script>

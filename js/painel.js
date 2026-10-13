@@ -14,12 +14,14 @@
     if (r.antigo) box.insertBefore(el("p", "stale", "Não foi possível atualizar agora. Mostrando dados antigos, coletados em " + dh(r.de) + "."), box.firstChild);
   }
 
-  var NOMES = { clima: "Previsão e tempo atual (Open-Meteo)", alertas: "Alertas INMET (via radarmeteorologico.com.br)", radar: "Radar (RainViewer)" };
+  var NOMES = { clima: "Previsão e tempo atual (Open-Meteo)", avisos_inmet: "Avisos INMET (oficial)", alertas: "Avisos via radarmeteorologico.com.br (reserva)", radar: "Radar (RainViewer)" };
 
   function desenharFontes() {
     var ul = $("fontes"); ul.textContent = "";
     Object.keys(NOMES).forEach(function (k) {
-      var s = Fontes.estado[k], li = el("li");
+      var s = Fontes.estado[k], li;
+      if (!s && k === "alertas") return; // reserva: só aparece se for usada
+      li = el("li");
       li.appendChild(el("span", "dot " + (s ? s.estado : "")));
       li.appendChild(el("strong", "", NOMES[k]));
       var t;
@@ -87,29 +89,68 @@
     }
   }
 
+  // Normaliza aviso oficial do INMET (apiprevmet3) para o formato interno.
+  function doInmet(j) {
+    var vistos = {}, out = [];
+    (j.hoje || []).concat(j.futuro || []).forEach(function (a) {
+      var cods = String(a.geocodes || "").replace(/[^0-9,]/g, "").split(",");
+      var chave = a.id_aviso + "/" + a.id_sequencia;
+      if (cods.indexOf(String(IBGE)) < 0 || a.encerrado || vistos[chave]) return;
+      vistos[chave] = 1;
+      var riscos = a.riscos, instr = a.instrucoes;
+      try { if (typeof riscos === "string") riscos = JSON.parse(riscos); } catch (e) { riscos = [riscos]; }
+      try { if (typeof instr === "string") instr = JSON.parse(instr); } catch (e) { instr = [instr]; }
+      out.push({ evento: a.descricao, severidade: a.severidade, inicio: a.inicio, fim: a.fim, risco: (riscos || [])[0], instrucoes: instr || [] });
+    });
+    return out;
+  }
+  // Normaliza o repassador de terceiros (radarmeteorologico.com.br).
+  function doTerceiro(j) {
+    return j.alertas.filter(function (a) { return (a.geocodes || []).map(Number).indexOf(IBGE) > -1; }).map(function (a) {
+      return { evento: a.evento, severidade: a.severidade, inicio: a.inicio, fim: a.fim, risco: a.riscos && a.riscos[0], instrucoes: [] };
+    });
+  }
+  async function tentar(nome, url, validar) {
+    try { return await Fontes.consultar(nome, url, validar); } catch (e) { return null; }
+  }
+
   async function alertas() {
     var A = $("alertas");
-    try {
-      var r = await Fontes.consultar("alertas", "https://radarmeteorologico.com.br/api/v1/alertas?uf=" + UF, function (j) { return j && Array.isArray(j.alertas); });
-      var l = r.dados.alertas.filter(function (a) { return (a.geocodes || []).map(Number).indexOf(IBGE) > -1; });
-      A.textContent = ""; A.className = "";
-      aviso(A, r);
-      if (!l.length) {
-        A.appendChild(el("span", "mut", "Nenhum alerta listado para Cajamar nesta fonte" + (r.antigo ? " (na consulta de " + dh(r.de) + ")" : " agora") + ". Isso não garante ausência de risco: confira o INMET e o CEMADEN."));
-        return;
-      }
-      l.forEach(function (a) {
-        var s = String(a.severidade || "").toLowerCase();
-        var d = el("div", "alert" + (s.indexOf("grande") > -1 ? " v" : s.indexOf("perigo potencial") > -1 || s.indexOf("amarelo") > -1 ? "" : " l"));
-        d.appendChild(el("strong", "", (a.evento || "Alerta") + " — " + (a.severidade || "")));
-        d.appendChild(el("small", "", fhora(a.inicio || "") + " até " + fhora(a.fim || "")));
-        if (a.riscos && a.riscos[0]) d.appendChild(el("span", "", a.riscos[0]));
-        A.appendChild(d);
-      });
-    } catch (e) {
+    // 1) fonte oficial INMET; 2) se falhar, repassador de terceiros; 3) dado antigo guardado.
+    var ofi = await tentar("avisos_inmet", "https://apiprevmet3.inmet.gov.br/avisos/ativos", function (j) { return j && Array.isArray(j.hoje) && Array.isArray(j.futuro); });
+    var r = ofi, lista, rotulo = "INMET (fonte oficial)";
+    if (ofi && !ofi.antigo) lista = doInmet(ofi.dados);
+    else {
+      var ter = await tentar("alertas", "https://radarmeteorologico.com.br/api/v1/alertas?uf=" + UF, function (j) { return j && Array.isArray(j.alertas); });
+      if (ter && !ter.antigo) { r = ter; lista = doTerceiro(ter.dados); rotulo = "radarmeteorologico.com.br (terceiro, usado porque a fonte oficial falhou)"; }
+      else if (ofi) { lista = doInmet(ofi.dados); }
+      else if (ter) { r = ter; lista = doTerceiro(ter.dados); rotulo = "radarmeteorologico.com.br (terceiro)"; }
+    }
+    if (!r) {
       // Falha NÃO é "sem alerta": deixa isso explícito.
       fail(A, "Não foi possível verificar os alertas agora. Isso NÃO significa que não há alerta. Consulte previsao.inmet.gov.br/3509205 e o CEMADEN.");
+      return;
     }
+    A.textContent = ""; A.className = "";
+    aviso(A, r);
+    A.appendChild(el("p", "mut", "Fonte: " + rotulo));
+    if (!lista.length) {
+      A.appendChild(el("span", "mut", "Nenhum aviso listado para Cajamar nesta fonte" + (r.antigo ? " (na consulta de " + dh(r.de) + ")" : " agora") + ". Isso não garante ausência de risco: confira o INMET e o CEMADEN."));
+      return;
+    }
+    lista.forEach(function (a) {
+      var s = String(a.severidade || "").toLowerCase();
+      var d = el("div", "alert" + (s.indexOf("grande") > -1 ? " v" : s.indexOf("perigo potencial") > -1 ? "" : " l"));
+      d.appendChild(el("strong", "", (a.evento || "Aviso") + " — " + (a.severidade || "")));
+      d.appendChild(el("small", "", fhora(a.inicio || "") + " até " + fhora(a.fim || "")));
+      if (a.risco) d.appendChild(el("span", "", a.risco));
+      if (a.instrucoes.length) {
+        var det = el("details"); det.appendChild(el("summary", "mut", "Instruções do INMET"));
+        a.instrucoes.forEach(function (t) { det.appendChild(el("p", "", String(t))); });
+        d.appendChild(det);
+      }
+      A.appendChild(d);
+    });
   }
 
   var map = null, frames = [], layers = [], cur = 0, timer = null, host = "";

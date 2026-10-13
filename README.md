@@ -15,6 +15,7 @@ Projeto pessoal (uso individual, por diversão e aprendizado) de acompanhamento 
 
 - Cada fonte é consultada separadamente: se uma cair, as outras continuam.
 - Se uma consulta falha, o painel tenta de novo uma vez e, se continuar falhando, mostra o último dado bom **com aviso de que é antigo e a hora em que foi coletado**.
+- Os avisos vêm da API oficial do INMET; se ela falhar, usa-se um repassador de terceiros como reserva e a tela diz qual fonte foi usada.
 - Falha ao consultar alertas **nunca** é mostrada como "sem alerta".
 - O radar não reaproveita quadro antigo (poderia enganar).
 
@@ -31,7 +32,8 @@ npx serve .
 | Fonte | Uso | Observação |
 |---|---|---|
 | [Open-Meteo](https://open-meteo.com/) | tempo atual e previsão | modelo, não é medição |
-| [radarmeteorologico.com.br](https://radarmeteorologico.com.br/api-publica) | alertas do INMET | terceiro; não é oficial |
+| [INMET – avisos ativos](https://apiprevmet3.inmet.gov.br/avisos/ativos) | avisos oficiais para Cajamar (fonte principal) | filtrado pelo código IBGE 3509205 |
+| [radarmeteorologico.com.br](https://radarmeteorologico.com.br/api-publica) | reserva dos avisos, só se a API oficial falhar | terceiro; não é oficial |
 | [RainViewer](https://www.rainviewer.com/api.html) | radar | uso pessoal: zoom máx. 7, apenas dados passados |
 | [OpenStreetMap](https://www.openstreetmap.org/copyright) / [Leaflet](https://leafletjs.com) | mapa | |
 
