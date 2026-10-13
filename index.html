@@ -11,13 +11,14 @@
 <main>
   <header>
     <h1>Cajamar ao Vivo</h1>
-    <p class="sub">Defesa Civil de Cajamar/SP · acompanhamento auxiliar · <a href="quadro.html">Quadro de ocorrências</a> · <a href="historico.html">Histórico da estação</a> · <a href="publicar.html">Gerar publicação</a></p>
+    <p class="sub">Defesa Civil de Cajamar/SP · acompanhamento auxiliar · <a href="quadro.html">Quadro de ocorrências</a> · <a href="historico.html">Histórico da estação</a> · <a href="publicar.html">Gerar publicação</a> · <a href="comparar.html">Previsão × medido</a></p>
   </header>
   <div class="aux"><b>Atenção:</b> previsão, avisos e radar aqui são <b>auxiliares</b> e não substituem os avisos oficiais do INMET e do CEMADEN. Confirme na fonte oficial antes de decidir.</div>
   <div><button id="reload" type="button">Atualizar agora</button></div>
   <section class="card"><h2>Estado das fontes</h2><ul class="fontes" id="fontes" aria-live="polite"></ul></section>
   <section class="card"><h2>Agora</h2><div id="agora" class="mut">Carregando…</div></section>
   <section class="card"><h2>Avisos do INMET que incluem Cajamar</h2><div id="alertas" class="mut">Carregando…</div></section>
+  <section class="card"><h2>Chuva observada — pluviômetros do CEMADEN</h2><div id="cemaden" class="mut">Carregando…</div></section>
   <section class="card"><h2>Previsão oficial do INMET para Cajamar</h2><div id="prevInmet" class="mut">Carregando…</div></section>
   <section class="card"><h2>Chuva prevista — próximas 24 h (mm por hora)</h2><div id="horas" class="mut">Carregando…</div><p id="tot24" class="mut" style="margin:8px 0 0"></p></section>
   <section class="card"><h2>Radar de chuva (RainViewer)</h2><div id="mapa"></div>
@@ -35,6 +36,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="js/fontes.js"></script>
 <script src="js/inmet.js"></script>
+<script src="js/cemaden.js"></script>
 <script src="js/painel.js"></script>
 </body>
 </html>

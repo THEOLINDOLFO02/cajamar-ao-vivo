@@ -12,6 +12,7 @@ Projeto pessoal (uso individual, por diversão e aprendizado) de acompanhamento 
 | `quadro.html` | Quadro de ocorrências pessoal (6 categorias). Os registros ficam no navegador do próprio aparelho; há exportar/importar backup em arquivo `.json`. Sem login, sem banco externo, sem dados de moradores. |
 | `historico.html` | Histórico da estação meteorológica de Cajamar: você importa o CSV baixado da plataforma (lido só no navegador) e vê chuva por dia, maiores chuvas em 1 h e 10 min, temperatura, vento e tabela dia a dia. Reimportar não duplica dias. O CSV não faz parte do repositório. |
 | `publicar.html` | Gera imagem (Stories 1080×1920) e legenda para o Instagram a partir de avisos e previsão oficiais do INMET, da chuva medida pela estação ou de dicas de prevenção. Você revisa e publica manualmente; nada é postado sozinho. Bloqueia a geração quando não há dado novo. |
+| `comparar.html` | Compara a chuva medida pela estação com a previsão do Open-Meteo feita 1 dia antes (acerto de chuva/não chuva, erro médio, soma). |
 
 ### Como o painel trata falhas
 
@@ -40,7 +41,10 @@ npx serve .
 | [RainViewer](https://www.rainviewer.com/api.html) | radar | uso pessoal: zoom máx. 7, apenas dados passados |
 | [OpenStreetMap](https://www.openstreetmap.org/copyright) / [Leaflet](https://leafletjs.com) | mapa | |
 
-Previstas: INMET (previsão, avisos e estações), CEMADEN, SAISP e Chuva Online (IAG/USP).
+| [CEMADEN](https://www.cemaden.gov.br/) (pluviômetros) | chuva observada em Cajamar e região (1 h a 72 h) | coletado por um robô do GitHub Actions a cada ~10 min, porque o navegador não consegue ler o CEMADEN direto |
+| [Open-Meteo Previous Runs](https://open-meteo.com/en/docs/previous-runs-api) | previsão feita 1 dia antes, para a página de comparação | |
+
+SAISP e Chuva Online (IAG/USP) não têm API de dados: ficam como links.
 
 ## Créditos dos repositórios de referência
 
@@ -63,3 +67,15 @@ Tudo fica no `localStorage` do navegador onde você registrou: não há servidor
 - As **dicas de prevenção** são textos gerais escritos como ponto de partida: revise e ajuste conforme o protocolo da sua Defesa Civil antes de publicar. Os telefones 199 (Defesa Civil) e 193 (Bombeiros) são os nacionais; o contato local é opcional e preenchido por você.
 - O brasão e o logo em `assets/` foram incluídos com a confirmação do responsável pela página de que há autorização de uso; ao reutilizar o projeto, confirme os direitos desses símbolos.
 - Para baixar a imagem é preciso abrir a página por http(s) (por exemplo, GitHub Pages ou `npx serve .`), não direto do arquivo.
+
+## Chuva observada do CEMADEN (robô)
+
+- O arquivo `scripts/coletar-cemaden.mjs` baixa as estações do CEMADEN para Cajamar e região e grava `data/cemaden.json`. Esse arquivo **não fica no repositório**: o workflow `.github/workflows/publicar.yml` roda a cada ~10 min, coleta e publica o site já com o arquivo novo.
+- Se uma coleta agendada falhar, o job falha e o site anterior (com a última coleta boa) continua no ar; a tela mostra a hora da coleta.
+- Os horários das leituras são os **informados pelo CEMADEN**; o fuso não está documentado e os valores mais recentes aparecem à frente do relógio local. Por isso o painel mostra a defasagem de cada estação em relação à leitura mais recente da rede, e não compara com a hora do seu aparelho.
+- “sem dado” é ausência de valor (nunca zero). Muitas estações, inclusive em Cajamar, ficam paradas por meses.
+- Repositórios públicos têm as execuções agendadas desativadas pelo GitHub após 60 dias sem atividade: se isso acontecer, ative o workflow de novo na aba Actions.
+
+## Publicação (GitHub Pages)
+
+O site é publicado pelo próprio workflow (Settings → Pages → Source: GitHub Actions). O endereço fica em https://NOME-DE-USUARIO.github.io/NOME-DO-REPOSITORIO/.

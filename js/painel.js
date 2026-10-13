@@ -14,7 +14,7 @@
     if (r.antigo) box.insertBefore(el("p", "stale", "Não foi possível atualizar agora. Mostrando dados antigos, coletados em " + dh(r.de) + "."), box.firstChild);
   }
 
-  var NOMES = { clima: "Previsão e tempo atual (Open-Meteo)", avisos_inmet: "Avisos INMET (oficial)", previsao_inmet: "Previsão INMET (oficial)", alertas: "Avisos via radarmeteorologico.com.br (reserva)", radar: "Radar (RainViewer)" };
+  var NOMES = { clima: "Previsão e tempo atual (Open-Meteo)", avisos_inmet: "Avisos INMET (oficial)", previsao_inmet: "Previsão INMET (oficial)", cemaden: "Chuva observada CEMADEN (via robô)", alertas: "Avisos via radarmeteorologico.com.br (reserva)", radar: "Radar (RainViewer)" };
 
   function desenharFontes() {
     var ul = $("fontes"); ul.textContent = "";
@@ -225,7 +225,7 @@
 
   function go() {
     $("reload").disabled = true;
-    Promise.all([clima(), alertas(), previsaoInmet(), radar()]).then(function () { $("reload").disabled = false; desenharFontes(); });
+    Promise.all([clima(), alertas(), previsaoInmet(), Cemaden.carregar(), radar()].map(function (p) { return p.then(desenharFontes); })).then(function () { $("reload").disabled = false; desenharFontes(); });
     desenharFontes();
   }
   $("reload").onclick = go;
