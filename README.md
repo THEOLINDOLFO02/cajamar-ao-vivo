@@ -10,6 +10,7 @@ Projeto pessoal (uso individual, por diversão e aprendizado) de acompanhamento 
 |---|---|
 | `index.html` | Painel: tempo atual, chuva prevista (24 h e 7 dias), alertas do INMET para Cajamar e radar de chuva. Mostra o estado e a hora da última atualização de **cada fonte**. |
 | `quadro.html` | Quadro de ocorrências pessoal (6 categorias). Os registros ficam no navegador do próprio aparelho; há exportar/importar backup em arquivo `.json`. Sem login, sem banco externo, sem dados de moradores. |
+| `historico.html` | Histórico da estação meteorológica de Cajamar: você importa o CSV baixado da plataforma (lido só no navegador) e vê chuva por dia, maiores chuvas em 1 h e 10 min, temperatura, vento e tabela dia a dia. Reimportar não duplica dias. O CSV não faz parte do repositório. |
 
 ### Como o painel trata falhas
 
