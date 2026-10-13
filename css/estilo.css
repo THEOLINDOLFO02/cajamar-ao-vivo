@@ -30,3 +30,4 @@ button{font:inherit;color:inherit;background:var(--card);border:1px solid var(--
 .dot.ok{background:var(--ok)}.dot.erro{background:var(--red)}.dot.velho{background:var(--yel)}
 .stale{background:var(--bg);border-left:4px solid var(--yel);border-radius:6px;padding:6px 10px;margin:0 0 8px;font-size:.84rem}
 .aux{border:1px solid var(--line);border-left:4px solid var(--acc);background:var(--card);border-radius:8px;padding:8px 12px;font-size:.84rem}
+.pdia{border-top:1px solid var(--line);padding:8px 0}.pdia:first-of-type{border-top:0;padding-top:0}.pdia small{display:block;color:var(--mut);margin-bottom:4px}.pper{font-size:.9rem;margin:2px 0}

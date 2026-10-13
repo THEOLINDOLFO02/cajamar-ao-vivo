@@ -32,6 +32,7 @@ npx serve .
 | Fonte | Uso | Observação |
 |---|---|---|
 | [Open-Meteo](https://open-meteo.com/) | tempo atual e previsão | modelo, não é medição |
+| [INMET – previsão](https://apiprevmet3.inmet.gov.br/previsao/3509205) | previsão oficial por município (manhã/tarde/noite nos 2 primeiros dias, depois resumo diário) | |
 | [INMET – avisos ativos](https://apiprevmet3.inmet.gov.br/avisos/ativos) | avisos oficiais para Cajamar (fonte principal) | filtrado pelo código IBGE 3509205 |
 | [radarmeteorologico.com.br](https://radarmeteorologico.com.br/api-publica) | reserva dos avisos, só se a API oficial falhar | terceiro; não é oficial |
 | [RainViewer](https://www.rainviewer.com/api.html) | radar | uso pessoal: zoom máx. 7, apenas dados passados |

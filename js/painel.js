@@ -14,7 +14,7 @@
     if (r.antigo) box.insertBefore(el("p", "stale", "Não foi possível atualizar agora. Mostrando dados antigos, coletados em " + dh(r.de) + "."), box.firstChild);
   }
 
-  var NOMES = { clima: "Previsão e tempo atual (Open-Meteo)", avisos_inmet: "Avisos INMET (oficial)", alertas: "Avisos via radarmeteorologico.com.br (reserva)", radar: "Radar (RainViewer)" };
+  var NOMES = { clima: "Previsão e tempo atual (Open-Meteo)", avisos_inmet: "Avisos INMET (oficial)", previsao_inmet: "Previsão INMET (oficial)", alertas: "Avisos via radarmeteorologico.com.br (reserva)", radar: "Radar (RainViewer)" };
 
   function desenharFontes() {
     var ul = $("fontes"); ul.textContent = "";
@@ -153,6 +153,43 @@
     });
   }
 
+  function chaveData(s) { var p = String(s).split("/"); return p.length === 3 ? p[2] + p[1] + p[0] : s; }
+  async function previsaoInmet() {
+    var B = $("prevInmet");
+    try {
+      var r = await Fontes.consultar("previsao_inmet", "https://apiprevmet3.inmet.gov.br/previsao/" + IBGE, function (j) { return j && j[String(IBGE)] && typeof j[String(IBGE)] === "object"; });
+      var dias = r.dados[String(IBGE)];
+      var chaves = Object.keys(dias).sort(function (a, b) { return chaveData(a) < chaveData(b) ? -1 : 1; });
+      B.textContent = ""; B.className = "";
+      aviso(B, r);
+      if (!chaves.length) { B.appendChild(el("span", "mut", "O INMET não trouxe previsão para Cajamar nesta consulta.")); return; }
+      chaves.forEach(function (dia) {
+        var per = dias[dia] || {}, ref = per.manha || per.tarde || per.noite || per;
+        var porPeriodo = !!(per.manha || per.tarde || per.noite);
+        var d = el("div", "pdia");
+        var cab = el("strong", "", (ref.dia_semana ? ref.dia_semana + " · " : "") + dia.slice(0, 5));
+        d.appendChild(cab);
+        d.appendChild(el("small", "", "Mín " + num(ref.temp_min) + "° · Máx " + num(ref.temp_max) + "° · Umidade " + num(ref.umidade_min) + "–" + num(ref.umidade_max) + "%"));
+        if (!porPeriodo) {
+          var l1 = el("div", "pper");
+          l1.appendChild(el("span", "", (ref.resumo || "sem descrição") + (ref.dir_vento ? " · vento " + ref.dir_vento + (ref.int_vento ? " (" + String(ref.int_vento).toLowerCase() + ")" : "") : "")));
+          d.appendChild(l1);
+        }
+        [["manha", "Manhã"], ["tarde", "Tarde"], ["noite", "Noite"]].forEach(function (p) {
+          var x = per[p[0]]; if (!x) return;
+          var linha = el("div", "pper");
+          linha.appendChild(el("b", "", p[1] + ": "));
+          linha.appendChild(el("span", "", (x.resumo || "sem descrição") + (x.dir_vento ? " · vento " + x.dir_vento + (x.int_vento ? " (" + String(x.int_vento).toLowerCase() + ")" : "") : "")));
+          d.appendChild(linha);
+        });
+        B.appendChild(d);
+      });
+      B.appendChild(el("p", "mut", "Fonte: previsão do INMET para o município (fonte oficial). Compare com a previsão de modelo do Open-Meteo abaixo."));
+    } catch (e) {
+      fail(B, "Não foi possível consultar a previsão do INMET agora. Veja previsao.inmet.gov.br/3509205.");
+    }
+  }
+
   var map = null, frames = [], layers = [], cur = 0, timer = null, host = "";
   function show(i) {
     if (!layers.length) return;
@@ -203,7 +240,7 @@
 
   function go() {
     $("reload").disabled = true;
-    Promise.all([clima(), alertas(), radar()]).then(function () { $("reload").disabled = false; desenharFontes(); });
+    Promise.all([clima(), alertas(), previsaoInmet(), radar()]).then(function () { $("reload").disabled = false; desenharFontes(); });
     desenharFontes();
   }
   $("reload").onclick = go;
