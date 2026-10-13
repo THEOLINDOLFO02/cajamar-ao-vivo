@@ -39,8 +39,8 @@ Previstas: INMET (previsão, avisos e estações), CEMADEN, SAISP e Chuva Online
 
 ## Créditos dos repositórios de referência
 
-- [clima-agora-api](https://github.com/) de Kel Baker — licença MIT. Origem da ideia de combinar Open-Meteo + alertas INMET filtrados por código IBGE.
-- [rainviewer-api-example](https://github.com/rainviewer/rainviewer-api-example) — exemplo oficial do RainViewer, usado como referência de como animar os quadros do radar. Sem licença explícita: nenhum código foi copiado.
+- clima-agora-api, de Kel Baker — licença MIT. Origem da ideia de combinar Open-Meteo + alertas INMET filtrados por código IBGE.
+- rainviewer-api-example — exemplo oficial do RainViewer, usado como referência de como animar os quadros do radar. Sem licença explícita: nenhum código foi copiado.
 - dados_metereologicos_brasil — pipeline de dados históricos do INMET; estudado como referência do formato dos arquivos, sem uso de código. Sem licença explícita.
 
 ## Licença
