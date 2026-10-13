@@ -89,21 +89,6 @@
     }
   }
 
-  // Normaliza aviso oficial do INMET (apiprevmet3) para o formato interno.
-  function doInmet(j) {
-    var vistos = {}, out = [];
-    (j.hoje || []).concat(j.futuro || []).forEach(function (a) {
-      var cods = String(a.geocodes || "").replace(/[^0-9,]/g, "").split(",");
-      var chave = a.id_aviso + "/" + a.id_sequencia;
-      if (cods.indexOf(String(IBGE)) < 0 || a.encerrado || vistos[chave]) return;
-      vistos[chave] = 1;
-      var riscos = a.riscos, instr = a.instrucoes;
-      try { if (typeof riscos === "string") riscos = JSON.parse(riscos); } catch (e) { riscos = [riscos]; }
-      try { if (typeof instr === "string") instr = JSON.parse(instr); } catch (e) { instr = [instr]; }
-      out.push({ evento: a.descricao, severidade: a.severidade, inicio: a.inicio, fim: a.fim, risco: (riscos || [])[0], instrucoes: instr || [] });
-    });
-    return out;
-  }
   // Normaliza o repassador de terceiros (radarmeteorologico.com.br).
   function doTerceiro(j) {
     return j.alertas.filter(function (a) { return (a.geocodes || []).map(Number).indexOf(IBGE) > -1; }).map(function (a) {
@@ -117,13 +102,13 @@
   async function alertas() {
     var A = $("alertas");
     // 1) fonte oficial INMET; 2) se falhar, repassador de terceiros; 3) dado antigo guardado.
-    var ofi = await tentar("avisos_inmet", "https://apiprevmet3.inmet.gov.br/avisos/ativos", function (j) { return j && Array.isArray(j.hoje) && Array.isArray(j.futuro); });
+    var ofi = await tentar("avisos_inmet", "https://apiprevmet3.inmet.gov.br/avisos/ativos", Inmet.validarAvisos);
     var r = ofi, lista, rotulo = "INMET (fonte oficial)";
-    if (ofi && !ofi.antigo) lista = doInmet(ofi.dados);
+    if (ofi && !ofi.antigo) lista = Inmet.avisosDoMunicipio(ofi.dados);
     else {
       var ter = await tentar("alertas", "https://radarmeteorologico.com.br/api/v1/alertas?uf=" + UF, function (j) { return j && Array.isArray(j.alertas); });
       if (ter && !ter.antigo) { r = ter; lista = doTerceiro(ter.dados); rotulo = "radarmeteorologico.com.br (terceiro, usado porque a fonte oficial falhou)"; }
-      else if (ofi) { lista = doInmet(ofi.dados); }
+      else if (ofi) { lista = Inmet.avisosDoMunicipio(ofi.dados); }
       else if (ter) { r = ter; lista = doTerceiro(ter.dados); rotulo = "radarmeteorologico.com.br (terceiro)"; }
     }
     if (!r) {

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gerar Publicação</title>
+<link rel="stylesheet" href="css/estilo.css">
+<link rel="stylesheet" href="css/publicar.css">
+</head>
+<body>
+<main>
+  <header>
+    <h1>Gerar publicação (Instagram)</h1>
+    <p class="sub"><a href="index.html">Painel ao vivo</a> · <a href="quadro.html">Quadro</a> · <a href="historico.html">Histórico da estação</a></p>
+  </header>
+  <div class="aux"><b>Rascunho para você revisar.</b> Nada é postado automaticamente: o sistema gera a imagem (Stories 1080×1920) e a legenda, e você publica manualmente. Repasse só o que o INMET e a Defesa Civil oficial divulgam, sempre com a fonte e o horário. Se não houver dado novo, a geração fica bloqueada para não publicar informação velha.</div>
+
+  <section class="card">
+    <h2>1. Tipo de publicação</h2>
+    <label class="campo">Tipo
+      <select id="tipo">
+        <option value="aviso">Aviso oficial do INMET</option>
+        <option value="prevdia">Previsão do dia (INMET)</option>
+        <option value="prevsemana">Previsão dos próximos dias (INMET)</option>
+        <option value="chuva">Chuva medida em Cajamar (estação)</option>
+        <option value="dica">Dica de prevenção</option>
+      </select>
+    </label>
+    <label class="campo" id="boxEscolha">Escolha
+      <select id="escolha"></select>
+    </label>
+    <p id="status" class="mut" style="margin:6px 0 0;font-size:.86rem" aria-live="polite"></p>
+  </section>
+
+  <section class="card">
+    <h2>2. Conteúdo (editável)</h2>
+    <label class="campo">Título<input id="titulo" maxlength="90"></label>
+    <label class="campo">Subtítulo<input id="subtitulo" maxlength="110"></label>
+    <label class="campo">Linhas da imagem (uma por linha)<textarea id="linhas" rows="7"></textarea></label>
+    <label class="campo">Telefone/contato local da Defesa Civil (opcional, fica salvo neste aparelho)<input id="contato" maxlength="60" placeholder="Ex.: (11) 0000-0000"></label>
+    <label class="campo">Legenda do Instagram<textarea id="legenda" rows="8"></textarea></label>
+  </section>
+
+  <section class="card">
+    <h2>3. Prévia</h2>
+    <div class="previa"><canvas id="tela" width="1080" height="1920" aria-label="Prévia da imagem para Stories"></canvas></div>
+    <div class="barra-acoes">
+      <button id="baixar" type="button">Baixar imagem (PNG)</button>
+      <button id="copiar" type="button">Copiar legenda</button>
+    </div>
+    <p id="msg" class="mut" style="margin:8px 0 0;font-size:.86rem" aria-live="polite"></p>
+  </section>
+  <p class="mut" style="font-size:.8rem">Os textos de “dicas de prevenção” são gerais: revise e ajuste conforme o protocolo da sua Defesa Civil. Para a imagem poder ser baixada, abra a página por um endereço http(s), não direto do arquivo.</p>
+</main>
+<script src="js/fontes.js"></script>
+<script src="js/inmet.js"></script>
+<script src="js/publicar.js"></script>
+</body>
+</html>

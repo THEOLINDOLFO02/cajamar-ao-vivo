@@ -11,6 +11,7 @@ Projeto pessoal (uso individual, por diversão e aprendizado) de acompanhamento 
 | `index.html` | Painel: tempo atual, chuva prevista (24 h e 7 dias), alertas do INMET para Cajamar e radar de chuva. Mostra o estado e a hora da última atualização de **cada fonte**. |
 | `quadro.html` | Quadro de ocorrências pessoal (6 categorias). Os registros ficam no navegador do próprio aparelho; há exportar/importar backup em arquivo `.json`. Sem login, sem banco externo, sem dados de moradores. |
 | `historico.html` | Histórico da estação meteorológica de Cajamar: você importa o CSV baixado da plataforma (lido só no navegador) e vê chuva por dia, maiores chuvas em 1 h e 10 min, temperatura, vento e tabela dia a dia. Reimportar não duplica dias. O CSV não faz parte do repositório. |
+| `publicar.html` | Gera imagem (Stories 1080×1920) e legenda para o Instagram a partir de avisos e previsão oficiais do INMET, da chuva medida pela estação ou de dicas de prevenção. Você revisa e publica manualmente; nada é postado sozinho. Bloqueia a geração quando não há dado novo. |
 
 ### Como o painel trata falhas
 
@@ -54,3 +55,11 @@ Previstas: INMET (previsão, avisos e estações), CEMADEN, SAISP e Chuva Online
 ## Sobre os dados do quadro
 
 Tudo fica no `localStorage` do navegador onde você registrou: não há servidor e nada é enviado pela internet. Consequências: cada aparelho tem a sua própria lista, e limpar os dados do navegador apaga os registros. Use **Exportar backup** de vez em quando e **Importar backup** para levar os registros a outro aparelho. Não registre nomes, telefones ou documentos de moradores.
+
+## Publicações para o Instagram
+
+- A página `publicar.html` só **gera rascunhos**: imagem PNG e texto da legenda. A publicação é manual.
+- Avisos e previsão só são gerados com dado **recém-coletado** do INMET (nunca com dado guardado/antigo) e a imagem mostra a fonte e a hora da geração.
+- As **dicas de prevenção** são textos gerais escritos como ponto de partida: revise e ajuste conforme o protocolo da sua Defesa Civil antes de publicar. Os telefones 199 (Defesa Civil) e 193 (Bombeiros) são os nacionais; o contato local é opcional e preenchido por você.
+- O brasão e o logo em `assets/` foram incluídos com a confirmação do responsável pela página de que há autorização de uso; ao reutilizar o projeto, confirme os direitos desses símbolos.
+- Para baixar a imagem é preciso abrir a página por http(s) (por exemplo, GitHub Pages ou `npx serve .`), não direto do arquivo.
