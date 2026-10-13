@@ -1,3 +1,8 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Quadro de Ocorrências</title>
 <style>
 :root{--bg:#f4f5f2;--surface:#fff;--fg:#1d2420;--muted:#5d6760;--line:#dcdfd9;--accent:#c2410c;--accent-fg:#fff;--ok:#2f7d4f;--warn:#b45309;--open:#b91c1c;--chip:#ecefe9;--shadow:0 1px 2px rgba(20,30,25,.08)}
@@ -40,25 +45,34 @@ textarea{min-height:80px;resize:vertical}
 .empty{text-align:center;padding:32px 16px;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:12px}
 .empty b{display:block;color:var(--fg);font-size:1.05rem;margin-bottom:4px}
 .err{color:var(--open);font-size:.88rem}
+.top .x{margin-left:auto}
+.ok{color:var(--ok);font-size:.88rem}
 </style>
+</head>
+<body>
 <div class="wrap">
   <header>
     <h1>Quadro de Ocorrências</h1>
-    <p class="sub">Defesa Civil de Cajamar · registro rápido da equipe</p>
+    <p class="sub">Registro pessoal · <a href="index.html" style="color:var(--accent)">Voltar ao painel</a></p>
   </header>
-  <div class="warn">Não registre nomes, telefones ou documentos de moradores. Este quadro apoia o acompanhamento da equipe e <b>não substitui</b> o registro formal da ocorrência.</div>
+  <div class="warn">Os registros ficam <b>só neste aparelho e navegador</b> (não vão para a internet). Não anote nomes, telefones ou documentos de moradores. Limpar os dados do navegador apaga tudo: use <b>Exportar</b> para fazer backup.</div>
   <div class="counts" id="counts"></div>
-  <div class="actions"><button class="btn primary" id="novo" type="button">+ Nova ocorrência</button></div>
+  <div class="actions">
+    <button class="btn primary" id="novo" type="button">+ Nova ocorrência</button>
+    <button class="btn" id="exportar" type="button">Exportar backup</button>
+    <button class="btn" id="importar" type="button">Importar backup</button>
+    <input id="arquivo" type="file" accept="application/json,.json" hidden>
+  </div>
   <form id="form" hidden>
     <div class="row2">
       <label>Categoria<select id="tipo" required></select></label>
       <label>Tipo<select id="subtipo" required></select></label>
     </div>
     <div class="row2">
-      <label>Bairro / local<input id="local" maxlength="120" required placeholder="Ex.: Jordanésia, Rua das Flores"></label>
+      <label>Bairro / local<input id="local" maxlength="120" required placeholder="Ex.: bairro ou ponto de referência"></label>
       <label>Data e hora<input id="quando" type="datetime-local" required></label>
     </div>
-    <label>Descrição<textarea id="desc" maxlength="600" placeholder="O que foi observado e providência tomada"></textarea></label>
+    <label>Descrição<textarea id="desc" maxlength="600" placeholder="O que foi observado e providência tomada (sem dados pessoais)"></textarea></label>
     <div class="err" id="err" hidden></div>
     <div class="actions"><button class="btn primary" type="submit" id="salvar">Registrar</button><button class="btn" type="button" id="cancelar">Cancelar</button></div>
   </form>
@@ -69,82 +83,6 @@ textarea{min-height:80px;resize:vertical}
   <div id="aviso" class="warn" hidden></div>
   <ul class="list" id="lista"></ul>
 </div>
-<script>
-(function(){
-var CAT={
-"Incêndios":["Terreno baldio","Vegetação","Residência","Apoio a fogo"],
-"Enxames e Himenópteros":["Monitoramento de enxame de abelhas","Atendimento de ouvidoria – enxame","Vespas e marimbondos","Outras situações com abelhas/insetos de risco"],
-"Ocorrências com Árvores":["Poda","Supressão","Corte com motosserra","Avaliação/atendimento de risco"],
-"Eventos Hidrológicos e Geológicos":["Inundação","Escorregamento","Monitoramento de áreas de risco"],
-"Vistorias e Avaliação de Edificações":["Vistoria estrutural","Avaliação de condições de risco em imóveis"],
-"Animais Peçonhentos e Fauna":["Cobras","Manuseio e transporte de cobras","Resgate e manejo de animais"]};
-var ST={aberta:"Aberta",atendimento:"Em atendimento",concluida:"Concluída"};
-var $=function(i){return document.getElementById(i)};
-var db=null,uid=null,canWrite=true,rows=[];
-function opt(sel,vals){vals.forEach(function(v){var o=document.createElement("option");o.value=v;o.textContent=v;sel.appendChild(o)})}
-opt($("tipo"),Object.keys(CAT));opt($("ftipo"),Object.keys(CAT));
-function subs(){var s=$("subtipo");s.textContent="";opt(s,CAT[$("tipo").value]||[])}
-$("tipo").onchange=subs;subs();
-function nowLocal(){var d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,16)}
-function fmt(iso){var d=new Date(iso);return isNaN(d)?"":d.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}
-function aviso(t){var a=$("aviso");a.hidden=!t;a.textContent=t||""}
-$("novo").onclick=function(){$("form").hidden=false;$("quando").value=nowLocal();$("local").focus()};
-$("cancelar").onclick=function(){$("form").hidden=true;$("err").hidden=true};
-$("form").onsubmit=async function(e){
-  e.preventDefault();
-  if(!db){return}
-  var b=$("salvar");b.disabled=true;$("err").hidden=true;
-  try{
-    var d=new Date($("quando").value);
-    await db.collection("ocorrencias").add({tipo:$("tipo").value,subtipo:$("subtipo").value,local:$("local").value.trim(),descricao:$("desc").value.trim(),status:"aberta",quando:isNaN(d)?new Date().toISOString():d.toISOString(),criadoEm:new Date().toISOString(),criadoPor:uid||null});
-    $("form").reset();subs();$("form").hidden=true;
-  }catch(x){$("err").hidden=false;$("err").textContent=x&&x.code==="quota_exceeded"?"Limite de registros atingido. Avise o responsável pelo quadro.":"Não foi possível salvar. Verifique se você tem permissão de edição neste quadro."}
-  b.disabled=false;
-};
-async function setStatus(id,s){
-  try{await db.collection("ocorrencias").doc(id).update({status:s,atualizadoEm:new Date().toISOString(),atualizadoPor:uid||null})}
-  catch(x){aviso("Não foi possível alterar o status (sem permissão de edição?).")}
-}
-function render(){
-  var fs=$("fstatus").value,ft=$("ftipo").value;
-  var c={aberta:0,atendimento:0,concluida:0};rows.forEach(function(r){if(c[r.status]!==undefined)c[r.status]++});
-  var cn=$("counts");cn.textContent="";
-  [["aberta","Abertas"],["atendimento","Em atendimento"],["concluida","Concluídas"]].forEach(function(p){
-    var d=document.createElement("div");d.className="count";var b=document.createElement("b");b.textContent=c[p[0]];var s=document.createElement("span");s.textContent=p[1];d.append(b,s);cn.appendChild(d)});
-  var ul=$("lista");ul.textContent="";
-  var vis=rows.filter(function(r){return(!fs||r.status===fs)&&(!ft||r.tipo===ft)});
-  if(!vis.length){
-    var li=document.createElement("li");li.className="empty";
-    var b=document.createElement("b");b.textContent=rows.length?"Nenhuma ocorrência com esses filtros":"Nenhuma ocorrência registrada";
-    var p=document.createElement("span");p.textContent=rows.length?"Mude os filtros acima para ver outras.":"Toque em “Nova ocorrência” para o primeiro registro da equipe.";
-    li.append(b,p);ul.appendChild(li);return}
-  vis.forEach(function(r){
-    var li=document.createElement("li");li.className="item";li.dataset.s=r.status;
-    var top=document.createElement("div");top.className="top";
-    var t=document.createElement("span");t.className="tipo";t.textContent=r.tipo+" · "+r.subtipo;
-    var bd=document.createElement("span");bd.className="badge";bd.textContent=ST[r.status]||r.status;
-    top.append(t,bd);
-    var m=document.createElement("div");m.className="meta";m.textContent=r.local+" · "+fmt(r.quando);
-    li.append(top,m);
-    if(r.descricao){var d=document.createElement("div");d.className="desc";d.textContent=r.descricao;li.appendChild(d)}
-    if(canWrite){
-      var a=document.createElement("div");a.className="actions";
-      Object.keys(ST).forEach(function(k){if(k===r.status)return;var bt=document.createElement("button");bt.className="btn small";bt.type="button";bt.textContent="→ "+ST[k];bt.onclick=function(){setStatus(r.id,k)};a.appendChild(bt)});
-      li.appendChild(a)}
-    ul.appendChild(li)});
-}
-$("fstatus").onchange=render;$("ftipo").onchange=render;render();
-(async function(){
-  try{
-    var u=await window.claude.use("user");
-    if(u){uid=await u.id();var w=await u.can("data.write");if(w===false){canWrite=false}}
-    db=await window.claude.use("db");
-  }catch(e){db=null}
-  if(!db){aviso("O banco compartilhado não está disponível nesta visualização. Abra o quadro pelo link no Claude para registrar e ver ocorrências.");$("novo").disabled=true;return}
-  if(!canWrite){$("novo").disabled=true;aviso("Você tem acesso somente para leitura. Peça permissão de colaborador para registrar ocorrências.")}
-  db.collection("ocorrencias").orderBy("criadoEm","desc").limit(500).onSnapshot(function(s){
-    rows=s.docs.map(function(d){var x=d.data();x.id=d.id;return x});render()},
-    function(){aviso("Conexão com o quadro interrompida. Recarregue a página.")});
-})();
-})();
-</script>
+<script src="js/quadro.js"></script>
+</body>
+</html>

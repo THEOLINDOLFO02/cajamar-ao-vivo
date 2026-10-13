@@ -1,6 +1,6 @@
 # Cajamar ao Vivo — Defesa Civil de Cajamar/SP
 
-Sistema web de acompanhamento para a Defesa Civil de Cajamar (IBGE 3509205): previsão, chuva, alertas, radar e quadro de ocorrências da equipe. Funciona no celular, sem servidor pago, e pode ser hospedado de graça (GitHub Pages).
+Projeto pessoal (uso individual, por diversão e aprendizado) de acompanhamento para a Defesa Civil de Cajamar (IBGE 3509205): previsão, chuva, alertas, radar e quadro de ocorrências da equipe. Funciona no celular, sem servidor pago, e pode ser hospedado de graça (GitHub Pages).
 
 > **Aviso importante:** previsão, avisos e radar mostrados aqui são **auxiliares** e **não substituem** os avisos oficiais do INMET, do CEMADEN e da Defesa Civil estadual/nacional. Sempre confirme na fonte oficial antes de decidir.
 
@@ -9,7 +9,7 @@ Sistema web de acompanhamento para a Defesa Civil de Cajamar (IBGE 3509205): pre
 | Página | O que faz |
 |---|---|
 | `index.html` | Painel: tempo atual, chuva prevista (24 h e 7 dias), alertas do INMET para Cajamar e radar de chuva. Mostra o estado e a hora da última atualização de **cada fonte**. |
-| `quadro.html` | Quadro de ocorrências da equipe (em evolução — ainda depende de um banco que será trocado). |
+| `quadro.html` | Quadro de ocorrências pessoal (6 categorias). Os registros ficam no navegador do próprio aparelho; há exportar/importar backup em arquivo `.json`. Sem login, sem banco externo, sem dados de moradores. |
 
 ### Como o painel trata falhas
 
@@ -46,3 +46,7 @@ Previstas: INMET (previsão, avisos e estações), CEMADEN, SAISP e Chuva Online
 ## Licença
 
 [MIT](LICENSE) © 2026 Theobaldo, Defesa Civil de Cajamar/SP.
+
+## Sobre os dados do quadro
+
+Tudo fica no `localStorage` do navegador onde você registrou: não há servidor e nada é enviado pela internet. Consequências: cada aparelho tem a sua própria lista, e limpar os dados do navegador apaga os registros. Use **Exportar backup** de vez em quando e **Importar backup** para levar os registros a outro aparelho. Não registre nomes, telefones ou documentos de moradores.
