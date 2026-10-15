@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Gerar Publicação</title>
+<meta name="theme-color" content="#0b6e8f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cajamar Clima">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/logo-dc-cajamar.jpg">
 <link rel="stylesheet" href="css/estilo.css">
 <link rel="stylesheet" href="css/publicar.css">
 </head>
@@ -11,21 +17,37 @@
 <main>
   <header>
     <h1>Gerar publicação (Instagram)</h1>
-    <p class="sub"><a href="index.html">Painel ao vivo</a> · <a href="quadro.html">Quadro</a> · <a href="historico.html">Histórico da estação</a></p>
+    <p class="sub">Defesa Civil de Cajamar/SP · acompanhamento auxiliar</p>
+    <nav class="nav-bar" aria-label="Navegação principal">
+      <a href="index.html">Painel ao vivo</a>
+      <a href="quadro.html">Quadro de ocorrências</a>
+      <a href="historico.html">Histórico da estação</a>
+      <a href="publicar.html" class="ativo" aria-current="page">Gerar publicação</a>
+      <a href="comparar.html">Previsão × medido</a>
+    </nav>
   </header>
-  <div class="aux"><b>Rascunho para você revisar.</b> Nada é postado automaticamente: o sistema gera a imagem (Stories 1080×1920) e a legenda, e você publica manualmente. Repasse só o que o INMET e a Defesa Civil oficial divulgam, sempre com a fonte e o horário. Se não houver dado novo, a geração fica bloqueada para não publicar informação velha.</div>
+  <div class="aux"><b>Rascunho para você revisar.</b> Nada é postado automaticamente: o sistema gera a imagem (Stories ou Feed) e a legenda, e você publica manualmente ou compartilha diretamente no app do Instagram/WhatsApp. Repasse só o que o INMET e a Defesa Civil oficial divulgam, sempre com a fonte e o horário. Se não houver dado novo, a geração fica bloqueada para não publicar informação velha.</div>
 
   <section class="card">
-    <h2>1. Tipo de publicação</h2>
-    <label class="campo">Tipo
-      <select id="tipo">
-        <option value="aviso">Aviso oficial do INMET</option>
-        <option value="prevdia">Previsão do dia (INMET)</option>
-        <option value="prevsemana">Previsão dos próximos dias (INMET)</option>
-        <option value="chuva">Chuva medida em Cajamar (estação)</option>
-        <option value="dica">Dica de prevenção</option>
-      </select>
-    </label>
+    <h2>1. Tipo e formato de publicação</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
+      <label class="campo">Tipo
+        <select id="tipo">
+          <option value="aviso">Aviso oficial do INMET</option>
+          <option value="prevdia">Previsão do dia (INMET)</option>
+          <option value="prevsemana">Previsão dos próximos dias (INMET)</option>
+          <option value="chuva">Chuva medida em Cajamar (estação)</option>
+          <option value="dica">Dica de prevenção</option>
+        </select>
+      </label>
+      <label class="campo">Formato
+        <select id="formato">
+          <option value="stories">Stories (1080 × 1920 · 9:16)</option>
+          <option value="feed">Feed Quadrado (1080 × 1080 · 1:1)</option>
+          <option value="retrato">Feed Retrato (1080 × 1350 · 4:5)</option>
+        </select>
+      </label>
+    </div>
     <label class="campo" id="boxEscolha">Escolha
       <select id="escolha"></select>
     </label>
@@ -43,17 +65,23 @@
 
   <section class="card">
     <h2>3. Prévia</h2>
-    <div class="previa"><canvas id="tela" width="1080" height="1920" aria-label="Prévia da imagem para Stories"></canvas></div>
+    <div class="previa"><canvas id="tela" width="1080" height="1920" aria-label="Prévia da imagem para publicação"></canvas></div>
     <div class="barra-acoes">
+      <button id="compartilhar" type="button" class="btn primary">📲 Compartilhar (Instagram / WhatsApp)</button>
       <button id="baixar" type="button">Baixar imagem (PNG)</button>
       <button id="copiar" type="button">Copiar legenda</button>
     </div>
     <p id="msg" class="mut" style="margin:8px 0 0;font-size:.86rem" aria-live="polite"></p>
   </section>
-  <p class="mut" style="font-size:.8rem">Os textos de “dicas de prevenção” são gerais: revise e ajuste conforme o protocolo da sua Defesa Civil. Para a imagem poder ser baixada, abra a página por um endereço http(s), não direto do arquivo.</p>
+  <p class="mut" style="font-size:.8rem">Os textos de “dicas de prevenção” são gerais: revise e ajuste conforme o protocolo da sua Defesa Civil. Para a imagem poder ser baixada ou compartilhada, abra a página por um endereço http(s), não direto do arquivo.</p>
 </main>
 <script src="js/fontes.js"></script>
 <script src="js/inmet.js"></script>
 <script src="js/publicar.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() { navigator.serviceWorker.register('./sw.js').catch(function(){}); });
+}
+</script>
 </body>
 </html>

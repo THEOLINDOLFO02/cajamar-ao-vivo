@@ -94,6 +94,7 @@
     if (tipo === "dica") setStatus("Textos gerais: revise antes de publicar.");
     if (bloqueio) setStatus(bloqueio);
     $("baixar").disabled = !!bloqueio; $("copiar").disabled = !!bloqueio;
+    if ($("compartilhar")) $("compartilhar").disabled = !!bloqueio;
     if (bloqueio) { limparCampos(); desenhar(); return; }
     montar();
   }
@@ -189,71 +190,184 @@
   function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
   var FONTE = "'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif";
 
+  var FORMATOS = {
+    stories: { w: 1080, h: 1920, yTopo: 230, headerBox: 160, logoDim: 148, titleSize: 68, subSize: 38, maxLinhas: 44, minLinhas: 26, limite: 1540, yr: 1590, prefix: "story" },
+    feed: { w: 1080, h: 1080, yTopo: 36, headerBox: 110, logoDim: 100, titleSize: 44, subSize: 28, maxLinhas: 32, minLinhas: 20, limite: 830, yr: 860, prefix: "feed" },
+    retrato: { w: 1080, h: 1350, yTopo: 60, headerBox: 130, logoDim: 120, titleSize: 52, subSize: 32, maxLinhas: 36, minLinhas: 22, limite: 1060, yr: 1100, prefix: "retrato" }
+  };
+
   function desenhar() {
-    var g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#14214d"); g.addColorStop(1, "#0b1330");
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    var fmtKey = ($("formato") && $("formato").value) || "stories";
+    var cfg = FORMATOS[fmtKey] || FORMATOS.stories;
+    W = cfg.w; H = cfg.h;
+    if (cv.width !== W || cv.height !== H) {
+      cv.width = W; cv.height = H;
+    }
+    var g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, "#14214d");
+    g.addColorStop(1, "#0b1330");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
     var temConteudo = $("titulo").value || $("linhas").value;
-    // cabeçalho (zona segura do Stories: ~250 px livres no topo)
-    var yTopo = 260;
-    ctx.fillStyle = "#fff"; rr(60, yTopo, 170, 170, 18); ctx.fill();
-    if (imgs.logo) ctx.drawImage(imgs.logo, 66, yTopo + 6, 158, 158);
-    if (imgs.brasao) { var bh = 150, bw = bh * imgs.brasao.width / imgs.brasao.height; ctx.drawImage(imgs.brasao, W - 60 - bw, yTopo + 10, bw, bh); }
+    var yTopo = cfg.yTopo;
+
+    // Logos do cabeçalho
+    ctx.fillStyle = "#fff";
+    rr(60, yTopo, cfg.headerBox, cfg.headerBox, 16);
+    ctx.fill();
+    if (imgs.logo) ctx.drawImage(imgs.logo, 66, yTopo + 6, cfg.logoDim, cfg.logoDim);
+    if (imgs.brasao) {
+      var bh = cfg.headerBox - 16, bw = bh * imgs.brasao.width / imgs.brasao.height;
+      ctx.drawImage(imgs.brasao, W - 60 - bw, yTopo + 8, bw, bh);
+    }
+
     ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
-    ctx.font = "700 34px " + FONTE; ctx.fillText("DEFESA CIVIL", W / 2, yTopo + 70);
-    ctx.font = "600 30px " + FONTE; ctx.fillText("CAJAMAR · SP", W / 2, yTopo + 112);
-    // faixa do tipo
-    var yTag = yTopo + 210;
-    ctx.fillStyle = modelo.cor || LARANJA; rr(60, yTag, W - 120, 74, 16); ctx.fill();
+    var tamTit = Math.round(cfg.headerBox * 0.22);
+    var tamSub = Math.round(cfg.headerBox * 0.19);
+    ctx.font = "700 " + tamTit + "px " + FONTE;
+    ctx.fillText("DEFESA CIVIL", W / 2, yTopo + cfg.headerBox * 0.44);
+    ctx.font = "600 " + tamSub + "px " + FONTE;
+    ctx.fillText("CAJAMAR · SP", W / 2, yTopo + cfg.headerBox * 0.74);
+
+    var hTag = fmtKey === "feed" ? 60 : 70;
+    var yTag = yTopo + cfg.headerBox + (fmtKey === "feed" ? 14 : 20);
+    ctx.fillStyle = modelo.cor || LARANJA;
+    rr(60, yTag, W - 120, hTag, 14);
+    ctx.fill();
     var clara = /^#(f|e|d)/i.test(modelo.cor || "") && !/^#d9/i.test(modelo.cor || "");
-    ctx.fillStyle = clara ? "#111" : "#fff"; ctx.font = "800 36px " + FONTE; ctx.fillText(modelo.tag || "", W / 2, yTag + 50);
-    if (!temConteudo) { ctx.fillStyle = "#9db0e0"; ctx.font = "500 36px " + FONTE; ctx.fillText("Escolha um tipo de publicação", W / 2, 900); return; }
+    ctx.fillStyle = clara ? "#111" : "#fff";
+    ctx.font = "800 " + (fmtKey === "feed" ? "28px " : "34px ") + FONTE;
+    ctx.fillText(modelo.tag || "", W / 2, yTag + (fmtKey === "feed" ? 42 : 48));
+
+    if (!temConteudo) {
+      ctx.fillStyle = "#9db0e0";
+      ctx.font = "500 34px " + FONTE;
+      ctx.fillText("Escolha um tipo de publicação", W / 2, H / 2);
+      return;
+    }
+
     ctx.textAlign = "left";
-    var x = 80, larg = W - 160, y = yTag + 150;
-    // título
-    ctx.fillStyle = "#fff"; ctx.font = "800 72px " + FONTE;
-    quebrar($("titulo").value, larg).slice(0, 3).forEach(function (l) { ctx.fillText(l, x, y); y += 84; });
-    ctx.fillStyle = "#b9c6ee"; ctx.font = "500 40px " + FONTE;
-    quebrar($("subtitulo").value, larg).slice(0, 2).forEach(function (l) { y += 4; ctx.fillText(l, x, y + 30); y += 50; });
-    y += 40;
-    // linhas, com tamanho que se ajusta ao espaço disponível
-    var limite = 1560, linhas = $("linhas").value.split(/\n/).map(function (s) { return s.trim(); }).filter(Boolean);
-    var tam = 46, blocos;
-    for (; tam >= 26; tam -= 2) {
+    var x = 80, larg = W - 160;
+    var y = yTag + hTag + (fmtKey === "feed" ? 36 : 48);
+
+    // Título
+    ctx.fillStyle = "#fff";
+    ctx.font = "800 " + cfg.titleSize + "px " + FONTE;
+    quebrar($("titulo").value, larg).slice(0, 3).forEach(function (l) {
+      ctx.fillText(l, x, y);
+      y += cfg.titleSize * 1.15;
+    });
+
+    // Subtítulo
+    ctx.fillStyle = "#b9c6ee";
+    ctx.font = "500 " + cfg.subSize + "px " + FONTE;
+    quebrar($("subtitulo").value, larg).slice(0, 2).forEach(function (l) {
+      y += 2;
+      ctx.fillText(l, x, y + cfg.subSize * 0.6);
+      y += cfg.subSize * 1.25;
+    });
+
+    y += (fmtKey === "feed" ? 14 : 24);
+
+    var linhas = $("linhas").value.split(/\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+    var tam = cfg.maxLinhas, blocos;
+    for (; tam >= cfg.minLinhas; tam -= 2) {
       ctx.font = "500 " + tam + "px " + FONTE;
       blocos = linhas.map(function (l) { return quebrar(l, larg - 40); });
-      var alt = blocos.reduce(function (s, b) { return s + b.length * (tam * 1.3) + tam * .5; }, 0);
-      if (y + alt <= limite) break;
+      var alt = blocos.reduce(function (s, b) { return s + b.length * (tam * 1.25) + tam * .35; }, 0);
+      if (y + alt <= cfg.limite) break;
     }
-    ctx.fillStyle = modelo.cor || LARANJA;
+
     blocos.forEach(function (b) {
-      ctx.fillStyle = modelo.cor || LARANJA; ctx.fillRect(x, y - tam * .75, 10, b.length * tam * 1.3 - tam * .2);
+      ctx.fillStyle = modelo.cor || LARANJA;
+      ctx.fillRect(x, y - tam * .75, 8, b.length * tam * 1.25 - tam * .2);
       ctx.fillStyle = "#fff";
-      b.forEach(function (l) { ctx.fillText(l, x + 36, y); y += tam * 1.3; });
-      y += tam * .5;
+      b.forEach(function (l) {
+        ctx.fillText(l, x + 28, y);
+        y += tam * 1.25;
+      });
+      y += tam * .35;
     });
-    // rodapé
-    var yr = 1600; ctx.fillStyle = "rgba(255,255,255,.18)"; ctx.fillRect(80, yr - 24, W - 160, 2);
-    ctx.fillStyle = "#dbe4ff"; ctx.font = "600 28px " + FONTE;
+
+    // Rodapé
+    var yr = cfg.yr;
+    ctx.fillStyle = "rgba(255,255,255,.18)";
+    ctx.fillRect(80, yr - 16, W - 160, 2);
+    ctx.fillStyle = "#dbe4ff";
     var c = contatoLocal();
-    var rod = [modelo.rodape, "Gerado em " + agora() + ". Informação auxiliar: confirme em previsao.inmet.gov.br.", "Emergência: Defesa Civil 199 · Bombeiros 193" + (c ? " · Defesa Civil Cajamar: " + c : "")];
-    var yy = yr + 10;
-    rod.forEach(function (t) { if (!t) return; ctx.font = "500 26px " + FONTE; quebrar(t, W - 160).slice(0, 2).forEach(function (l) { ctx.fillText(l, 80, yy); yy += 34; }); });
+    var rod = [
+      modelo.rodape,
+      "Gerado em " + agora() + ". Informação auxiliar: confirme em previsao.inmet.gov.br.",
+      "Emergência: Defesa Civil 199 · Bombeiros 193" + (c ? " · Cajamar: " + c : "")
+    ];
+    var yy = yr + 14;
+    var tamRodape = fmtKey === "feed" ? 20 : 24;
+    rod.forEach(function (t) {
+      if (!t) return;
+      ctx.font = "500 " + tamRodape + "px " + FONTE;
+      quebrar(t, W - 160).slice(0, 2).forEach(function (l) {
+        ctx.fillText(l, 80, yy);
+        yy += tamRodape * 1.35;
+      });
+    });
+  }
+
+  function obterNomeArquivo() {
+    var fmtKey = ($("formato") && $("formato").value) || "stories";
+    var prefix = (FORMATOS[fmtKey] && FORMATOS[fmtKey].prefix) || "post";
+    var d = new Date();
+    return prefix + "-" + $("tipo").value + "-" + d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + "-" + p2(d.getHours()) + p2(d.getMinutes()) + ".png";
   }
 
   // ---------- ações ----------
+  $("compartilhar").onclick = function () {
+    setMsg("");
+    try {
+      cv.toBlob(async function (b) {
+        if (!b) { setMsg("Não foi possível gerar a imagem."); return; }
+        var nomeArq = obterNomeArquivo();
+        var file = new File([b], nomeArq, { type: "image/png" });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              title: $("titulo").value || "Defesa Civil de Cajamar",
+              text: $("legenda").value || "",
+              files: [file]
+            });
+            setMsg("Compartilhado com sucesso!");
+            return;
+          } catch (err) {
+            if (err.name === "AbortError") return;
+          }
+        }
+        // Fallback: baixa imagem e copia legenda
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(b);
+        a.download = nomeArq;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+        try { await navigator.clipboard.writeText($("legenda").value); } catch (e) {}
+        setMsg("Imagem baixada e legenda copiada! Cole no Instagram ou WhatsApp.");
+      }, "image/png");
+    } catch (e) {
+      setMsg("Não foi possível compartilhar automaticamente. Use Baixar imagem e Copiar legenda.");
+    }
+  };
+
   $("baixar").onclick = function () {
     setMsg("");
     try {
       cv.toBlob(function (b) {
         if (!b) { setMsg("Não foi possível gerar a imagem."); return; }
-        var a = document.createElement("a"), d = new Date();
+        var a = document.createElement("a"), nomeArq = obterNomeArquivo();
         a.href = URL.createObjectURL(b);
-        a.download = "story-" + $("tipo").value + "-" + d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + "-" + p2(d.getHours()) + p2(d.getMinutes()) + ".png";
+        a.download = nomeArq;
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
         setMsg("Imagem baixada. Revise antes de publicar.");
       }, "image/png");
-    } catch (e) { setMsg("Não foi possível exportar a imagem. Abra a página por http(s) (por exemplo, o endereço do GitHub Pages) e tente de novo."); }
+    } catch (e) { setMsg("Não foi possível exportar a imagem. Abra a página por http(s) e tente de novo."); }
   };
   $("copiar").onclick = async function () {
     try { await navigator.clipboard.writeText($("legenda").value); setMsg("Legenda copiada."); }
@@ -262,6 +376,7 @@
 
   ["titulo", "subtitulo", "linhas"].forEach(function (i) { $(i).oninput = desenhar; });
   $("tipo").onchange = atualizarEscolha;
+  if ($("formato")) $("formato").onchange = desenhar;
   $("escolha").onchange = montar;
   $("contato").oninput = desenhar;
   $("contato").onchange = function () { try { localStorage.setItem(CHAVE_CONTATO, $("contato").value); } catch (e) {} if (!$("baixar").disabled) montar(); };
