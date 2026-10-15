@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Quadro de Ocorrências</title>
+<meta name="theme-color" content="#0b6e8f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cajamar Clima">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/logo-dc-cajamar.jpg">
 <style>
 :root{--bg:#f4f5f2;--surface:#fff;--fg:#1d2420;--muted:#5d6760;--line:#dcdfd9;--accent:#c2410c;--accent-fg:#fff;--ok:#2f7d4f;--warn:#b45309;--open:#b91c1c;--chip:#ecefe9;--shadow:0 1px 2px rgba(20,30,25,.08)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141815;--surface:#1c221e;--fg:#e8ece8;--muted:#9aa59d;--line:#2f3832;--accent:#fb923c;--accent-fg:#1a1208;--ok:#5fbf86;--warn:#f0b254;--open:#f87171;--chip:#262e29;--shadow:none;color-scheme:dark}}
@@ -13,7 +19,14 @@ body{background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system
 .wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
 h1{font-size:1.4rem;margin:0;text-wrap:balance;letter-spacing:-.01em}
 .sub{color:var(--muted);margin:2px 0 0;font-size:.9rem}
+.sub a{color:var(--accent)}
+.nav-bar{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-top:6px;-webkit-overflow-scrolling:touch}
+.nav-bar a{display:inline-block;padding:6px 12px;border-radius:20px;text-decoration:none;font-size:.82rem;color:var(--muted);background:var(--surface);border:1px solid var(--line);white-space:nowrap;transition:all .15s}
+.nav-bar a:hover{color:var(--fg);border-color:var(--accent)}
+.nav-bar a.ativo{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
 .warn{background:var(--chip);border-left:3px solid var(--warn);padding:10px 12px;border-radius:6px;font-size:.85rem;color:var(--muted)}
+.warn.ok{border-left-color:var(--ok);background:var(--surface);color:var(--fg)}
+.warn.ruim{border-left-color:var(--open);background:var(--surface);color:var(--open)}
 .counts{display:flex;gap:8px;flex-wrap:wrap}
 .count{flex:1 1 90px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;box-shadow:var(--shadow)}
 .count b{display:block;font-size:1.5rem;font-variant-numeric:tabular-nums;line-height:1.1}
@@ -30,6 +43,7 @@ textarea{min-height:80px;resize:vertical}
 .row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
 .filters{display:flex;gap:8px;flex-wrap:wrap}
+.filters input[type="search"]{flex:2 1 200px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 12px;color:var(--fg);font:inherit}
 .filters select{flex:1 1 160px;width:auto}
 .list{display:flex;flex-direction:column;gap:10px;padding:0;margin:0;list-style:none}
 .item{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:6px;box-shadow:var(--shadow);min-width:0}
@@ -53,17 +67,26 @@ textarea{min-height:80px;resize:vertical}
 <div class="wrap">
   <header>
     <h1>Quadro de Ocorrências</h1>
-    <p class="sub">Registro pessoal · <a href="index.html" style="color:var(--accent)">Voltar ao painel</a> · <a href="historico.html" style="color:var(--accent)">Histórico da estação</a></p>
+    <p class="sub">Defesa Civil de Cajamar/SP · registro pessoal</p>
+    <nav class="nav-bar" aria-label="Navegação principal">
+      <a href="index.html">Painel ao vivo</a>
+      <a href="quadro.html" class="ativo" aria-current="page">Quadro de ocorrências</a>
+      <a href="historico.html">Histórico da estação</a>
+      <a href="publicar.html">Gerar publicação</a>
+      <a href="comparar.html">Previsão × medido</a>
+    </nav>
   </header>
   <div class="warn">Os registros ficam <b>só neste aparelho e navegador</b> (não vão para a internet). Não anote nomes, telefones ou documentos de moradores. Limpar os dados do navegador apaga tudo: use <b>Exportar</b> para fazer backup.</div>
   <div class="counts" id="counts"></div>
   <div class="actions">
     <button class="btn primary" id="novo" type="button">+ Nova ocorrência</button>
+    <button class="btn" id="relatorio" type="button" title="Copiar relatório formatado para o WhatsApp da equipe">📋 Resumo para WhatsApp</button>
     <button class="btn" id="exportar" type="button">Exportar backup</button>
     <button class="btn" id="importar" type="button">Importar backup</button>
     <input id="arquivo" type="file" accept="application/json,.json" hidden>
   </div>
   <form id="form" hidden>
+    <h2 id="formTitulo" style="margin:0;font-size:1.1rem">Nova ocorrência</h2>
     <div class="row2">
       <label>Categoria<select id="tipo" required></select></label>
       <label>Tipo<select id="subtipo" required></select></label>
@@ -72,11 +95,15 @@ textarea{min-height:80px;resize:vertical}
       <label>Bairro / local<input id="local" maxlength="120" required placeholder="Ex.: bairro ou ponto de referência"></label>
       <label>Data e hora<input id="quando" type="datetime-local" required></label>
     </div>
+    <div class="row2" id="boxStatus" hidden>
+      <label>Status<select id="statusForm"><option value="aberta">Aberta</option><option value="atendimento">Em atendimento</option><option value="concluida">Concluída</option></select></label>
+    </div>
     <label>Descrição<textarea id="desc" maxlength="600" placeholder="O que foi observado e providência tomada (sem dados pessoais)"></textarea></label>
     <div class="err" id="err" hidden></div>
     <div class="actions"><button class="btn primary" type="submit" id="salvar">Registrar</button><button class="btn" type="button" id="cancelar">Cancelar</button></div>
   </form>
   <div class="filters">
+    <input id="fbusca" type="search" placeholder="🔍 Buscar por bairro, local ou texto..." aria-label="Buscar ocorrências">
     <select id="fstatus" aria-label="Filtrar por status"><option value="">Todos os status</option><option value="aberta">Abertas</option><option value="atendimento">Em atendimento</option><option value="concluida">Concluídas</option></select>
     <select id="ftipo" aria-label="Filtrar por categoria"><option value="">Todas as categorias</option></select>
   </div>
@@ -84,5 +111,10 @@ textarea{min-height:80px;resize:vertical}
   <ul class="list" id="lista"></ul>
 </div>
 <script src="js/quadro.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() { navigator.serviceWorker.register('./sw.js').catch(function(){}); });
+}
+</script>
 </body>
 </html>

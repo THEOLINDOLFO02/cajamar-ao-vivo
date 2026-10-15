@@ -12,7 +12,7 @@
   var ST = { aberta: "Aberta", atendimento: "Em atendimento", concluida: "Concluída" };
   var CHAVE = "cajamar:ocorrencias:v1";
   var $ = function (i) { return document.getElementById(i); };
-  var rows = [], memoria = false;
+  var rows = [], memoria = false, editandoId = null;
 
   function carregar() {
     try {
@@ -26,7 +26,7 @@
   }
   function salvar() {
     try { localStorage.setItem(CHAVE, JSON.stringify(rows)); return true; }
-    catch (e) { memoria = true; aviso("Não foi possível gravar neste navegador (modo privado ou armazenamento cheio). Os registros desta sessão podem se perder: use Exportar."); return false; }
+    catch (e) { memoria = true; aviso("Não foi possível gravar neste navegador (modo privado ou armazenamento cheio). Os registros desta sessão podem se perder: use Exportar.", "ruim"); return false; }
   }
   function novoId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
@@ -35,21 +35,85 @@
   function subs() { var s = $("subtipo"); s.textContent = ""; opt(s, CAT[$("tipo").value] || []); }
   $("tipo").onchange = subs; subs();
   function nowLocal() { var d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); }
+  function toLocalInput(iso) {
+    var d = new Date(iso);
+    if (isNaN(d)) return nowLocal();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  }
   function fmt(iso) { var d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }); }
-  function aviso(t) { var a = $("aviso"); a.hidden = !t; a.textContent = t || ""; }
+  function aviso(t, tipo) {
+    var a = $("aviso");
+    a.hidden = !t;
+    a.textContent = t || "";
+    a.className = "warn" + (tipo ? " " + tipo : "");
+  }
 
-  $("novo").onclick = function () { $("form").hidden = false; $("quando").value = nowLocal(); $("local").focus(); };
-  $("cancelar").onclick = function () { $("form").hidden = true; $("err").hidden = true; };
+  $("novo").onclick = function () {
+    editandoId = null;
+    $("formTitulo").textContent = "Nova ocorrência";
+    $("salvar").textContent = "Registrar";
+    $("boxStatus").hidden = true;
+    $("form").reset();
+    subs();
+    $("quando").value = nowLocal();
+    $("form").hidden = false;
+    $("local").focus();
+  };
+  $("cancelar").onclick = function () {
+    editandoId = null;
+    $("form").hidden = true;
+    $("boxStatus").hidden = true;
+    $("err").hidden = true;
+  };
+
+  function editar(id) {
+    var r = rows.find(function (x) { return x.id === id; });
+    if (!r) return;
+    editandoId = id;
+    $("formTitulo").textContent = "Editar ocorrência";
+    $("salvar").textContent = "Salvar alterações";
+    $("tipo").value = r.tipo;
+    subs();
+    $("subtipo").value = r.subtipo;
+    $("local").value = r.local;
+    $("quando").value = toLocalInput(r.quando);
+    $("desc").value = r.descricao || "";
+    $("statusForm").value = r.status || "aberta";
+    $("boxStatus").hidden = false;
+    $("err").hidden = true;
+    $("form").hidden = false;
+    $("form").scrollIntoView({ behavior: "smooth", block: "start" });
+    $("local").focus();
+  }
+
   $("form").onsubmit = function (e) {
     e.preventDefault();
     var d = new Date($("quando").value);
-    rows.unshift({
-      id: novoId(), tipo: $("tipo").value, subtipo: $("subtipo").value,
-      local: $("local").value.trim(), descricao: $("desc").value.trim(), status: "aberta",
-      quando: isNaN(d) ? new Date().toISOString() : d.toISOString(), criadoEm: new Date().toISOString()
-    });
-    aviso(""); salvar();
-    $("form").reset(); subs(); $("form").hidden = true; render();
+    var dataIso = isNaN(d) ? new Date().toISOString() : d.toISOString();
+    if (editandoId) {
+      var idx = rows.findIndex(function (x) { return x.id === editandoId; });
+      if (idx > -1) {
+        rows[idx].tipo = $("tipo").value;
+        rows[idx].subtipo = $("subtipo").value;
+        rows[idx].local = $("local").value.trim();
+        rows[idx].quando = dataIso;
+        rows[idx].descricao = $("desc").value.trim();
+        rows[idx].status = $("statusForm").value || rows[idx].status;
+        rows[idx].atualizadoEm = new Date().toISOString();
+      }
+      editandoId = null;
+      aviso("Ocorrência atualizada com sucesso.", "ok");
+    } else {
+      rows.unshift({
+        id: novoId(), tipo: $("tipo").value, subtipo: $("subtipo").value,
+        local: $("local").value.trim(), descricao: $("desc").value.trim(), status: "aberta",
+        quando: dataIso, criadoEm: new Date().toISOString()
+      });
+      aviso("Ocorrência registrada com sucesso.", "ok");
+    }
+    salvar();
+    $("form").reset(); subs(); $("form").hidden = true; $("boxStatus").hidden = true; render();
   };
 
   function setStatus(id, s) {
@@ -58,8 +122,92 @@
   }
   function apagar(id) {
     if (!confirm("Apagar esta ocorrência? Não dá para desfazer (a menos que você tenha um backup).")) return;
+    if (editandoId === id) {
+      editandoId = null;
+      $("form").hidden = true;
+      $("boxStatus").hidden = true;
+    }
     rows = rows.filter(function (r) { return r.id !== id; });
     salvar(); render();
+  }
+
+  function gerarRelatorio() {
+    var fs = $("fstatus").value, ft = $("ftipo").value, fb = $("fbusca").value.trim().toLowerCase();
+    var listaAlvo = rows.filter(function (r) {
+      if (fs && r.status !== fs) return false;
+      if (ft && r.tipo !== ft) return false;
+      if (fb) {
+        var txt = (r.local + " " + (r.descricao || "") + " " + r.tipo + " " + r.subtipo).toLowerCase();
+        if (txt.indexOf(fb) < 0) return false;
+      }
+      return true;
+    });
+
+    if (!listaAlvo.length) {
+      aviso("Nenhuma ocorrência encontrada com os filtros atuais para gerar o relatório.", "ruim");
+      return;
+    }
+
+    var agora = new Date();
+    var agoraStr = agora.toLocaleDateString("pt-BR") + " às " + agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+    var c = { aberta: 0, atendimento: 0, concluida: 0 };
+    listaAlvo.forEach(function (r) { c[r.status] = (c[r.status] || 0) + 1; });
+
+    var texto = "🚨 *DEFESA CIVIL DE CAJAMAR — RELATÓRIO DE PLANTÃO*\n";
+    texto += "📅 *Data/Hora:* " + agoraStr + "\n";
+    if (listaAlvo.length !== rows.length) {
+      texto += "🔍 *Filtro:* " + (fs ? ST[fs] + " " : "") + (ft ? ft + " " : "") + (fb ? '"' + fb + '"' : "") + "\n";
+    }
+    texto += "\n📊 *Resumo:*\n";
+    texto += "• Total no relatório: " + listaAlvo.length + "\n";
+    texto += "• 🔴 Abertas: " + c.aberta + "\n";
+    texto += "• 🟡 Em atendimento: " + c.atendimento + "\n";
+    texto += "• 🟢 Concluídas: " + c.concluida + "\n";
+    texto += "\n━━━━━━━━━━━━━━━━━━━━\n";
+    texto += "📋 *Ocorrências:*\n\n";
+
+    var tagStatus = { aberta: "🔴 [ABERTA]", atendimento: "🟡 [EM ATENDIMENTO]", concluida: "🟢 [CONCLUÍDA]" };
+
+    listaAlvo.forEach(function (r, i) {
+      var st = tagStatus[r.status] || r.status.toUpperCase();
+      texto += (i + 1) + ". " + st + " *" + r.tipo + " · " + r.subtipo + "*\n";
+      texto += "📍 *Local:* " + r.local + "\n";
+      texto += "🕒 *Quando:* " + fmt(r.quando) + "\n";
+      if (r.descricao) {
+        texto += "📝 *Providência:* " + r.descricao + "\n";
+      }
+      texto += "\n";
+    });
+
+    texto += "━━━━━━━━━━━━━━━━━━━━\n";
+    texto += "Defesa Civil de Cajamar (199)";
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(texto).then(function () {
+        aviso("📋 Resumo do plantão copiado! Cole no WhatsApp da equipe.", "ok");
+      }).catch(function () {
+        copiarFallback(texto);
+      });
+    } else {
+      copiarFallback(texto);
+    }
+  }
+
+  function copiarFallback(texto) {
+    var ta = document.createElement("textarea");
+    ta.value = texto;
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand("copy");
+      aviso("📋 Resumo do plantão copiado! Cole no WhatsApp da equipe.", "ok");
+    } catch (e) {
+      prompt("Copie o texto do relatório abaixo:", texto);
+    }
+    ta.remove();
   }
 
   $("exportar").onclick = function () {
@@ -86,14 +234,14 @@
         });
         rows = novos.concat(rows).sort(function (a, b) { return new Date(b.quando) - new Date(a.quando); });
         salvar(); render();
-        aviso("Importação: " + novos.length + " nova(s); " + (ok.length - novos.length) + " já existiam; " + (lista.length - ok.length) + " ignorada(s) por formato inválido.");
-      } catch (e) { aviso("Arquivo não reconhecido. Use um backup exportado por este quadro."); }
+        aviso("Importação: " + novos.length + " nova(s); " + (ok.length - novos.length) + " já existiam; " + (lista.length - ok.length) + " ignorada(s) por formato inválido.", "ok");
+      } catch (e) { aviso("Arquivo não reconhecido. Use um backup exportado por este quadro.", "ruim"); }
     };
     rd.readAsText(f);
   };
 
   function render() {
-    var fs = $("fstatus").value, ft = $("ftipo").value;
+    var fs = $("fstatus").value, ft = $("ftipo").value, fb = $("fbusca").value.trim().toLowerCase();
     var c = { aberta: 0, atendimento: 0, concluida: 0 };
     rows.forEach(function (r) { c[r.status]++; });
     var cn = $("counts"); cn.textContent = "";
@@ -104,11 +252,19 @@
       d.append(b, s); cn.appendChild(d);
     });
     var ul = $("lista"); ul.textContent = "";
-    var vis = rows.filter(function (r) { return (!fs || r.status === fs) && (!ft || r.tipo === ft); });
+    var vis = rows.filter(function (r) {
+      if (fs && r.status !== fs) return false;
+      if (ft && r.tipo !== ft) return false;
+      if (fb) {
+        var txt = (r.local + " " + (r.descricao || "") + " " + r.tipo + " " + r.subtipo).toLowerCase();
+        if (txt.indexOf(fb) < 0) return false;
+      }
+      return true;
+    });
     if (!vis.length) {
       var li = document.createElement("li"); li.className = "empty";
-      var b = document.createElement("b"); b.textContent = rows.length ? "Nenhuma ocorrência com esses filtros" : "Nenhuma ocorrência registrada";
-      var p = document.createElement("span"); p.textContent = rows.length ? "Mude os filtros acima para ver outras." : "Toque em “Nova ocorrência” para o primeiro registro.";
+      var b = document.createElement("b"); b.textContent = rows.length ? "Nenhuma ocorrência com esses filtros ou busca" : "Nenhuma ocorrência registrada";
+      var p = document.createElement("span"); p.textContent = rows.length ? "Ajuste os filtros ou o termo de busca para ver outras." : "Toque em “Nova ocorrência” para o primeiro registro.";
       li.append(b, p); ul.appendChild(li); return;
     }
     vis.forEach(function (r) {
@@ -121,6 +277,8 @@
       li.append(top, m);
       if (r.descricao) { var d = document.createElement("div"); d.className = "desc"; d.textContent = r.descricao; li.appendChild(d); }
       var a = document.createElement("div"); a.className = "actions";
+      var ed = document.createElement("button"); ed.className = "btn small"; ed.type = "button"; ed.textContent = "Editar";
+      ed.onclick = function () { editar(r.id); }; a.appendChild(ed);
       Object.keys(ST).forEach(function (k) {
         if (k === r.status) return;
         var bt = document.createElement("button"); bt.className = "btn small"; bt.type = "button"; bt.textContent = "→ " + ST[k];
@@ -131,9 +289,12 @@
       li.appendChild(a); ul.appendChild(li);
     });
   }
-  $("fstatus").onchange = render; $("ftipo").onchange = render;
+  $("fstatus").onchange = render;
+  $("ftipo").onchange = render;
+  $("fbusca").oninput = render;
+  $("relatorio").onclick = gerarRelatorio;
 
   rows = carregar();
-  if (memoria) aviso("Armazenamento do navegador indisponível: os registros não serão guardados. Use Exportar.");
+  if (memoria) aviso("Armazenamento do navegador indisponível: os registros não serão guardados. Use Exportar.", "ruim");
   render();
 })();
