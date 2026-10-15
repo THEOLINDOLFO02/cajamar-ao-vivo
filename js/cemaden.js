@@ -17,7 +17,12 @@
     var B = document.getElementById("cemaden");
     if (!B) return;
     try {
-      var r = await Fontes.consultar("cemaden", "data/cemaden.json?t=" + Math.floor(Date.now() / 60000), validar);
+      // 1) Worker da Cloudflare (dado de poucos minutos), se configurado; 2) robô do GitHub (arquivo do site).
+      var proxy = (w.CAJAMAR_CONFIG || {}).cemadenProxy, r = null;
+      if (proxy) {
+        try { r = await Fontes.consultar("cemaden", proxy, validar); if (r.antigo) r = null; } catch (e) { r = null; }
+      }
+      if (!r) r = await Fontes.consultar("cemaden", "data/cemaden.json?t=" + Math.floor(Date.now() / 60000), validar);
       var j = r.dados;
       B.textContent = ""; B.className = "";
       if (r.antigo) B.appendChild(el("p", "stale", "Não foi possível atualizar agora. Mostrando dados antigos, coletados em " + dh(r.de) + "."));
