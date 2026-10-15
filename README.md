@@ -8,8 +8,9 @@ Projeto pessoal (uso individual, por diversão e aprendizado) de acompanhamento 
 
 | Página | O que faz |
 |---|---|
-| `index.html` | Painel: tempo atual com sensação e rajadas de vento, chuva prevista (24 h e 7 dias), alertas do INMET para Cajamar, chuva observada dos pluviômetros do CEMADEN (sem classificação de risco) e radar. Mostra o estado e a hora da última atualização de **cada fonte**. |
+| `index.html` | Painel: tempo atual com sensação e rajadas de vento, chuva prevista (24 h e 7 dias), avisos do INMET para Cajamar (com as áreas desenhadas no mapa), chuva observada dos pluviômetros do CEMADEN (sem classificação de risco) e radar. Mostra o estado e a hora da última atualização de **cada fonte**. |
 | `quadro.html` | Quadro de ocorrências pessoal (6 categorias). Permite registrar e editar ocorrências, buscar por bairro/texto, copiar resumo formatado para o WhatsApp da equipe e exportar/importar backup em `.json`. Sem login, sem banco externo, sem dados de moradores. |
+| `observacoes.html` | Registro **manual** de chuva (mm, período, intensidade visual) e vento (km/h, direção, intensidade visual), para leituras feitas à mão enquanto não há registro automático. Editar, apagar, exportar JSON e planilha CSV, importar. Avisa se o texto parecer ter telefone ou CPF. Os campos são um ponto de partida: não são um modelo oficial. |
 | `historico.html` | Histórico da estação meteorológica de Cajamar: você importa o CSV baixado da plataforma (lido só no navegador) e vê chuva por dia, maiores chuvas em 1 h e 10 min, temperatura, vento e tabela dia a dia. Reimportar não duplica dias. O CSV não faz parte do repositório. |
 | `publicar.html` | Gera imagem nos formatos Stories (9:16) ou Feed (1:1 e 4:5) e legenda para redes sociais (com compartilhamento nativo para Instagram/WhatsApp), a partir de avisos e previsão oficiais do INMET, da chuva medida pela estação ou dicas de prevenção. Bloqueia a geração quando não há dado novo. |
 | `comparar.html` | Compara a chuva medida pela estação com a previsão do Open-Meteo feita 1 dia antes (acerto de chuva/não chuva, erro médio, soma). |
@@ -86,3 +87,19 @@ O painel **não classifica risco** de chuva (observação/atenção/alerta). Os 
 ## Aplicativo instalável (PWA) e cache
 
 O site pode ser instalado no celular. O cache (`sw.js`) guarda só os arquivos do próprio site; os dados meteorológicos nunca vêm do cache do aplicativo, para que o aviso de "dado antigo" continue verdadeiro. Ao mudar a lista de arquivos, aumente `CACHE_NAME` em `sw.js`.
+
+## Mapa: áreas dos avisos do INMET
+
+O mapa do painel desenha a área de cada aviso ativo do INMET: contorno cheio para os que **incluem Cajamar** e tracejado cinza para avisos **próximos** que não incluem. Ligue ou desligue em "Camadas". As áreas só aparecem com dado novo da fonte oficial (nunca de cópia guardada).
+
+## Resumo semanal da chuva
+
+Em `publicar.html`, o tipo "Resumo semanal da chuva (estação)" gera a imagem com gráfico de barras dos últimos 7 dias. Só aparecem semanas com os **7 dias completos** no histórico importado.
+
+## Testes automáticos
+
+```
+npm test
+```
+
+Não precisa instalar nada (usa o executor de testes do próprio Node, versão 22 ou mais nova). Os testes cobrem a leitura dos avisos e da previsão do INMET, a montagem dos dados do CEMADEN, a leitura do CSV da estação e a integridade do site (sintaxe dos scripts, arquivos referenciados, menu, cache do aplicativo). Os dados de teste são fictícios. No GitHub, o publicador roda os testes antes de cada publicação: se um falhar, o site **não** é atualizado e a versão anterior continua no ar.
