@@ -132,13 +132,18 @@
     // 1) fonte oficial INMET; 2) se falhar, repassador de terceiros; 3) dado antigo guardado.
     var ofi = await tentar("avisos_inmet", "https://apiprevmet3.inmet.gov.br/avisos/ativos", Inmet.validarAvisos);
     var r = ofi, lista, rotulo = "INMET (fonte oficial)";
-    if (ofi && !ofi.antigo) lista = Inmet.avisosDoMunicipio(ofi.dados);
+    avisosMapa = []; avisosProximosMapa = [];
+    if (ofi && !ofi.antigo) {
+      lista = Inmet.avisosDoMunicipio(ofi.dados);
+      avisosMapa = lista; avisosProximosMapa = Inmet.avisosProximos(ofi.dados, LAT, LON, 0.6);
+    }
     else {
       var ter = await tentar("alertas", "https://radarmeteorologico.com.br/api/v1/alertas?uf=" + UF, function (j) { return j && Array.isArray(j.alertas); });
       if (ter && !ter.antigo) { r = ter; lista = doTerceiro(ter.dados); rotulo = "radarmeteorologico.com.br (terceiro, usado porque a fonte oficial falhou)"; }
       else if (ofi) { lista = Inmet.avisosDoMunicipio(ofi.dados); }
       else if (ter) { r = ter; lista = doTerceiro(ter.dados); rotulo = "radarmeteorologico.com.br (terceiro)"; }
     }
+    desenharAvisosNoMapa();
     if (!r) {
       // Falha NÃO é "sem alerta": deixa isso explícito.
       fail(A, "Não foi possível verificar os alertas agora. Isso NÃO significa que não há alerta. Consulte previsao.inmet.gov.br/3509205 e o CEMADEN.");
@@ -262,6 +267,38 @@
     atualizarBotaoSom();
   }
 
+  // ---------- Áreas dos avisos do INMET no mapa ----------
+  var avisosMapa = [], avisosProximosMapa = [], layerAvisos = null;
+  function corAvisoMapa(a) {
+    if (a.cor) return a.cor;
+    var s = String(a.severidade || "").toLowerCase();
+    return s.indexOf("grande") > -1 ? "#d92d20" : s.indexOf("potencial") > -1 ? "#eab308" : "#f97316";
+  }
+  function desenharAvisosNoMapa() {
+    var msg = $("amsg");
+    if (layerAvisos) layerAvisos.clearLayers();
+    if (msg) msg.textContent = "";
+    if (!layerAvisos || typeof L === "undefined") return;
+    function camada(a, inclui) {
+      var cor = inclui ? corAvisoMapa(a) : "#64748b";
+      var g = L.geoJSON(a.poligono, { style: { color: cor, weight: inclui ? 3 : 2, fillColor: cor, fillOpacity: inclui ? 0.10 : 0.04, dashArray: inclui ? null : "6 6" } });
+      var tip = el("div");
+      tip.appendChild(el("b", "", (a.evento || "Aviso") + " — " + (a.severidade || "")));
+      tip.appendChild(el("br"));
+      tip.appendChild(el("small", "", fhora(a.inicio || "") + " até " + fhora(a.fim || "")));
+      tip.appendChild(el("br"));
+      tip.appendChild(el("small", "", inclui ? "Área inclui Cajamar" : "Área próxima, NÃO inclui Cajamar"));
+      g.bindTooltip(tip, { sticky: true });
+      return g;
+    }
+    avisosProximosMapa.forEach(function (a) { camada(a, false).addTo(layerAvisos); });
+    avisosMapa.filter(function (a) { return a.poligono; }).forEach(function (a) { camada(a, true).addTo(layerAvisos); });
+    var n = avisosMapa.filter(function (a) { return a.poligono; }).length;
+    if (msg) msg.textContent = n || avisosProximosMapa.length
+      ? "Áreas dos avisos do INMET: " + n + " incluem Cajamar (contorno cheio); " + avisosProximosMapa.length + " próximo(s) sem incluir Cajamar (tracejado). Ligue/desligue em “Camadas”."
+      : "Nenhuma área de aviso do INMET para Cajamar ou arredores neste momento.";
+  }
+
   // ---------- Radar, Mapa Operacional e Pontos de Referência ----------
   var map = null, frames = [], layers = [], cur = 0, timer = null, host = "", pastCount = 0;
   var PONTOS_CAJAMAR = [
@@ -324,14 +361,16 @@
           layerPontos.addLayer(circ);
         });
         layerPontos.addTo(map);
+        layerAvisos = L.layerGroup().addTo(map);
 
         L.control.layers(
           { "Ruas": camadaRuas, "Satélite": camadaSatelite, "Relevo/Topografia": camadaRelevo },
-          { "Pontos de Cajamar": layerPontos },
+          { "Pontos de Cajamar": layerPontos, "Áreas dos avisos do INMET": layerAvisos },
           { position: "topright" }
         ).addTo(map);
       }
 
+      desenharAvisosNoMapa();
       layers.forEach(function (l) { map.removeLayer(l); }); layers = [];
       frames.forEach(function (f) {
         var l = L.tileLayer(host + f.path + "/256/{z}/{x}/{y}/2/1_1.png", { opacity: 0, maxNativeZoom: 7, maxZoom: 14 });
