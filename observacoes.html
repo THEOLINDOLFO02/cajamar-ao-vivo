@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Observações Manuais</title>
+<meta name="theme-color" content="#0b6e8f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cajamar Clima">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/logo-dc-cajamar.jpg">
+<link rel="stylesheet" href="css/estilo.css">
+<link rel="stylesheet" href="css/publicar.css">
+<link rel="stylesheet" href="css/observacoes.css">
+</head>
+<body>
+<main>
+  <header>
+    <h1>Observações manuais de chuva e vento</h1>
+    <p class="sub">Defesa Civil de Cajamar/SP · registro pessoal</p>
+    <nav class="nav-bar" aria-label="Navegação principal">
+      <a href="index.html">Painel ao vivo</a>
+      <a href="quadro.html">Quadro de ocorrências</a>
+      <a href="observacoes.html" class="ativo" aria-current="page">Observações manuais</a>
+      <a href="historico.html">Histórico da estação</a>
+      <a href="publicar.html">Gerar publicação</a>
+      <a href="comparar.html">Previsão × medido</a>
+    </nav>
+  </header>
+
+  <div class="aux">Para anotar leituras feitas à mão (pluviômetro manual, anemômetro ou estimativa visual) enquanto não há registro automático. Os registros ficam <b>só neste aparelho e navegador</b>. <b>Não anote nomes, telefones ou documentos de moradores.</b> Este modelo é um ponto de partida: combine com sua chefia o horário e o local fixos das leituras, para os dados ficarem comparáveis. Limpar os dados do navegador apaga tudo: use <b>Exportar</b> para backup.</div>
+
+  <div class="barra-acoes">
+    <button id="novo" type="button" class="btn primary">+ Nova observação</button>
+    <button id="exportar" type="button">Exportar backup (.json)</button>
+    <button id="exportarCsv" type="button">Exportar planilha (.csv)</button>
+    <button id="importar" type="button">Importar backup</button>
+    <input id="arquivo" type="file" accept="application/json,.json" hidden>
+  </div>
+  <div id="aviso" class="warn" hidden></div>
+
+  <form id="form" class="card" hidden>
+    <h2 id="tituloForm">Nova observação</h2>
+    <div class="grade2">
+      <label class="campo">Data e hora da leitura<input id="quando" type="datetime-local" required></label>
+      <label class="campo">Local / ponto da leitura<input id="local" maxlength="120" required placeholder="Ex.: pluviômetro do pátio da base"></label>
+    </div>
+    <fieldset class="grupo">
+      <legend>Chuva</legend>
+      <div class="grade2">
+        <label class="campo">Chuva acumulada (mm)<input id="chuva" type="number" min="0" max="500" step="0.1" inputmode="decimal" placeholder="Deixe em branco se não mediu"></label>
+        <label class="campo">Acumulado em qual período?
+          <select id="janela">
+            <option value="24 h">Últimas 24 h</option>
+            <option value="1 h">Última 1 h</option>
+            <option value="3 h">Últimas 3 h</option>
+            <option value="desde a leitura anterior">Desde a leitura anterior</option>
+            <option value="durante o evento">Durante o evento</option>
+          </select>
+        </label>
+      </div>
+      <label class="campo">Intensidade observada (estimativa visual)
+        <select id="intensidade">
+          <option value="">Não avaliada</option>
+          <option>Sem chuva</option>
+          <option>Fraca</option>
+          <option>Moderada</option>
+          <option>Forte</option>
+          <option>Muito forte</option>
+        </select>
+      </label>
+    </fieldset>
+    <fieldset class="grupo">
+      <legend>Vento</legend>
+      <div class="grade2">
+        <label class="campo">Velocidade (km/h)<input id="vento" type="number" min="0" max="300" step="1" inputmode="numeric" placeholder="Se tiver anemômetro"></label>
+        <label class="campo">Direção (de onde vem)
+          <select id="direcao">
+            <option value="">Não informada</option>
+            <option>N</option><option>NE</option><option>L</option><option>SE</option>
+            <option>S</option><option>SO</option><option>O</option><option>NO</option>
+            <option>Variável</option>
+          </select>
+        </label>
+      </div>
+      <label class="campo">Intensidade observada (estimativa visual)
+        <select id="ventoEscala">
+          <option value="">Não avaliada</option>
+          <option>Calmo</option>
+          <option>Fraco</option>
+          <option>Moderado</option>
+          <option>Forte</option>
+          <option>Muito forte / rajadas</option>
+        </select>
+      </label>
+    </fieldset>
+    <div class="grade2">
+      <label class="campo">Como foi medido?
+        <select id="instrumento">
+          <option>Pluviômetro manual</option>
+          <option>Anemômetro manual</option>
+          <option>Estação automática</option>
+          <option>Estimativa visual</option>
+          <option>Outro</option>
+        </select>
+      </label>
+    </div>
+    <label class="campo">Observações (sem dados pessoais)<textarea id="obs" rows="3" maxlength="300" placeholder="Ex.: chuva com vento forte, queda de galhos no entorno"></textarea></label>
+    <div id="err" class="warn ruim" hidden></div>
+    <div class="barra-acoes">
+      <button id="salvar" type="submit" class="btn primary">Salvar</button>
+      <button id="cancelar" type="button">Cancelar</button>
+    </div>
+  </form>
+
+  <section class="card" id="resumoCard" hidden>
+    <h2>Resumo</h2>
+    <div id="resumo" class="resumo"></div>
+    <p class="mut" style="margin:8px 0 0;font-size:.82rem">Chuvas medidas em períodos diferentes (1 h, 24 h…) não são somadas: compare apenas leituras do mesmo período.</p>
+  </section>
+
+  <section class="card">
+    <h2>Registros</h2>
+    <div class="grade2" style="margin-bottom:8px">
+      <label class="campo">Período
+        <select id="fperiodo">
+          <option value="7">Últimos 7 dias</option>
+          <option value="30">Últimos 30 dias</option>
+          <option value="todos">Todos</option>
+        </select>
+      </label>
+      <label class="campo">Buscar no local/observação<input id="fbusca" type="search" maxlength="60" placeholder="Digite parte do texto"></label>
+    </div>
+    <ul id="lista" class="lista-obs"></ul>
+  </section>
+</main>
+<script src="js/observacoes.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() { navigator.serviceWorker.register('./sw.js').catch(function(){}); });
+}
+</script>
+</body>
+</html>
