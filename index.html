@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Cajamar ao Vivo</title>
+<meta name="theme-color" content="#0b6e8f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cajamar Clima">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/logo-dc-cajamar.jpg">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="css/estilo.css">
 </head>
@@ -11,19 +17,42 @@
 <main>
   <header>
     <h1>Cajamar ao Vivo</h1>
-    <p class="sub">Defesa Civil de Cajamar/SP · acompanhamento auxiliar · <a href="quadro.html">Quadro de ocorrências</a> · <a href="historico.html">Histórico da estação</a> · <a href="publicar.html">Gerar publicação</a> · <a href="comparar.html">Previsão × medido</a></p>
+    <p class="sub">Defesa Civil de Cajamar/SP · acompanhamento auxiliar</p>
+    <nav class="nav-bar" aria-label="Navegação principal">
+      <a href="index.html" class="ativo" aria-current="page">Painel ao vivo</a>
+      <a href="quadro.html">Quadro de ocorrências</a>
+      <a href="historico.html">Histórico da estação</a>
+      <a href="publicar.html">Gerar publicação</a>
+      <a href="comparar.html">Previsão × medido</a>
+    </nav>
   </header>
   <div class="aux"><b>Atenção:</b> previsão, avisos e radar aqui são <b>auxiliares</b> e não substituem os avisos oficiais do INMET e do CEMADEN. Confirme na fonte oficial antes de decidir.</div>
-  <div><button id="reload" type="button">Atualizar agora</button></div>
+  <div class="barra-acoes">
+    <button id="reload" type="button" class="btn primary">Atualizar agora</button>
+    <button id="btnAlertaSom" type="button" class="btn" title="Ativar aviso sonoro para emergências meteorológicas">🔔 Alerta sonoro: desligado</button>
+  </div>
   <section class="card"><h2>Estado das fontes</h2><ul class="fontes" id="fontes" aria-live="polite"></ul></section>
   <section class="card"><h2>Agora</h2><div id="agora" class="mut">Carregando…</div></section>
   <section class="card"><h2>Avisos do INMET que incluem Cajamar</h2><div id="alertas" class="mut">Carregando…</div></section>
   <section class="card"><h2>Chuva observada — pluviômetros do CEMADEN</h2><div id="cemaden" class="mut">Carregando…</div></section>
   <section class="card"><h2>Previsão oficial do INMET para Cajamar</h2><div id="prevInmet" class="mut">Carregando…</div></section>
   <section class="card"><h2>Chuva prevista — próximas 24 h (mm por hora)</h2><div id="horas" class="mut">Carregando…</div><p id="tot24" class="mut" style="margin:8px 0 0"></p></section>
-  <section class="card"><h2>Radar de chuva (RainViewer)</h2><div id="mapa"></div>
-    <div class="rc"><button id="play" type="button">Pausar</button><input id="slider" type="range" min="0" max="0" value="0" aria-label="Quadro do radar"><span id="rt" class="mut"></span></div>
-    <p id="rmsg" class="mut" style="margin:6px 0 0;font-size:.82rem">Carregando radar…</p></section>
+  <section class="card" id="mapaCard">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+      <h2 style="margin:0">Radar de chuva (RainViewer)</h2>
+      <div style="display:flex;gap:6px">
+        <button id="btnGps" type="button" class="btn small" title="Localizar meu dispositivo no mapa">📍 Onde estou</button>
+        <button id="btnFull" type="button" class="btn small" title="Expandir mapa para tela cheia">⛶ Tela cheia</button>
+      </div>
+    </div>
+    <div id="mapa"></div>
+    <div class="rc">
+      <button id="play" type="button">Pausar</button>
+      <input id="slider" type="range" min="0" max="0" value="0" aria-label="Quadro do radar">
+      <span id="rt" class="mut"></span>
+    </div>
+    <p id="rmsg" class="mut" style="margin:6px 0 0;font-size:.82rem">Carregando radar…</p>
+  </section>
   <section class="card"><h2>Próximos 7 dias</h2><div class="tw" id="dias" class="mut">Carregando…</div></section>
   <section class="card links"><h2>Abrir direto (fontes oficiais)</h2>
     <a href="https://previsao.inmet.gov.br/3509205" target="_blank" rel="noopener">INMET Cajamar</a>
@@ -38,5 +67,10 @@
 <script src="js/inmet.js"></script>
 <script src="js/cemaden.js"></script>
 <script src="js/painel.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() { navigator.serviceWorker.register('./sw.js').catch(function(){}); });
+}
+</script>
 </body>
 </html>

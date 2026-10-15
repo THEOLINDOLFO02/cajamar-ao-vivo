@@ -34,9 +34,23 @@
     });
   }
 
+  function wmoTexto(cod) {
+    if (cod === 0) return "Céu limpo";
+    if (cod === 1) return "Poucas nuvens";
+    if (cod === 2) return "Parcialmente nublado";
+    if (cod === 3) return "Nublado / Encoberto";
+    if (cod === 45 || cod === 48) return "Nevoeiro";
+    if (cod >= 51 && cod <= 55) return "Garoa";
+    if (cod >= 61 && cod <= 65) return "Chuva contínua";
+    if (cod >= 80 && cod <= 82) return "Pancadas de chuva";
+    if (cod === 95) return "Tempestade";
+    if (cod === 96 || cod === 99) return "Tempestade c/ granizo";
+    return "";
+  }
+
   async function clima() {
     var url = "https://api.open-meteo.com/v1/forecast?latitude=" + LAT + "&longitude=" + LON +
-      "&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m&hourly=precipitation" +
+      "&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_gusts_10m&hourly=precipitation" +
       "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum&forecast_days=7&timezone=America%2FSao_Paulo";
     try {
       var r = await Fontes.consultar("clima", url, function (j) { return j && j.current && j.hourly && j.hourly.time && j.daily && j.daily.time; });
@@ -45,10 +59,24 @@
       aviso(a, r);
       var n = el("div", "now");
       n.appendChild(el("b", "", typeof c.temperature_2m === "number" ? Math.round(c.temperature_2m) + "°C" : "—"));
-      n.appendChild(el("span", "mut", "em Cajamar · dado do modelo das " + String(c.time).slice(11, 16)));
+      var descWmo = wmoTexto(c.weather_code);
+      n.appendChild(el("span", "mut", "em Cajamar" + (descWmo ? " · " + descWmo : "") + " · dado do modelo das " + String(c.time).slice(11, 16)));
       a.appendChild(n);
       var k = el("div", "k"); a.appendChild(k);
-      [["Umidade", num(c.relative_humidity_2m) + "%"], ["Chuva (hora atual)", num(c.precipitation) + " mm"], ["Vento", num(c.wind_speed_10m) + " km/h"]].forEach(function (p) {
+      var textoVento = num(c.wind_speed_10m, 0) + " km/h";
+      if (typeof c.wind_gusts_10m === "number" && c.wind_gusts_10m > 0) {
+        textoVento += " (rajadas " + num(c.wind_gusts_10m, 0) + " km/h)";
+        if (c.wind_gusts_10m >= 50) {
+          notificarRisco("💨 Rajada de Vento Elevada", "Rajada prevista de " + Math.round(c.wind_gusts_10m) + " km/h para Cajamar. Risco de queda de árvores.");
+        }
+      }
+      var itens = [
+        ["Sensação", (typeof c.apparent_temperature === "number" ? Math.round(c.apparent_temperature) + "°C" : "—")],
+        ["Umidade", num(c.relative_humidity_2m, 0) + "%"],
+        ["Chuva (hora atual)", num(c.precipitation) + " mm"],
+        ["Vento e rajadas", textoVento]
+      ];
+      itens.forEach(function (p) {
         var d = el("div"); d.appendChild(el("span", "", p[0])); d.appendChild(el("strong", "", p[1])); k.appendChild(d);
       });
 
@@ -125,6 +153,9 @@
     }
     lista.forEach(function (a) {
       var s = String(a.severidade || "").toLowerCase();
+      if (s.indexOf("perigo") > -1 && s.indexOf("potencial") < 0) {
+        notificarRisco("⚠️ Alerta INMET para Cajamar", (a.evento || "Aviso") + " — " + a.severidade);
+      }
       var d = el("div", "alert" + (s.indexOf("grande") > -1 ? " v" : s.indexOf("perigo potencial") > -1 ? "" : " l"));
       d.appendChild(el("strong", "", (a.evento || "Aviso") + " — " + (a.severidade || "")));
       d.appendChild(el("small", "", fhora(a.inicio || "") + " até " + fhora(a.fim || "")));
@@ -175,19 +206,89 @@
     }
   }
 
-  var map = null, frames = [], layers = [], cur = 0, timer = null, host = "";
+  // ---------- Alerta sonoro e notificações de risco ----------
+  var somAtivo = false, ultimoAlertaNotificado = 0;
+  try { somAtivo = localStorage.getItem("cajamar:alertaSom") === "1"; } catch (e) {}
+
+  function atualizarBotaoSom() {
+    var b = $("btnAlertaSom");
+    if (!b) return;
+    b.textContent = somAtivo ? "🔔 Alerta sonoro: ligado" : "🔕 Alerta sonoro: desligado";
+    if (somAtivo) b.classList.add("ativo-som");
+    else b.classList.remove("ativo-som");
+  }
+
+  function tocarBipAlerta() {
+    try {
+      var AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      var aCtx = new AudioCtx();
+      var osc = aCtx.createOscillator();
+      var gain = aCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, aCtx.currentTime);
+      osc.frequency.setValueAtTime(1174, aCtx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.2, aCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, aCtx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(aCtx.destination);
+      osc.start();
+      osc.stop(aCtx.currentTime + 0.38);
+    } catch (e) {}
+  }
+
+  function notificarRisco(titulo, corpo) {
+    if (!somAtivo) return;
+    var agora = Date.now();
+    if (agora - ultimoAlertaNotificado < 1200000) return; // evita repetição antes de 20 min
+    ultimoAlertaNotificado = agora;
+    tocarBipAlerta();
+    if ("Notification" in window && Notification.permission === "granted") {
+      try { new Notification(titulo, { body: corpo, icon: "assets/logo-dc-cajamar.jpg" }); } catch (e) {}
+    }
+  }
+  window.notificarRisco = notificarRisco;
+
+  if ($("btnAlertaSom")) {
+    $("btnAlertaSom").onclick = function () {
+      somAtivo = !somAtivo;
+      try { localStorage.setItem("cajamar:alertaSom", somAtivo ? "1" : "0"); } catch (e) {}
+      if (somAtivo && "Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+      if (somAtivo) tocarBipAlerta();
+      atualizarBotaoSom();
+    };
+    atualizarBotaoSom();
+  }
+
+  // ---------- Radar, Mapa Operacional e Pontos de Referência ----------
+  var map = null, frames = [], layers = [], cur = 0, timer = null, host = "", pastCount = 0;
+  var PONTOS_CAJAMAR = [
+    { nome: "Cajamar (Centro)", lat: -23.3556, lon: -46.8778, cor: "#c2410c", tipo: "Distrito" },
+    { nome: "Jordanésia", lat: -23.3283, lon: -46.8622, cor: "#c2410c", tipo: "Distrito" },
+    { nome: "Polvilho", lat: -23.3853, lon: -46.8286, cor: "#c2410c", tipo: "Distrito" },
+    { nome: "Ponunduva", lat: -23.3108, lon: -46.9458, cor: "#0b6e8f", tipo: "Região" },
+    { nome: "Defesa Civil / Bombeiros", lat: -23.3325, lon: -46.8603, cor: "#b91c1c", tipo: "Base Operacional" }
+  ];
+
   function show(i) {
-    if (!layers.length) return;
+    if (!layers.length || !frames[i]) return;
     if (layers[cur]) layers[cur].setOpacity(0);
     cur = i; layers[cur].setOpacity(.7);
     $("slider").value = i;
-    $("rt").textContent = new Date(frames[i].time * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    var hora = new Date(frames[i].time * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    var ehFuturo = i >= pastCount;
+    var rt = $("rt"); rt.textContent = hora + " ";
+    rt.appendChild(el("span", "badge-frame " + (ehFuturo ? "futuro" : "passado"), ehFuturo ? "Projeção (Nowcast)" : "Chuva detectada"));
   }
+
   function play(on) {
     clearInterval(timer); timer = null;
     $("play").textContent = on ? "Pausar" : "Reproduzir";
     if (on) timer = setInterval(function () { show((cur + 1) % frames.length); }, 700);
   }
+
   async function radar() {
     var m = $("rmsg");
     if (typeof L === "undefined") {
@@ -197,27 +298,91 @@
     }
     try {
       var r = await Fontes.consultar("radar", "https://api.rainviewer.com/public/weather-maps.json", function (x) { return x && x.host && x.radar; });
-      // Quadro de radar guardado enganaria: se a consulta nova falhou, não mostra.
       if (r.antigo) { Fontes.marcarErro("radar", "sem resposta nova"); throw new Error("sem resposta nova"); }
       var j = r.dados;
-      host = j.host; frames = (j.radar.past || []).concat(j.radar.nowcast || []);
+      host = j.host;
+      var pastFrames = j.radar.past || [];
+      var nowcastFrames = j.radar.nowcast || [];
+      pastCount = pastFrames.length;
+      frames = pastFrames.concat(nowcastFrames);
       if (!frames.length) throw new Error("sem quadros");
+
       if (!map) {
-        map = L.map("mapa", { zoomControl: true }).setView([LAT, LON], 9);
-        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 12, attribution: "© OpenStreetMap" }).addTo(map);
-        L.circleMarker([LAT, LON], { radius: 6, color: "#b91c1c", fillOpacity: 1 }).addTo(map).bindTooltip("Cajamar");
+        map = L.map("mapa", { zoomControl: true }).setView([LAT, LON], 10);
+        var camadaRuas = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 14, attribution: "© OpenStreetMap" });
+        var camadaSatelite = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 14, attribution: "Tiles © Esri" });
+        var camadaRelevo = L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", { maxZoom: 14, attribution: "© OpenTopoMap" });
+        camadaRuas.addTo(map);
+
+        var layerPontos = L.layerGroup();
+        PONTOS_CAJAMAR.forEach(function (pt) {
+          var circ = L.circleMarker([pt.lat, pt.lon], {
+            radius: pt.tipo === "Base Operacional" ? 7 : 5,
+            color: pt.cor, fillColor: pt.cor, fillOpacity: 0.9, weight: 2
+          });
+          circ.bindTooltip("<b>" + pt.nome + "</b><br><small>" + pt.tipo + "</small>", { direction: "top" });
+          layerPontos.addLayer(circ);
+        });
+        layerPontos.addTo(map);
+
+        L.control.layers(
+          { "Ruas": camadaRuas, "Satélite": camadaSatelite, "Relevo/Topografia": camadaRelevo },
+          { "Pontos de Cajamar": layerPontos },
+          { position: "topright" }
+        ).addTo(map);
       }
+
       layers.forEach(function (l) { map.removeLayer(l); }); layers = [];
       frames.forEach(function (f) {
-        var l = L.tileLayer(host + f.path + "/256/{z}/{x}/{y}/2/1_1.png", { opacity: 0, maxNativeZoom: 7, maxZoom: 12 });
+        var l = L.tileLayer(host + f.path + "/256/{z}/{x}/{y}/2/1_1.png", { opacity: 0, maxNativeZoom: 7, maxZoom: 14 });
         l.addTo(map); layers.push(l);
       });
-      var s = $("slider"); s.max = frames.length - 1; cur = 0; show(frames.length - 1); play(true);
-      var idade = Math.round((Date.now() / 1000 - frames[frames.length - 1].time) / 60);
-      m.textContent = "Último quadro do radar há " + idade + " min. Mostra chuva detectada (passado), não previsão.";
+      var s = $("slider"); s.max = frames.length - 1; cur = 0;
+      var quadroInicial = pastCount > 0 ? pastCount - 1 : frames.length - 1;
+      show(quadroInicial); play(true);
+      m.textContent = pastFrames.length + " quadros passados (chuva detectada) + " + nowcastFrames.length + " de projeção (nowcast).";
     } catch (e) {
       m.textContent = "Não foi possível carregar o radar agora. Abra o atalho do RainViewer.";
     }
+  }
+
+  // Controles do mapa: GPS e Tela Cheia
+  var marcadorGps = null;
+  if ($("btnGps")) {
+    $("btnGps").onclick = function () {
+      if (!navigator.geolocation) { alert("Geolocalização não suportada no seu navegador."); return; }
+      var b = this; b.disabled = true; b.textContent = "📍 Localizando…";
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        b.disabled = false; b.textContent = "📍 Onde estou";
+        var lat = pos.coords.latitude, lon = pos.coords.longitude;
+        if (!map) return;
+        if (marcadorGps) map.removeLayer(marcadorGps);
+        marcadorGps = L.circleMarker([lat, lon], {
+          radius: 8, color: "#2563eb", fillColor: "#3b82f6", fillOpacity: 1, weight: 3
+        }).addTo(map).bindPopup("<b>Sua localização</b><br>Precisão: ~" + Math.round(pos.coords.accuracy) + " m").openPopup();
+        map.setView([lat, lon], 12);
+      }, function () {
+        b.disabled = false; b.textContent = "📍 Onde estou";
+        alert("Não foi possível obter sua localização. Verifique as permissões de GPS.");
+      }, { enableHighAccuracy: true, timeout: 10000 });
+    };
+  }
+
+  if ($("btnFull")) {
+    $("btnFull").onclick = function () {
+      var card = $("mapaCard");
+      if (!document.fullscreenElement) {
+        if (card.requestFullscreen) card.requestFullscreen();
+        else if (card.webkitRequestFullscreen) card.webkitRequestFullscreen();
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      }
+    };
+    document.addEventListener("fullscreenchange", function () {
+      if ($("btnFull")) $("btnFull").textContent = document.fullscreenElement ? "⛶ Sair tela cheia" : "⛶ Tela cheia";
+      if (map) setTimeout(function () { map.invalidateSize(); }, 200);
+    });
   }
 
   $("play").onclick = function () { play(!timer); };

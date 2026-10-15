@@ -8,10 +8,10 @@ Projeto pessoal (uso individual, por diversão e aprendizado) de acompanhamento 
 
 | Página | O que faz |
 |---|---|
-| `index.html` | Painel: tempo atual, chuva prevista (24 h e 7 dias), alertas do INMET para Cajamar e radar de chuva. Mostra o estado e a hora da última atualização de **cada fonte**. |
-| `quadro.html` | Quadro de ocorrências pessoal (6 categorias). Os registros ficam no navegador do próprio aparelho; há exportar/importar backup em arquivo `.json`. Sem login, sem banco externo, sem dados de moradores. |
+| `index.html` | Painel: tempo atual com sensação e rajadas de vento, chuva prevista (24 h e 7 dias), alertas do INMET para Cajamar, chuva observada dos pluviômetros do CEMADEN (sem classificação de risco) e radar. Mostra o estado e a hora da última atualização de **cada fonte**. |
+| `quadro.html` | Quadro de ocorrências pessoal (6 categorias). Permite registrar e editar ocorrências, buscar por bairro/texto, copiar resumo formatado para o WhatsApp da equipe e exportar/importar backup em `.json`. Sem login, sem banco externo, sem dados de moradores. |
 | `historico.html` | Histórico da estação meteorológica de Cajamar: você importa o CSV baixado da plataforma (lido só no navegador) e vê chuva por dia, maiores chuvas em 1 h e 10 min, temperatura, vento e tabela dia a dia. Reimportar não duplica dias. O CSV não faz parte do repositório. |
-| `publicar.html` | Gera imagem (Stories 1080×1920) e legenda para o Instagram a partir de avisos e previsão oficiais do INMET, da chuva medida pela estação ou de dicas de prevenção. Você revisa e publica manualmente; nada é postado sozinho. Bloqueia a geração quando não há dado novo. |
+| `publicar.html` | Gera imagem nos formatos Stories (9:16) ou Feed (1:1 e 4:5) e legenda para redes sociais (com compartilhamento nativo para Instagram/WhatsApp), a partir de avisos e previsão oficiais do INMET, da chuva medida pela estação ou dicas de prevenção. Bloqueia a geração quando não há dado novo. |
 | `comparar.html` | Compara a chuva medida pela estação com a previsão do Open-Meteo feita 1 dia antes (acerto de chuva/não chuva, erro médio, soma). |
 
 ### Como o painel trata falhas
@@ -40,7 +40,7 @@ npx serve .
 | [radarmeteorologico.com.br](https://radarmeteorologico.com.br/api-publica) | reserva dos avisos, só se a API oficial falhar | terceiro; não é oficial |
 | [RainViewer](https://www.rainviewer.com/api.html) | radar | uso pessoal (gratuito): zoom máx. 7, apenas dados passados. Se o site ficar público e muito acessado, confira os termos do RainViewer |
 | [OpenStreetMap](https://www.openstreetmap.org/copyright) / [Leaflet](https://leafletjs.com) | mapa | |
-| [CEMADEN](https://www.cemaden.gov.br/) (pluviômetros) | chuva observada em Cajamar e região (1 h a 72 h) | coletado por um robô do GitHub Actions a cada ~10 min, porque o navegador não consegue ler o CEMADEN direto |
+| [CEMADEN](https://www.cemaden.gov.br/) (pluviômetros) | chuva observada em Cajamar e região (1 h a 72 h) | coletado por um robô do GitHub Actions (agendado a cada 10 min, mas na prática roda a cada 2–5 h), porque o navegador não consegue ler o CEMADEN direto |
 | [Open-Meteo Previous Runs](https://open-meteo.com/en/docs/previous-runs-api) | previsão feita 1 dia antes, para a página de comparação | |
 
 SAISP e Chuva Online (IAG/USP) não têm API de dados: ficam como links.
@@ -69,7 +69,7 @@ Tudo fica no `localStorage` do navegador onde você registrou: não há servidor
 
 ## Chuva observada do CEMADEN (robô)
 
-- O arquivo `scripts/coletar-cemaden.mjs` baixa as estações do CEMADEN para Cajamar e região e grava `data/cemaden.json`. Esse arquivo **não fica no repositório**: o workflow `.github/workflows/publicar.yml` roda a cada ~10 min, coleta e publica o site já com o arquivo novo.
+- O arquivo `scripts/coletar-cemaden.mjs` baixa as estações do CEMADEN para Cajamar e região e grava `data/cemaden.json`. Esse arquivo **não fica no repositório**: o workflow `.github/workflows/publicar.yml` está agendado para cada 10 min, mas o GitHub atrasa agendamentos de repositórios com pouca atividade (medimos intervalos de 2 a 5 horas); ele coleta e publica o site já com o arquivo novo.
 - Se uma coleta agendada falhar, o job falha e o site anterior (com a última coleta boa) continua no ar; a tela mostra a hora da coleta.
 - Os horários das leituras são os **informados pelo CEMADEN**; o fuso não está documentado e os valores mais recentes aparecem à frente do relógio local. Por isso o painel mostra a defasagem de cada estação em relação à leitura mais recente da rede, e não compara com a hora do seu aparelho.
 - “sem dado” é ausência de valor (nunca zero). Muitas estações, inclusive em Cajamar, ficam paradas por meses.
@@ -78,3 +78,11 @@ Tudo fica no `localStorage` do navegador onde você registrou: não há servidor
 ## Publicação (GitHub Pages)
 
 O site é publicado pelo próprio workflow (Settings → Pages → Source: GitHub Actions). O endereço fica em https://NOME-DE-USUARIO.github.io/NOME-DO-REPOSITORIO/.
+
+## Sobre níveis de risco (PPDC)
+
+O painel **não classifica risco** de chuva (observação/atenção/alerta). Os limites do Plano Preventivo de Defesa Civil (PPDC) são definidos por município, e Cajamar ainda não tem limites próprios para chuva acumulada. Os números do CEMADEN e da estação são apenas repassados. Se o município adotar critérios oficiais, eles podem ser configurados aqui com a fonte citada.
+
+## Aplicativo instalável (PWA) e cache
+
+O site pode ser instalado no celular. O cache (`sw.js`) guarda só os arquivos do próprio site; os dados meteorológicos nunca vêm do cache do aplicativo, para que o aviso de "dado antigo" continue verdadeiro. Ao mudar a lista de arquivos, aumente `CACHE_NAME` em `sw.js`.

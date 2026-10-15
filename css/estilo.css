@@ -5,6 +5,10 @@ body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-app
 main{max-width:760px;margin:0 auto;display:grid;gap:14px}
 h1{font-size:1.35rem;margin:0}h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);margin:0 0 10px}
 .sub{color:var(--mut);font-size:.88rem;margin:2px 0 0}
+.nav-bar{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-top:6px;-webkit-overflow-scrolling:touch}
+.nav-bar a{display:inline-block;padding:6px 12px;border-radius:20px;text-decoration:none;font-size:.82rem;color:var(--mut);background:var(--card);border:1px solid var(--line);white-space:nowrap;transition:all .15s}
+.nav-bar a:hover{color:var(--fg);border-color:var(--acc)}
+.nav-bar a.ativo{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:600}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
 .now{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
 .now b{font-size:2.4rem;font-variant-numeric:tabular-nums}
@@ -23,7 +27,15 @@ th{font-size:.72rem;color:var(--mut);text-transform:uppercase;letter-spacing:.05
 .err{color:var(--red)}.mut{color:var(--mut)}
 button{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 14px;min-height:40px;cursor:pointer}
 .links a{color:var(--acc);margin-right:12px}
-#mapa{height:340px;border-radius:8px;border:1px solid var(--line)}.rc{display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap}.rc input{flex:1 1 160px}
+#mapa{height:360px;border-radius:8px;border:1px solid var(--line)}
+#mapaCard:fullscreen{padding:16px;background:var(--bg);display:flex;flex-direction:column;height:100vh;box-sizing:border-box}
+#mapaCard:fullscreen #mapa{flex:1;height:100% !important}
+.rc{display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap}.rc input{flex:1 1 160px}
+.badge-frame{font-size:.74rem;font-weight:600;padding:2px 7px;border-radius:12px;margin-left:6px;display:inline-block;text-transform:uppercase;letter-spacing:.04em}
+.badge-frame.passado{background:rgba(59,155,189,.15);color:var(--bar)}
+.badge-frame.futuro{background:rgba(234,179,8,.2);color:var(--yel)}
+.leaflet-control-layers{font-family:inherit;font-size:13px;border-radius:8px !important;border:1px solid var(--line) !important;box-shadow:0 2px 6px rgba(0,0,0,.15) !important}
+.btn.ativo-som{background:var(--ok);color:#fff;border-color:var(--ok);font-weight:600}
 .fontes{display:grid;gap:6px;margin:0;padding:0;list-style:none}
 .fontes li{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-size:.86rem}
 .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--mut);flex:none}
@@ -42,3 +54,37 @@ a{color:var(--acc)}
 .graf .barra{fill:var(--bar)}.graf .barra.parcial{opacity:.45}
 .graf .lin{fill:none;stroke-width:2}.graf .lin.max{stroke:var(--org)}.graf .lin.min{stroke:var(--acc)}
 .leg{display:inline-block;width:14px;height:3px;vertical-align:middle}.leg.max{background:var(--org)}.leg.min{background:var(--acc)}
+
+
+
+.filtro-periodo{display:flex;align-items:center;gap:10px;margin:2px 0 10px;flex-wrap:wrap}
+.filtro-periodo label{font-weight:600;font-size:.86rem}
+.filtro-periodo select{font:inherit;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+.cabecalho-boletim{display:none}
+.rodape-boletim{display:none}
+
+@media print {
+  body{background:#fff !important;color:#000 !important;padding:0 !important;font-size:12px !important}
+  main{max-width:100% !important;gap:12px !important}
+  header, .nav-bar, .barra-acoes, .aux, #aviso, #vazio, .filtro-periodo, .links{display:none !important}
+  .cabecalho-boletim{display:block !important;margin-bottom:14px}
+  .boletim-topo{display:flex;align-items:center;gap:14px;border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:10px}
+  .boletim-logo{width:58px;height:58px;border-radius:6px;object-fit:cover}
+  .boletim-topo h2{font-size:1.05rem;color:#000;margin:0;letter-spacing:normal;font-weight:700}
+  .boletim-topo h3{font-size:.92rem;color:#000;margin:3px 0 0;font-weight:700}
+  .boletim-topo p{font-size:.8rem;color:#333;margin:3px 0 0}
+  .boletim-meta{font-size:.82rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px dashed #666;padding-bottom:8px;color:#111}
+  .card{background:#fff !important;border:1px solid #ccc !important;box-shadow:none !important;padding:10px !important;page-break-inside:avoid;margin-bottom:10px}
+  .card h2{color:#000 !important;font-size:.78rem !important;border-bottom:1px solid #eee;padding-bottom:4px}
+  .cx{background:#f8f9fa !important;border:1px solid #ddd !important;color:#000 !important}
+  .cx span, .cx small{color:#444 !important}
+  table{font-size:11px !important}
+  th, td{border-bottom:1px solid #ddd !important;color:#000 !important;padding:4px 6px !important}
+  .graf .grd{stroke:#ddd !important}
+  .graf .eix{fill:#333 !important}
+  .graf .barra{fill:#0b6e8f !important}
+  .rodape-boletim{display:block !important;page-break-inside:avoid;margin-top:24px}
+  .boletim-assinaturas{display:flex;justify-content:space-around;text-align:center;font-size:.82rem;margin-top:30px}
+  .assinatura-box{border-top:1px solid #000;width:240px;padding-top:6px;color:#000}
+  .boletim-rodape-nota{text-align:center;font-size:.72rem;color:#666;margin-top:18px}
+}

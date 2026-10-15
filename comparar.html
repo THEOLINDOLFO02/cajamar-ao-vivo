@@ -4,13 +4,26 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Previsão x Medido</title>
+<meta name="theme-color" content="#0b6e8f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cajamar Clima">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/logo-dc-cajamar.jpg">
 <link rel="stylesheet" href="css/estilo.css">
 </head>
 <body>
 <main>
   <header>
     <h1>Previsão × chuva medida</h1>
-    <p class="sub"><a href="index.html">Painel ao vivo</a> · <a href="historico.html">Histórico da estação</a></p>
+    <p class="sub">Defesa Civil de Cajamar/SP · acompanhamento auxiliar</p>
+    <nav class="nav-bar" aria-label="Navegação principal">
+      <a href="index.html">Painel ao vivo</a>
+      <a href="quadro.html">Quadro de ocorrências</a>
+      <a href="historico.html">Histórico da estação</a>
+      <a href="publicar.html">Gerar publicação</a>
+      <a href="comparar.html" class="ativo" aria-current="page">Previsão × medido</a>
+    </nav>
   </header>
   <div class="aux">Compara a chuva <b>medida pela estação</b> (histórico importado neste aparelho) com a chuva que o modelo do <b>Open-Meteo</b> havia previsto <b>1 dia antes</b> para Cajamar. É um ponto de medição contra uma área de modelo: serve para ter noção de acerto, não como avaliação oficial. O INMET não guarda previsões antigas na API que usamos, então ele não entra nesta comparação.</div>
   <div class="barra-acoes"><button id="rodar" type="button">Comparar</button></div>
@@ -22,5 +35,10 @@
   </div>
 </main>
 <script src="js/comparar.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() { navigator.serviceWorker.register('./sw.js').catch(function(){}); });
+}
+</script>
 </body>
 </html>
