@@ -17,7 +17,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Testes automáticos (sem acesso à internet): se algum falhar, o site NÃO é republicado e o anterior continua no ar.
+  testar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+
   publicar:
+    needs: testar
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -26,7 +37,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       # Nas execuções agendadas, se o CEMADEN falhar o job falha e o site anterior (com a última coleta boa) permanece.
       # Em push (mudança de código), o site é publicado mesmo se a coleta falhar.
       - name: Coletar CEMADEN

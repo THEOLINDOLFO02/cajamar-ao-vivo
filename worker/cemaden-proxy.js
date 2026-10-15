@@ -3,9 +3,9 @@
 // Cajamar e região, e devolve o MESMO formato de data/cemaden.json, com CORS só para o site permitido.
 // Sem chaves, sem banco, sem dependências. Plano gratuito da Cloudflare é suficiente (cache de 5 min).
 
-const URL_FONTE = "https://resources.cemaden.gov.br/graficos/interativo/getJson2.php?uf=SP";
-// Cajamar e municípios da região (códigos IBGE). Mantenha igual a scripts/coletar-cemaden.mjs.
-const IBGE = [3509205, 3547304, 3509007, 3515004, 3516408, 3525904, 3539103, 3505708];
+export const URL_FONTE = "https://resources.cemaden.gov.br/graficos/interativo/getJson2.php?uf=SP";
+// Cajamar e municípios da região (códigos IBGE). O robô do GitHub (scripts/coletar-cemaden.mjs) usa este mesmo arquivo.
+export const IBGE = [3509205, 3547304, 3509007, 3515004, 3516408, 3525904, 3539103, 3505708];
 // Sites autorizados a ler este proxy pelo navegador.
 const ORIGENS = ["https://theolindolfo02.github.io", "http://localhost:8765", "http://localhost:3000"];
 

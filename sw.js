@@ -19,6 +19,7 @@ var RECURSOS_BASE = [
   "./js/cemaden.js",
   "./js/painel.js",
   "./js/quadro.js",
+  "./js/estacao.js",
   "./js/historico.js",
   "./js/publicar.js",
   "./js/comparar.js",
