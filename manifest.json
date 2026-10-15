@@ -1,0 +1,18 @@
+{
+  "name": "Cajamar ao Vivo — Defesa Civil",
+  "short_name": "Cajamar Clima",
+  "description": "Painel meteorológico e quadro de ocorrências da Defesa Civil de Cajamar/SP",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#121714",
+  "theme_color": "#0b6e8f",
+  "icons": [
+    {
+      "src": "assets/logo-dc-cajamar.jpg",
+      "sizes": "any",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}

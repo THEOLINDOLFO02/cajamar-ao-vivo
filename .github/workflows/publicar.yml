@@ -37,7 +37,9 @@ jobs:
           mkdir _site
           cp *.html _site/
           cp -r css js assets _site/
-          if [ -f data/cemaden.json ]; then mkdir _site/data && cp data/cemaden.json _site/data/; fi
+          if [ -f manifest.json ]; then cp manifest.json _site/; fi
+          if [ -f sw.js ]; then cp sw.js _site/; fi
+          if [ -f data/cemaden.json ]; then mkdir -p _site/data && cp data/cemaden.json _site/data/; fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
