@@ -4,32 +4,84 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Histórico da Estação</title>
+<meta name="theme-color" content="#0b6e8f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cajamar Clima">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/logo-dc-cajamar.jpg">
 <link rel="stylesheet" href="css/estilo.css">
 </head>
 <body>
 <main>
   <header>
     <h1>Histórico da estação em Cajamar</h1>
-    <p class="sub"><a href="index.html">Painel ao vivo</a> · <a href="quadro.html">Quadro de ocorrências</a></p>
+    <p class="sub">Defesa Civil de Cajamar/SP · acompanhamento auxiliar</p>
+    <nav class="nav-bar" aria-label="Navegação principal">
+      <a href="index.html">Painel ao vivo</a>
+      <a href="quadro.html">Quadro de ocorrências</a>
+      <a href="historico.html" class="ativo" aria-current="page">Histórico da estação</a>
+      <a href="publicar.html">Gerar publicação</a>
+      <a href="comparar.html">Previsão × medido</a>
+    </nav>
   </header>
   <div class="aux">O arquivo CSV é lido <b>aqui no seu navegador</b>: não é enviado para nenhum servidor. Só o resumo por dia fica guardado neste aparelho. Este histórico é <b>auxiliar</b> e vem de uma estação isolada; não substitui os dados oficiais do INMET e do CEMADEN.</div>
   <div class="barra-acoes">
     <button id="escolher" type="button">Importar CSV da estação</button>
+    <button id="imprimir" type="button" disabled>🖨️ Gerar Boletim (PDF / Imprimir)</button>
     <button id="limpar" type="button">Apagar histórico</button>
     <input id="arquivo" type="file" accept=".csv,text/csv" hidden>
   </div>
   <div id="aviso" class="warn" hidden></div>
   <section class="card" id="vazio"><h2>Sem dados ainda</h2><p class="mut" style="margin:0">Toque em “Importar CSV da estação” e escolha o arquivo baixado da plataforma. Importar de novo um arquivo mais recente soma os dias novos sem duplicar.</p></section>
   <div id="conteudo" hidden>
-    <p id="periodo" class="mut" style="margin:0"></p>
+    <div class="cabecalho-boletim" hidden>
+      <div class="boletim-topo">
+        <img src="assets/logo-dc-cajamar.jpg" alt="Defesa Civil Cajamar" class="boletim-logo">
+        <div>
+          <h2>PREFEITURA DO MUNICÍPIO DE CAJAMAR</h2>
+          <h3>COORDENADORIA MUNICIPAL DE PROTEÇÃO E DEFESA CIVIL - COMPDEC</h3>
+          <p>Boletim Climatológico e Pluviométrico Operacional · Cajamar / SP (IBGE 3509205)</p>
+        </div>
+      </div>
+      <div class="boletim-meta">
+        <span><b>Estação:</b> <span id="bolEstacao">—</span></span>
+        <span><b>Período:</b> <span id="bolPeriodo">—</span></span>
+        <span><b>Emissão:</b> <span id="bolEmissao">—</span></span>
+      </div>
+    </div>
+    <div class="filtro-periodo">
+      <label for="fperiodo">Filtrar período:</label>
+      <select id="fperiodo">
+        <option value="todos">Todo o período registrado</option>
+        <option value="30">Últimos 30 dias</option>
+      </select>
+      <span id="periodo" class="mut"></span>
+    </div>
     <section class="card"><h2>Resumo do período</h2><div id="resumo" class="resumo"></div></section>
     <section class="card"><h2>Chuva por dia (mm)</h2><div id="gChuva"></div><p id="notaParcial" class="mut" style="margin:6px 0 0;font-size:.82rem"></p></section>
     <section class="card"><h2>Temperatura mínima e máxima (°C)</h2><div id="gTemp"></div><p class="mut" style="margin:6px 0 0;font-size:.82rem"><span class="leg max"></span> máxima · <span class="leg min"></span> mínima</p></section>
     <section class="card"><h2>Dia a dia</h2>
       <div class="tw"><table><thead><tr><th>Dia</th><th>Chuva mm</th><th>Máx 1 h</th><th>Máx 10 min</th><th>Mín °C</th><th>Máx °C</th><th>Umid.</th><th>Vento km/h</th></tr></thead><tbody id="tabela"></tbody></table></div>
       <p class="mut" style="margin:6px 0 0;font-size:.82rem">* dia com menos de 90% das leituras. A chuva do dia é a soma do pluviômetro (passos de 0,2 mm); picos de 1 minuto não são tratados como intensidade — use “Máx 10 min”.</p></section>
+    <div class="rodape-boletim" hidden>
+      <div class="boletim-assinaturas">
+        <div class="assinatura-box">
+          <b>Operador / Técnico Responsável</b><br>Defesa Civil de Cajamar
+        </div>
+        <div class="assinatura-box">
+          <b>Coordenadoria COMPDEC</b><br>Visto / Homologação
+        </div>
+      </div>
+      <p class="boletim-rodape-nota">Documento gerado automaticamente pelo Sistema Cajamar Clima ao Vivo. Dados obtidos via telemetria de estação meteorológica local.</p>
+    </div>
   </div>
 </main>
 <script src="js/historico.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() { navigator.serviceWorker.register('./sw.js').catch(function(){}); });
+}
+</script>
 </body>
 </html>

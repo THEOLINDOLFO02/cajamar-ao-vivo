@@ -165,11 +165,65 @@
     return d;
   }
 
-  function desenhar() {
-    var chaves = Object.keys(dias).sort();
-    var vazio = !chaves.length;
+  var MESES_PT = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+  function atualizarSeletorPeriodos(chavesTodas) {
+    var sel = $("fperiodo");
+    if (!sel) return;
+    var valorAtual = sel.value || "todos";
+    var mesesMap = {};
+    chavesTodas.forEach(function (k) {
+      mesesMap[k.slice(0, 7)] = true;
+    });
+    var listaMeses = Object.keys(mesesMap).sort().reverse();
+    sel.textContent = "";
+    var optTodos = el("option", "", "Todo o período registrado (" + chavesTodas.length + " dias)");
+    optTodos.value = "todos";
+    sel.appendChild(optTodos);
+    if (chavesTodas.length > 30) {
+      var opt30 = el("option", "", "Últimos 30 dias");
+      opt30.value = "30";
+      sel.appendChild(opt30);
+    }
+    listaMeses.forEach(function (ym) {
+      var p = ym.split("-");
+      var ano = p[0], mIdx = parseInt(p[1], 10) - 1;
+      var nomeMes = MESES_PT[mIdx] || ym;
+      var opt = el("option", "", "Mês de " + nomeMes + " / " + ano);
+      opt.value = "mes:" + ym;
+      sel.appendChild(opt);
+    });
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === valorAtual) { sel.selectedIndex = i; break; }
+    }
+  }
+
+  function desenhar(preservarSeletor) {
+    var chavesTodas = Object.keys(dias).sort();
+    var vazio = !chavesTodas.length;
     $("vazio").hidden = !vazio; $("conteudo").hidden = vazio; $("limpar").disabled = vazio;
+    if ($("imprimir")) $("imprimir").disabled = vazio;
     if (vazio) return;
+
+    if (!preservarSeletor) {
+      atualizarSeletorPeriodos(chavesTodas);
+    }
+
+    var sel = $("fperiodo") ? $("fperiodo").value : "todos";
+    var chaves = chavesTodas;
+    if (sel === "30") {
+      chaves = chavesTodas.slice(-30);
+    } else if (sel.indexOf("mes:") === 0) {
+      var m = sel.slice(4);
+      chaves = chavesTodas.filter(function (k) { return k.indexOf(m) === 0; });
+    }
+    if (!chaves.length) chaves = chavesTodas;
+
+    // Metadados do Boletim Oficial COMPDEC para Impressão / PDF
+    if ($("bolEstacao")) $("bolEstacao").textContent = estacao || "Estação Meteorológica Particular";
+    if ($("bolPeriodo")) $("bolPeriodo").textContent = fdataLonga(chaves[0]) + " a " + fdataLonga(chaves[chaves.length - 1]) + " (" + chaves.length + " dia" + (chaves.length > 1 ? "s" : "") + ")";
+    if ($("bolEmissao")) $("bolEmissao").textContent = new Date().toLocaleString("pt-BR");
+
     var total = 0, comChuva = 0, maxK = chaves[0], c10 = { v: 0, k: chaves[0] }, c60 = { v: 0, k: chaves[0] }, vento = { v: 0, k: chaves[0] }, tmin = null, tmax = null;
     chaves.forEach(function (k) {
       var d = dias[k]; total += d.chuva; if (d.chuva >= 1) comChuva++;
@@ -181,7 +235,7 @@
       if (d.tmax !== null && (tmax === null || d.tmax > tmax.v)) tmax = { v: d.tmax, k: k };
     });
     var incompletos = chaves.filter(function (k) { return dias[k].n < 1296; }).length;
-    $("periodo").textContent = (estacao ? estacao + " · " : "") + fdataLonga(chaves[0]) + " a " + fdataLonga(chaves[chaves.length - 1]) + " · " + chaves.length + " dia(s) com dados";
+    $("periodo").textContent = (estacao ? estacao + " · " : "") + fdataLonga(chaves[0]) + " a " + fdataLonga(chaves[chaves.length - 1]) + " · " + chaves.length + " dia(s) exibido(s)";
     var rs = $("resumo"); rs.textContent = "";
     rs.appendChild(cartao("Chuva no período", f1(total) + " mm", comChuva + " dia(s) com 1 mm ou mais"));
     rs.appendChild(cartao("Dia mais chuvoso", f1(dias[maxK].chuva) + " mm", fdataLonga(maxK)));
@@ -219,6 +273,8 @@
 
   $("arquivo").onchange = function () { var f = this.files[0]; this.value = ""; if (f) lerArquivo(f); };
   $("escolher").onclick = function () { $("arquivo").click(); };
+  if ($("imprimir")) $("imprimir").onclick = function () { window.print(); };
+  if ($("fperiodo")) $("fperiodo").onchange = function () { desenhar(true); };
   $("limpar").onclick = function () {
     if (!confirm("Apagar o histórico guardado neste navegador? Seus arquivos CSV não são afetados.")) return;
     dias = {}; estacao = "";
