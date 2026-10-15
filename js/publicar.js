@@ -64,6 +64,21 @@
     try { var x = JSON.parse(localStorage.getItem("cajamar:historico:v1") || "null"); historico = x && x.dias ? x : null; } catch (e) { historico = null; }
   }
 
+  // ---------- resumo semanal ----------
+  function chaveDia(d) { return d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()); }
+  function fdm(k) { return k.slice(8, 10) + "/" + k.slice(5, 7); }
+  // Os 7 dias terminando em "fim" (AAAA-MM-DD), do mais antigo ao mais novo; null se faltar algum dia COMPLETO.
+  function semanaCompleta(fim) {
+    var base = new Date(fim + "T12:00:00"), dias = [];
+    for (var i = 6; i >= 0; i--) {
+      var x = new Date(base); x.setDate(x.getDate() - i);
+      var k = chaveDia(x), d = historico && historico.dias[k];
+      if (!d || d.n < 1296) return null;
+      dias.push({ k: k, d: d });
+    }
+    return dias;
+  }
+
   // ---------- por tipo: lista de opções e modelo ----------
   function opcoes(tipo) {
     var o = [];
@@ -74,6 +89,12 @@
     } else if (tipo === "chuva") {
       if (historico) Object.keys(historico.dias).sort().reverse().forEach(function (k) {
         var d = historico.dias[k]; o.push([k, k.slice(8, 10) + "/" + k.slice(5, 7) + "/" + k.slice(0, 4) + " — " + f1(d.chuva) + " mm" + (d.n < 1296 ? " (dia incompleto)" : "")]);
+      });
+    } else if (tipo === "semana") {
+      if (historico) Object.keys(historico.dias).sort().reverse().forEach(function (k) {
+        var sm = semanaCompleta(k); if (!sm) return;
+        var t = sm.reduce(function (a, x) { return a + x.d.chuva; }, 0);
+        o.push([k, fdm(sm[0].k) + " a " + fdm(k) + "/" + k.slice(0, 4) + " — " + f1(t) + " mm"]);
       });
     } else if (tipo === "dica") {
       Object.keys(DICAS).forEach(function (k) { o.push([k, k]); });
@@ -91,6 +112,7 @@
     if (tipo === "aviso") { if (!avisos) bloqueio = "Sem dado novo dos avisos do INMET."; else if (!o.length) bloqueio = "Nenhum aviso ativo para Cajamar agora: não há o que publicar."; else setStatus("Avisos do INMET coletados às " + hm(coletaAvisos) + "."); }
     if (tipo === "prevdia" || tipo === "prevsemana") { if (!previsao) bloqueio = "Sem dado novo da previsão do INMET."; else setStatus("Previsão do INMET coletada às " + hm(coletaPrev) + "."); }
     if (tipo === "chuva") { if (!o.length) bloqueio = "Sem histórico: importe o CSV da estação na página “Histórico da estação”."; else setStatus("Histórico guardado neste aparelho (fonte: estação local; não é dado oficial)."); }
+    if (tipo === "semana") { if (!o.length) bloqueio = "Não há 7 dias seguidos e completos no histórico. Importe o CSV da estação na página “Histórico da estação”."; else setStatus("Só aparecem semanas com os 7 dias completos (fonte: estação local; não é dado oficial)."); }
     if (tipo === "dica") setStatus("Textos gerais: revise antes de publicar.");
     if (bloqueio) setStatus(bloqueio);
     $("baixar").disabled = !!bloqueio; $("copiar").disabled = !!bloqueio;
@@ -156,6 +178,20 @@
       if (dd.n < 1296) L.push("Atenção: dia com leituras incompletas; a chuva pode ser maior.");
       m.rodape = "Medição de uma estação local em Cajamar. Não é dado oficial do INMET/CEMADEN.";
       leg = "🌧️ CHUVA MEDIDA EM CAJAMAR — " + dt + "\n\n" + L.join("\n") + "\n\nMedição de uma estação local, em um ponto da cidade. Não substitui os dados oficiais do INMET e do CEMADEN.";
+    } else if (tipo === "semana") {
+      var sem = semanaCompleta(v); if (!sem) return;
+      var tot = 0, comChuva = 0, maxD = sem[0], max1h = sem[0];
+      sem.forEach(function (x) { tot += x.d.chuva; if (x.d.chuva >= 1) comChuva++; if (x.d.chuva > maxD.d.chuva) maxD = x; if (x.d.c60 > max1h.d.c60) max1h = x; });
+      m.tag = "RESUMO DA SEMANA · CHUVA"; m.rodape = "Medição de uma estação local em Cajamar. Não é dado oficial do INMET/CEMADEN.";
+      m.grafico = sem.map(function (x) { return { k: x.k, v: x.d.chuva }; });
+      var periodo = fdm(sem[0].k) + " a " + fdm(v);
+      $("titulo").value = "Chuva da semana em Cajamar";
+      $("subtitulo").value = periodo + " · estação meteorológica local";
+      L.push("Total na semana: " + f1(tot) + " mm");
+      L.push("Dias com chuva (1 mm ou mais): " + comChuva + " de 7");
+      L.push(maxD.d.chuva > 0 ? "Dia mais chuvoso: " + fdm(maxD.k) + " (" + f1(maxD.d.chuva) + " mm)" : "Sem chuva registrada na semana");
+      if (max1h.d.c60 > 0) L.push("Maior chuva em 1 hora: " + f1(max1h.d.c60) + " mm (" + fdm(max1h.k) + ")");
+      leg = "🌧️ CHUVA DA SEMANA EM CAJAMAR — " + periodo + "\n\n" + L.join("\n") + "\n\nMedição de uma estação local, em um ponto da cidade. Não substitui os dados oficiais do INMET e do CEMADEN.";
     } else if (tipo === "dica") {
       var dc = DICAS[v]; if (!dc) return;
       m.tag = "DICA DE PREVENÇÃO";
@@ -249,7 +285,7 @@
 
     ctx.textAlign = "left";
     var x = 80, larg = W - 160;
-    var y = yTag + hTag + (fmtKey === "feed" ? 36 : 48);
+    var y = yTag + hTag + (fmtKey === "feed" ? 36 : 48) + Math.round(cfg.titleSize * 0.7);
 
     // Título
     ctx.fillStyle = "#fff";
@@ -271,12 +307,14 @@
     y += (fmtKey === "feed" ? 14 : 24);
 
     var linhas = $("linhas").value.split(/\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+    var altGraf = modelo.grafico ? (fmtKey === "stories" ? 380 : fmtKey === "retrato" ? 300 : 210) : 0;
+    var limiteTexto = cfg.limite - (altGraf ? altGraf + 24 : 0);
     var tam = cfg.maxLinhas, blocos;
     for (; tam >= cfg.minLinhas; tam -= 2) {
       ctx.font = "500 " + tam + "px " + FONTE;
       blocos = linhas.map(function (l) { return quebrar(l, larg - 40); });
       var alt = blocos.reduce(function (s, b) { return s + b.length * (tam * 1.25) + tam * .35; }, 0);
-      if (y + alt <= cfg.limite) break;
+      if (y + alt <= limiteTexto) break;
     }
 
     blocos.forEach(function (b) {
@@ -289,6 +327,8 @@
       });
       y += tam * .35;
     });
+
+    if (modelo.grafico) desenharBarras(modelo.grafico, x, cfg.limite - altGraf, larg, altGraf);
 
     // Rodapé
     var yr = cfg.yr;
@@ -311,6 +351,26 @@
         yy += tamRodape * 1.35;
       });
     });
+  }
+
+  // Barras diárias (uma por dia), com o valor em cima e o dia da semana embaixo.
+  function desenharBarras(dados, x0, y0, larg, alt) {
+    var topo = 34, base = alt - topo - 62, max = Math.max.apply(null, dados.map(function (d) { return d.v; }).concat([5]));
+    max = max > 10 ? Math.ceil(max / 10) * 10 : Math.ceil(max / 5) * 5;
+    var passo = larg / dados.length, bw = passo * 0.62;
+    ctx.fillStyle = "rgba(255,255,255,.18)"; ctx.fillRect(x0, y0 + topo + base, larg, 2);
+    dados.forEach(function (d, i) {
+      var h = d.v / max * base, cx = x0 + passo * (i + .5);
+      ctx.fillStyle = modelo.cor || LARANJA;
+      ctx.fillRect(cx - bw / 2, y0 + topo + base - h, bw, Math.max(h, d.v > 0 ? 3 : 0));
+      ctx.fillStyle = "#fff"; ctx.textAlign = "center";
+      ctx.font = "600 26px " + FONTE; if (d.v > 0) ctx.fillText(f1(d.v), cx, y0 + topo + base - h - 8);
+      var dt = new Date(d.k + "T12:00:00");
+      ctx.fillStyle = "#b9c6ee"; ctx.font = "500 24px " + FONTE;
+      ctx.fillText(dt.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", ""), cx, y0 + topo + base + 28);
+      ctx.fillText(fdm(d.k), cx, y0 + topo + base + 50);
+    });
+    ctx.textAlign = "left";
   }
 
   function obterNomeArquivo() {
