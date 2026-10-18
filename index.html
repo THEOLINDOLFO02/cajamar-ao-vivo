@@ -27,27 +27,61 @@
       <a href="comparar.html">Previsão × medido</a>
     </nav>
   </header>
-  <div class="aux"><b>Atenção:</b> previsão, avisos e radar aqui são <b>auxiliares</b> e não substituem os avisos oficiais do INMET e do CEMADEN. Confirme na fonte oficial antes de decidir.</div>
+  <div class="aux"><b>Atenção:</b> previsão, avisos, radar e focos de satélite aqui são <b>auxiliares</b> e não substituem os avisos oficiais do INMET, CEMADEN, INPE e CENSIPAM. Confirme na fonte oficial antes de decidir.</div>
   <div class="barra-acoes">
     <button id="reload" type="button" class="btn primary">Atualizar agora</button>
-    <button id="btnAlertaSom" type="button" class="btn" title="Ativar aviso sonoro para emergências meteorológicas">🔔 Alerta sonoro: desligado</button>
+    <button id="btnAlertaSom" type="button" class="btn" title="Ativar aviso sonoro para emergências meteorológicas e focos de fogo">🔔 Alerta sonoro: desligado</button>
   </div>
   <section class="card"><h2>Estado das fontes</h2><ul class="fontes" id="fontes" aria-live="polite"></ul></section>
   <section class="card"><h2>Agora</h2><div id="agora" class="mut">Carregando…</div></section>
   <section class="card"><h2>Avisos do INMET que incluem Cajamar</h2><div id="alertas" class="mut">Carregando…</div></section>
   <section class="card"><h2>Chuva observada — pluviômetros do CEMADEN</h2><div id="cemaden" class="mut">Carregando…</div></section>
+  <section class="card" id="fogoCard">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+      <h2 style="margin:0">🔥 Monitoramento de Fogo e Satélites (INPE / NASA / CENSIPAM)</h2>
+      <div class="filtro-periodo" style="margin:0">
+        <label for="fSatelite">Satélite:</label>
+        <select id="fSatelite" aria-label="Filtrar focos por satélite">
+          <option value="todos">Todos os satélites</option>
+          <option value="GOES-19">GOES-19 / GOES-16</option>
+          <option value="NPP-375">NPP-375 (Tarde)</option>
+          <option value="NPP-375D">Manhã NPP-375</option>
+          <option value="NOAA-20">NOAA-20</option>
+          <option value="NOAA-21">NOAA-21</option>
+          <option value="METOP-B">METOP-B</option>
+          <option value="METOP-C">METOP-C</option>
+          <option value="MSG-03">MSG-03</option>
+          <option value="MODIS">AQUA / TERRA (MODIS)</option>
+        </select>
+        <label for="fRaioFogo">Raio:</label>
+        <select id="fRaioFogo" aria-label="Raio de busca de focos de calor">
+          <option value="50">Cajamar e região (50 km)</option>
+          <option value="100">Raio ampliado (100 km)</option>
+          <option value="300">Estado de SP (até 300 km)</option>
+        </select>
+      </div>
+    </div>
+    <div id="riscoFogoBox" class="mut" style="margin-bottom:10px">Calculando condição meteorológica de fogo…</div>
+    <div id="fogo" class="mut">Consultando satélites de queimadas (INPE BDQueimadas)…</div>
+  </section>
   <section class="card"><h2>Previsão oficial do INMET para Cajamar</h2><div id="prevInmet" class="mut">Carregando…</div></section>
   <section class="card"><h2>Chuva prevista — próximas 24 h (mm por hora)</h2><div id="horas" class="mut">Carregando…</div><p id="tot24" class="mut" style="margin:8px 0 0"></p></section>
   <section class="card" id="mapaCard">
     <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-      <h2 style="margin:0">Radar de chuva (RainViewer)</h2>
-      <div style="display:flex;gap:6px">
+      <h2 style="margin:0">Radar de Chuva, Satélites Clima (GOES/VIIRS) e Focos de Fogo</h2>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button id="btnGps" type="button" class="btn small" title="Localizar meu dispositivo no mapa">📍 Onde estou</button>
         <button id="btnFull" type="button" class="btn small" title="Expandir mapa para tela cheia">⛶ Tela cheia</button>
       </div>
     </div>
+    <div class="barra-modos-mapa" role="group" aria-label="Modo de visualização do mapa">
+      <button type="button" class="btn small modo-mapa ativo-modo" data-modo="radar">🌧️ Radar Chuva</button>
+      <button type="button" class="btn small modo-mapa" data-modo="goes_geocolor">🛰️ Satélite GOES (GeoColor)</button>
+      <button type="button" class="btn small modo-mapa" data-modo="goes_ir">🌡️ Satélite GOES IR (Tempestades)</button>
+      <button type="button" class="btn small modo-mapa" data-modo="fogo_sat">🔥 Satélite + Focos de Fogo</button>
+    </div>
     <div id="mapa"></div>
-    <div class="rc">
+    <div class="rc" id="radarControles">
       <button id="play" type="button">Pausar</button>
       <input id="slider" type="range" min="0" max="0" value="0" aria-label="Quadro do radar">
       <span id="rt" class="mut"></span>
@@ -56,19 +90,32 @@
     <p id="amsg" class="mut" style="margin:4px 0 0;font-size:.82rem"></p>
   </section>
   <section class="card"><h2>Próximos 7 dias</h2><div class="tw" id="dias" class="mut">Carregando…</div></section>
-  <section class="card links"><h2>Abrir direto (fontes oficiais)</h2>
-    <a href="https://previsao.inmet.gov.br/3509205" target="_blank" rel="noopener">INMET Cajamar</a>
-    <a href="https://www.saisp.br/estaticos/sitenovo/home.html" target="_blank" rel="noopener">SAISP</a>
-    <a href="https://www.rainviewer.com/map.html?loc=-23.3547,-46.8764,9" target="_blank" rel="noopener">RainViewer</a>
-    <a href="https://www.chuvaonline.iag.usp.br/" target="_blank" rel="noopener">Chuva Online</a>
+  <section class="card links"><h2>Abrir direto (fontes oficiais — Chuva, Satélites e Queimadas)</h2>
+    <div class="links-grupo">
+      <strong>🌧️ Clima, Chuva e Radar:</strong>
+      <a href="https://previsao.inmet.gov.br/3509205" target="_blank" rel="noopener">INMET Cajamar</a>
+      <a href="https://www.saisp.br/estaticos/sitenovo/home.html" target="_blank" rel="noopener">SAISP</a>
+      <a href="https://www.rainviewer.com/map.html?loc=-23.3547,-46.8764,9" target="_blank" rel="noopener">RainViewer</a>
+      <a href="https://www.chuvaonline.iag.usp.br/" target="_blank" rel="noopener">Chuva Online (USP)</a>
+      <a href="https://sma.fundacaoabc.org/monitoramento/satelite/goes_16_cptec" target="_blank" rel="noopener">Satélite GOES-16 / CPTEC</a>
+      <a href="https://www.accuweather.com/pt/br/cajamar/36484/satellite/36484" target="_blank" rel="noopener">Satélite AccuWeather Cajamar</a>
+    </div>
+    <div class="links-grupo" style="margin-top:8px">
+      <strong>🔥 Monitoramento de Fogo e Área Queimada:</strong>
+      <a href="https://panorama.sipam.gov.br/painel-do-fogo" target="_blank" rel="noopener">Painel do Fogo (CENSIPAM)</a>
+      <a href="https://data.inpe.br/queimadas/bdqueimadas/#" target="_blank" rel="noopener">BDQueimadas (INPE)</a>
+      <a href="https://alarmes.lasa.ufrj.br/area-queimada/" target="_blank" rel="noopener">ALARMES Área Queimada (LASA/UFRJ)</a>
+      <a href="https://www.earthdata.nasa.gov/data/catalog/lpcloud-mcd64a1-061" target="_blank" rel="noopener">NASA Burned Area (MCD64A1)</a>
+    </div>
   </section>
-  <p class="mut" style="font-size:.8rem">Previsão: Open-Meteo (modelo, não é medição). Avisos: API oficial do INMET (reserva: radarmeteorologico.com.br, terceiro, só se a oficial falhar). Radar: RainViewer (chuva detectada, passado). Veja o README para créditos e licenças.</p>
+  <p class="mut" style="font-size:.8rem">Previsão: Open-Meteo (modelo, não é medição). Avisos: API oficial do INMET (reserva: radarmeteorologico.com.br, terceiro, só se a oficial falhar). Radar: RainViewer. Satélites e Focos de Calor: INPE BDQueimadas (GOES-19, NPP-375 Manhã/Tarde, NOAA-20, NOAA-21, METOP-B/C, MSG-03, AQUA/TERRA) e camadas NASA GIBS (GOES-East / VIIRS / MODIS). Veja o README para créditos e licenças.</p>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="js/fontes.js"></script>
 <script src="js/inmet.js"></script>
 <script src="js/config.js"></script>
 <script src="js/cemaden.js"></script>
+<script src="js/queimadas.js"></script>
 <script src="js/painel.js"></script>
 <script>
 if ('serviceWorker' in navigator) {

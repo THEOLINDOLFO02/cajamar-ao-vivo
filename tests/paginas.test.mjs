@@ -45,7 +45,7 @@ test("toda página carrega o menu completo e cada link do menu leva a uma págin
 });
 
 test("scripts usados por uma página são carregados antes de quem depende deles", () => {
-  const ordem = { "painel.js": ["fontes.js", "inmet.js", "cemaden.js", "config.js"], "publicar.js": ["fontes.js", "inmet.js"], "historico.js": ["estacao.js"], "cemaden.js": ["fontes.js"] };
+  const ordem = { "painel.js": ["fontes.js", "inmet.js", "cemaden.js", "queimadas.js", "config.js"], "publicar.js": ["fontes.js", "inmet.js"], "historico.js": ["estacao.js"], "comparar.js": ["estacao.js"], "cemaden.js": ["fontes.js"] };
   for (const p of paginas) {
     const srcs = [...readFileSync(join(RAIZ, p), "utf8").matchAll(/<script src="js\/([^"]+)"/g)].map((m) => m[1]);
     for (const [quem, precisa] of Object.entries(ordem)) {

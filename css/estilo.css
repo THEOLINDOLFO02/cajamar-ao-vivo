@@ -59,9 +59,24 @@ a{color:var(--acc)}
 
 .filtro-periodo{display:flex;align-items:center;gap:10px;margin:2px 0 10px;flex-wrap:wrap}
 .filtro-periodo label{font-weight:600;font-size:.86rem}
-.filtro-periodo select{font:inherit;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+.filtro-periodo select,.sel-inline{font:inherit;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
 .cabecalho-boletim{display:none}
 .rodape-boletim{display:none}
+.alert.ok-alert{border-color:var(--ok)}
+.barra-modos-mapa{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.modo-mapa.ativo-modo,.btn.primary{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:600}
+.btn.small{padding:5px 10px;min-height:32px;font-size:.82rem}
+.links-grupo{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;font-size:.88rem}
+.links-grupo a{margin-right:0}
+.slots-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px}
+.slot-card{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:4px;transition:border-color .15s}
+.slot-card.ativo{border:2px solid var(--acc);background:var(--card)}
+.slot-topo{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:.82rem}
+.slot-badge{font-size:.7rem;padding:2px 6px;border-radius:10px;font-weight:600;white-space:nowrap}
+.slot-badge.ok{background:rgba(47,125,79,.16);color:var(--ok)}
+.slot-badge.vazio{background:var(--line);color:var(--mut)}
+.slot-nome{margin:2px 0 0;font-weight:600;font-size:.88rem;word-break:break-word}
+.slot-acoes{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;padding-top:6px}
 
 @media print {
   body{background:#fff !important;color:#000 !important;padding:0 !important;font-size:12px !important}

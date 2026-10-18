@@ -102,3 +102,41 @@ test("resumir: chuva do dia com dia sem chuva dá zero (e não null)", () => {
   assert.equal(r.chuva, 0);
   assert.equal(r.c10, 0);
 });
+
+test("resumir e detectarTipo: lê régua de nível do rio (water_level_m) e calcula mínimo, máximo e variação Δ", () => {
+  const l = [
+    CABECALHO,
+    "cajamar;9001;Régua Rio Juquery;hidrologica;;10/01/2026 01:00:00;1768017600000;;;;;;;;;;1,25;0",
+    "cajamar;9001;Régua Rio Juquery;hidrologica;;10/01/2026 02:00:00;1768021200000;;;;;;;;;;1,85;0"
+  ];
+  const rows = Estacao.lerCsv(l.join("\n"));
+  assert.equal(Estacao.detectarTipo(rows), "nivel");
+  const r = Estacao.resumir(rows)["2026-01-10"];
+  assert.equal(r.nvMin, 1.25);
+  assert.equal(r.nvMax, 1.85);
+  assert.equal(r.nvDelta, 0.6);
+});
+
+test("mesclarNoSlot: suporta 3 estações meteorológicas e 1 régua de nível do rio separadamente", () => {
+  const banco = Estacao.criarBancoVazio();
+  const est1Rows = Estacao.lerCsv([CABECALHO, linha("10/01/2026", 0, { chuva: "2,0" })].join("\n"));
+  const est2Rows = Estacao.lerCsv([
+    CABECALHO,
+    "cajamar;2;Estação Jordanésia;meteorologica;;10/01/2026 00:00:00;1768014000000;20,0;70,0;935,0;1;5,0;180;0;0;4,4;;0"
+  ].join("\n"));
+  const reguaRows = Estacao.lerCsv([
+    CABECALHO,
+    "cajamar;99;Régua Nível Rio;hidrologica;;10/01/2026 00:00:00;1768014000000;;;;;;;;;;2,10;0"
+  ].join("\n"));
+
+  const r1 = Estacao.mesclarNoSlot(banco, "auto", est1Rows, "estacao1.csv");
+  const r2 = Estacao.mesclarNoSlot(banco, "auto", est2Rows, "estacao2.csv");
+  const rr = Estacao.mesclarNoSlot(banco, "auto", reguaRows, "regua.csv");
+
+  assert.equal(r1.slotId, "est1");
+  assert.equal(r2.slotId, "est2");
+  assert.equal(rr.slotId, "regua");
+  assert.equal(banco.slots.est1.dias["2026-01-10"].chuva, 2);
+  assert.equal(banco.slots.est2.dias["2026-01-10"].chuva, 4.4);
+  assert.equal(banco.slots.regua.dias["2026-01-10"].nvMax, 2.1);
+});

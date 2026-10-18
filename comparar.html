@@ -15,8 +15,8 @@
 <body>
 <main>
   <header>
-    <h1>Previsão × chuva medida</h1>
-    <p class="sub">Defesa Civil de Cajamar/SP · acompanhamento auxiliar</p>
+    <h1>Previsão × Estações (3) e Régua de Nível do Rio</h1>
+    <p class="sub">Defesa Civil de Cajamar/SP · comparação com boletins e modelos meteorológicos</p>
     <nav class="nav-bar" aria-label="Navegação principal">
       <a href="index.html">Painel ao vivo</a>
       <a href="quadro.html">Quadro de ocorrências</a>
@@ -26,15 +26,65 @@
       <a href="comparar.html" class="ativo" aria-current="page">Previsão × medido</a>
     </nav>
   </header>
-  <div class="aux">Compara a chuva <b>medida pela estação</b> (histórico importado neste aparelho) com a chuva que o modelo do <b>Open-Meteo</b> havia previsto <b>1 dia antes</b> para Cajamar. É um ponto de medição contra uma área de modelo: serve para ter noção de acerto, não como avaliação oficial. O INMET não guarda previsões antigas na API que usamos, então ele não entra nesta comparação.</div>
-  <div class="barra-acoes"><button id="rodar" type="button">Comparar</button></div>
+  <div class="aux">Envie aqui de <b>1 a 4 arquivos CSV</b> (as <b>3 estações meteorológicas</b> e a <b>régua de nível do rio</b> de Cajamar), ou escolha apenas <b>1 estação + a régua de nível</b> para cruzar a chuva medida e a resposta do rio com as previsões dos boletins/modelos meteorológicos (<b>Open-Meteo D-1</b>, <b>ECMWF</b> e <b>GFS</b>). Os arquivos CSV são lidos apenas no seu navegador.</div>
+
+  <section class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+      <h2 style="margin:0">1. Arquivos CSV carregados (3 Estações + 1 Régua de Nível)</h2>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button id="btnImportarMulti" type="button" class="btn primary small">📂 Enviar 1 a 4 CSVs de uma vez</button>
+        <input id="arqComp" type="file" accept=".csv,text/csv" multiple hidden>
+      </div>
+    </div>
+    <div id="gradeSlotsComp" class="slots-grid"></div>
+  </section>
+
+  <section class="card">
+    <h2>2. Configurar comparação (Estação + Régua de Nível × Boletins de Clima)</h2>
+    <div class="filtro-periodo" style="gap:14px">
+      <label for="selEstacaoComp">Estação meteorológica:
+        <select id="selEstacaoComp">
+          <option value="est1">Estação Meteorológica 1</option>
+          <option value="est2">Estação Meteorológica 2</option>
+          <option value="est3">Estação Meteorológica 3</option>
+          <option value="todas">Todas as estações carregadas (comparar lado a lado + média)</option>
+        </select>
+      </label>
+      <label for="selReguaComp">Régua de Nível do Rio:
+        <select id="selReguaComp">
+          <option value="sim">🌊 Incluir Régua de Nível do Rio (Chuva × Nível m)</option>
+          <option value="nao">Somente estação meteorológica (sem régua)</option>
+        </select>
+      </label>
+      <label for="selDiasParciais">Dias no CSV:
+        <select id="selDiasParciais">
+          <option value="completos">Apenas dias completos (≥ 90% das leituras)</option>
+          <option value="todos">Todos os dias importados (incluir parciais)</option>
+        </select>
+      </label>
+    </div>
+    <div class="barra-acoes" style="margin-top:10px">
+      <button id="rodar" type="button" class="btn primary">🔍 Comparar Estação(ões) e Régua com Boletins</button>
+    </div>
+  </section>
+
   <div id="aviso" class="warn" hidden></div>
   <div id="conteudo" hidden>
-    <section class="card"><h2>Resumo</h2><div id="resumo" class="resumo"></div><p id="nota" class="mut" style="margin:8px 0 0;font-size:.82rem"></p></section>
-    <section class="card"><h2>Dia a dia (mm)</h2><div class="tw"><table><thead><tr><th>Dia</th><th>Medido</th><th>Previsto 1 dia antes</th><th>Diferença</th><th>Acertou chuva/não</th></tr></thead><tbody id="tabela"></tbody></table></div>
-    <p class="mut" style="margin:6px 0 0;font-size:.82rem">“Chuva” = 1 mm ou mais no dia. Só entram dias com pelo menos 90% das leituras da estação.</p></section>
+    <section class="card"><h2>Resumo da comparação</h2><div id="resumo" class="resumo"></div><p id="nota" class="mut" style="margin:8px 0 0;font-size:.82rem"></p></section>
+    <section class="card" id="cardGrafComp">
+      <h2>Gráfico: Chuva Medida (mm) × Previsto Boletim (mm) × Nível do Rio (m)</h2>
+      <div id="gComp"></div>
+      <p class="mut" style="margin:6px 0 0;font-size:.82rem">
+        <span class="leg" style="background:var(--bar)"></span> Chuva medida (mm) ·
+        <span class="leg" style="background:var(--yel)"></span> Previsto 1 dia antes (mm) ·
+        <span class="leg max"></span> Nível máximo do rio (m)
+      </p>
+    </section>
+    <section class="card"><h2>Dia a dia (Estação × Régua de Nível × Boletins de Previsão)</h2><div class="tw"><table><thead><tr id="cabComp"><th>Dia</th><th>Medido</th><th>Previsto 1 dia antes</th><th>Diferença</th><th>Acertou chuva/não</th></tr></thead><tbody id="tabela"></tbody></table></div>
+    <p class="mut" style="margin:6px 0 0;font-size:.82rem">“Chuva” = 1 mm ou mais no dia. Modelos globais de referência dos boletins: Previsão D-1 (Open-Meteo Previous Runs) e multimodelo histórico (ECMWF IFS / GFS NCEP).</p></section>
   </div>
 </main>
+<script src="js/estacao.js"></script>
 <script src="js/comparar.js"></script>
 <script>
 if ('serviceWorker' in navigator) {

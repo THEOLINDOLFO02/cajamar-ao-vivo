@@ -26,15 +26,30 @@
       <a href="comparar.html">Previsão × medido</a>
     </nav>
   </header>
-  <div class="aux">O arquivo CSV é lido <b>aqui no seu navegador</b>: não é enviado para nenhum servidor. Só o resumo por dia fica guardado neste aparelho. Este histórico é <b>auxiliar</b> e vem de uma estação isolada; não substitui os dados oficiais do INMET e do CEMADEN.</div>
+  <div class="aux">Os arquivos CSV são lidos <b>aqui no seu navegador</b>: nada é enviado para servidor. Você pode importar de <b>1 a 4 arquivos CSV</b> (as <b>3 estações meteorológicas</b> e a <b>régua de nível do rio</b> de Cajamar). Este histórico é <b>auxiliar</b> e não substitui os dados oficiais do INMET e do CEMADEN.</div>
   <div class="barra-acoes">
-    <button id="escolher" type="button">Importar CSV da estação</button>
+    <button id="escolher" type="button" class="btn primary">📂 Importar CSV(s) (1 a 4 arquivos)</button>
+    <label for="slotDestino" style="display:inline-flex;align-items:center;gap:6px;font-size:.85rem">
+      Destino ao importar:
+      <select id="slotDestino" class="sel-inline">
+        <option value="auto">Automático (detectar estação / régua pelo CSV)</option>
+        <option value="est1">Estação Meteorológica 1</option>
+        <option value="est2">Estação Meteorológica 2</option>
+        <option value="est3">Estação Meteorológica 3</option>
+        <option value="regua">🌊 Régua de Nível do Rio</option>
+      </select>
+    </label>
     <button id="imprimir" type="button" disabled>🖨️ Gerar Boletim (PDF / Imprimir)</button>
-    <button id="limpar" type="button">Apagar histórico</button>
-    <input id="arquivo" type="file" accept=".csv,text/csv" hidden>
+    <button id="limpar" type="button">Apagar estação atual</button>
+    <button id="limparTudo" type="button">Apagar todas</button>
+    <input id="arquivo" type="file" accept=".csv,text/csv" multiple hidden>
   </div>
+  <section class="card">
+    <h2>Equipamentos em Cajamar (3 Estações Meteorológicas + 1 Régua de Nível)</h2>
+    <div id="gradeSlots" class="slots-grid"></div>
+  </section>
   <div id="aviso" class="warn" hidden></div>
-  <section class="card" id="vazio"><h2>Sem dados ainda</h2><p class="mut" style="margin:0">Toque em “Importar CSV da estação” e escolha o arquivo baixado da plataforma. Importar de novo um arquivo mais recente soma os dias novos sem duplicar.</p></section>
+  <section class="card" id="vazio"><h2>Sem dados neste equipamento ainda</h2><p class="mut" style="margin:0">Toque em “Importar CSV(s)” acima (você pode selecionar de 1 até os 4 arquivos CSV de uma vez) ou clique em “Enviar CSV” dentro do cartão da estação ou da régua de nível desejada.</p></section>
   <div id="conteudo" hidden>
     <div class="cabecalho-boletim" hidden>
       <div class="boletim-topo">
@@ -42,11 +57,11 @@
         <div>
           <h2>PREFEITURA DO MUNICÍPIO DE CAJAMAR</h2>
           <h3>COORDENADORIA MUNICIPAL DE PROTEÇÃO E DEFESA CIVIL - COMPDEC</h3>
-          <p>Boletim Climatológico e Pluviométrico Operacional · Cajamar / SP (IBGE 3509205)</p>
+          <p>Boletim Climatológico, Pluviométrico e Fluviométrico Operacional · Cajamar / SP (IBGE 3509205)</p>
         </div>
       </div>
       <div class="boletim-meta">
-        <span><b>Estação:</b> <span id="bolEstacao">—</span></span>
+        <span><b>Equipamento:</b> <span id="bolEstacao">—</span></span>
         <span><b>Período:</b> <span id="bolPeriodo">—</span></span>
         <span><b>Emissão:</b> <span id="bolEmissao">—</span></span>
       </div>
@@ -60,10 +75,15 @@
       <span id="periodo" class="mut"></span>
     </div>
     <section class="card"><h2>Resumo do período</h2><div id="resumo" class="resumo"></div></section>
-    <section class="card"><h2>Chuva por dia (mm)</h2><div id="gChuva"></div><p id="notaParcial" class="mut" style="margin:6px 0 0;font-size:.82rem"></p></section>
-    <section class="card"><h2>Temperatura mínima e máxima (°C)</h2><div id="gTemp"></div><p class="mut" style="margin:6px 0 0;font-size:.82rem"><span class="leg max"></span> máxima · <span class="leg min"></span> mínima</p></section>
+    <section class="card" id="cardNivel" hidden>
+      <h2>🌊 Nível do Rio por dia (metros — Régua de Nível)</h2>
+      <div id="gNivel"></div>
+      <p class="mut" style="margin:6px 0 0;font-size:.82rem"><span class="leg max"></span> nível máximo diário (m) · <span class="leg min"></span> nível mínimo diário (m)</p>
+    </section>
+    <section class="card" id="cardChuva"><h2>Chuva por dia (mm)</h2><div id="gChuva"></div><p id="notaParcial" class="mut" style="margin:6px 0 0;font-size:.82rem"></p></section>
+    <section class="card" id="cardTemp"><h2>Temperatura mínima e máxima (°C)</h2><div id="gTemp"></div><p class="mut" style="margin:6px 0 0;font-size:.82rem"><span class="leg max"></span> máxima · <span class="leg min"></span> mínima</p></section>
     <section class="card"><h2>Dia a dia</h2>
-      <div class="tw"><table><thead><tr><th>Dia</th><th>Chuva mm</th><th>Máx 1 h</th><th>Máx 10 min</th><th>Mín °C</th><th>Máx °C</th><th>Umid.</th><th>Vento km/h</th></tr></thead><tbody id="tabela"></tbody></table></div>
+      <div class="tw"><table><thead><tr id="cabTabela"><th>Dia</th><th>Chuva mm</th><th>Máx 1 h</th><th>Máx 10 min</th><th>Mín °C</th><th>Máx °C</th><th>Umid.</th><th>Vento km/h</th><th>Nível Rio (m)</th></tr></thead><tbody id="tabela"></tbody></table></div>
       <p class="mut" style="margin:6px 0 0;font-size:.82rem">* dia com menos de 90% das leituras. A chuva do dia é a soma do pluviômetro (passos de 0,2 mm); picos de 1 minuto não são tratados como intensidade — use “Máx 10 min”.</p></section>
     <div class="rodape-boletim" hidden>
       <div class="boletim-assinaturas">
@@ -74,7 +94,7 @@
           <b>Coordenadoria COMPDEC</b><br>Visto / Homologação
         </div>
       </div>
-      <p class="boletim-rodape-nota">Documento gerado automaticamente pelo Sistema Cajamar Clima ao Vivo. Dados obtidos via telemetria de estação meteorológica local.</p>
+      <p class="boletim-rodape-nota">Documento gerado automaticamente pelo Sistema Cajamar Clima ao Vivo. Dados obtidos via telemetria de estação meteorológica / régua fluviométrica local.</p>
     </div>
   </div>
 </main>

@@ -14,7 +14,15 @@
     if (r.antigo) box.insertBefore(el("p", "stale", "Não foi possível atualizar agora. Mostrando dados antigos, coletados em " + dh(r.de) + "."), box.firstChild);
   }
 
-  var NOMES = { clima: "Previsão e tempo atual (Open-Meteo)", avisos_inmet: "Avisos INMET (oficial)", previsao_inmet: "Previsão INMET (oficial)", cemaden: "Chuva observada CEMADEN", alertas: "Avisos via radarmeteorologico.com.br (reserva)", radar: "Radar (RainViewer)" };
+  var NOMES = {
+    clima: "Previsão e tempo atual (Open-Meteo)",
+    avisos_inmet: "Avisos INMET (oficial)",
+    previsao_inmet: "Previsão INMET (oficial)",
+    cemaden: "Chuva observada CEMADEN",
+    queimadas: "Focos de calor por satélite (INPE BDQueimadas)",
+    alertas: "Avisos via radarmeteorologico.com.br (reserva)",
+    radar: "Radar e Satélite (RainViewer / NASA GIBS)"
+  };
 
   function desenharFontes() {
     var ul = $("fontes"); ul.textContent = "";
@@ -46,6 +54,25 @@
     if (cod === 95) return "Tempestade";
     if (cod === 96 || cod === 99) return "Tempestade c/ granizo";
     return "";
+  }
+
+  var ultimoClimaFogo = null;
+  function atualizarRiscoFogoBox() {
+    var box = $("riscoFogoBox");
+    if (!box || typeof Queimadas === "undefined") return;
+    var rf = Queimadas.calcularRiscoFogoLocal(ultimoClimaFogo);
+    if (!rf) {
+      box.textContent = "Condição meteorológica local de fogo indisponível no momento.";
+      return;
+    }
+    box.textContent = "";
+    box.className = "";
+    var d = el("div", "alert " + (rf.classe === "v" ? "v" : rf.classe === "l" ? "l" : rf.classe === "ok" ? "ok-alert" : ""));
+    d.style.marginTop = "0";
+    d.appendChild(el("strong", "", "🌡️ Condição Meteorológica para Fogo em Cajamar: " + rf.nivel));
+    d.appendChild(el("small", "", "Temp: " + Math.round(rf.temp) + "°C · Umidade: " + Math.round(rf.umid) + "% · Vento/Rajada: " + rf.ventoMax + " km/h · Regra dos 30: " + rf.regra30 + "/3 fatores · Índice Angström: " + rf.angstrom));
+    d.appendChild(el("span", "", rf.recomendacao));
+    box.appendChild(d);
   }
 
   async function clima() {
@@ -93,7 +120,17 @@
         d.appendChild(el("span", "", hv[i] > 0 ? String(hv[i]) : "")); d.appendChild(b); d.appendChild(el("span", "", t.slice(11, 13) + "h"));
         barras.appendChild(d);
       });
-      $("tot24").textContent = "Total previsto em 24 h: " + hv.reduce(function (s, x) { return s + x; }, 0).toFixed(1) + " mm (modelo, não é medição)";
+      var soma24 = hv.reduce(function (s, x) { return s + x; }, 0);
+      $("tot24").textContent = "Total previsto em 24 h: " + soma24.toFixed(1) + " mm (modelo, não é medição)";
+
+      ultimoClimaFogo = {
+        temp: c.temperature_2m,
+        umid: c.relative_humidity_2m,
+        vento: c.wind_speed_10m,
+        rajada: c.wind_gusts_10m,
+        chuva24h: (typeof c.precipitation === "number" ? c.precipitation : 0) + soma24 * 0.25
+      };
+      atualizarRiscoFogoBox();
 
       var D = $("dias"); D.textContent = ""; D.className = "tw";
       aviso(D, r);
@@ -299,8 +336,12 @@
       : "Nenhuma área de aviso do INMET para Cajamar ou arredores neste momento.";
   }
 
-  // ---------- Radar, Mapa Operacional e Pontos de Referência ----------
+  // ---------- Radar, Satélites (GOES / VIIRS / MODIS), Focos de Fogo e Mapa Operacional ----------
   var map = null, frames = [], layers = [], cur = 0, timer = null, host = "", pastCount = 0;
+  var layerFogo = null, camadaGoesGeo = null, camadaGoesIr = null, camadaViirsSnpp = null, camadaViirsNoaa20 = null, camadaTermicaNasa = null;
+  var modoMapaAtual = "radar";
+  var dadosQueimadasAtual = null;
+
   var PONTOS_CAJAMAR = [
     { nome: "Cajamar (Centro)", lat: -23.3556, lon: -46.8778, cor: "#c2410c", tipo: "Distrito" },
     { nome: "Jordanésia", lat: -23.3283, lon: -46.8622, cor: "#c2410c", tipo: "Distrito" },
@@ -309,10 +350,69 @@
     { nome: "Defesa Civil / Bombeiros", lat: -23.3325, lon: -46.8603, cor: "#b91c1c", tipo: "Base Operacional" }
   ];
 
+  function inicializarMapa() {
+    if (map || typeof L === "undefined") return;
+    map = L.map("mapa", { zoomControl: true }).setView([LAT, LON], 10);
+    var camadaRuas = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 14, attribution: "© OpenStreetMap" });
+    var camadaSatelite = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 14, attribution: "Tiles © Esri" });
+    var camadaRelevo = L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", { maxZoom: 14, attribution: "© OpenTopoMap" });
+    camadaRuas.addTo(map);
+
+    // Camadas de Satélite NASA GIBS / NOAA / CPTEC (tempo real / quase real, sem necessidade de chave)
+    camadaGoesGeo = L.tileLayer("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_GeoColor/default/default/GoogleMapsCompatible_Level7/{z}/{y}/{x}.jpg", {
+      opacity: 0.72, maxNativeZoom: 7, maxZoom: 14, attribution: "NASA GIBS / NOAA GOES-East (GOES-16/19)"
+    });
+    camadaGoesIr = L.tileLayer("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/default/GoogleMapsCompatible_Level6/{z}/{y}/{x}.jpg", {
+      opacity: 0.72, maxNativeZoom: 6, maxZoom: 14, attribution: "NASA GIBS / GOES-East Banda 13 IR (10.3 µm)"
+    });
+    camadaViirsSnpp = L.tileLayer("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/default/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg", {
+      opacity: 0.78, maxNativeZoom: 9, maxZoom: 14, attribution: "NASA GIBS / Suomi-NPP VIIRS (NPP-375)"
+    });
+    camadaViirsNoaa20 = L.tileLayer("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/default/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg", {
+      opacity: 0.78, maxNativeZoom: 9, maxZoom: 14, attribution: "NASA GIBS / NOAA-20 VIIRS"
+    });
+    camadaTermicaNasa = L.tileLayer.wms("https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi", {
+      layers: "MODIS_Combined_Thermal_Anomalies_All,VIIRS_SNPP_Thermal_Anomalies_375m_All,VIIRS_NOAA20_Thermal_Anomalies_375m_All,VIIRS_NOAA21_Thermal_Anomalies_375m_All",
+      format: "image/png",
+      transparent: true,
+      opacity: 0.85,
+      attribution: "NASA GIBS FIRMS (VIIRS 375m NOAA-20/21/S-NPP & MODIS)"
+    });
+
+    var layerPontos = L.layerGroup();
+    PONTOS_CAJAMAR.forEach(function (pt) {
+      var circ = L.circleMarker([pt.lat, pt.lon], {
+        radius: pt.tipo === "Base Operacional" ? 7 : 5,
+        color: pt.cor, fillColor: pt.cor, fillOpacity: 0.9, weight: 2
+      });
+      circ.bindTooltip("<b>" + pt.nome + "</b><br><small>" + pt.tipo + "</small>", { direction: "top" });
+      layerPontos.addLayer(circ);
+    });
+    layerPontos.addTo(map);
+    layerAvisos = L.layerGroup().addTo(map);
+    layerFogo = L.layerGroup().addTo(map);
+
+    L.control.layers(
+      { "Ruas": camadaRuas, "Satélite (Base Esri)": camadaSatelite, "Relevo/Topografia": camadaRelevo },
+      {
+        "📍 Pontos de Cajamar": layerPontos,
+        "⚠️ Áreas dos avisos do INMET": layerAvisos,
+        "🔥 Focos de Calor INPE (BDQueimadas)": layerFogo,
+        "🔥 Anomalias Térmicas NASA (VIIRS/MODIS)": camadaTermicaNasa,
+        "🛰️ Satélite GOES-East GeoColor (GOES-16/19)": camadaGoesGeo,
+        "🌡️ Satélite GOES-East Infravermelho (Banda 13)": camadaGoesIr,
+        "🛰️ Satélite Suomi-NPP (NPP-375 TrueColor)": camadaViirsSnpp,
+        "🛰️ Satélite NOAA-20 (VIIRS TrueColor)": camadaViirsNoaa20
+      },
+      { position: "topright" }
+    ).addTo(map);
+  }
+
   function show(i) {
     if (!layers.length || !frames[i]) return;
     if (layers[cur]) layers[cur].setOpacity(0);
-    cur = i; layers[cur].setOpacity(.7);
+    cur = i;
+    if (modoMapaAtual === "radar") layers[cur].setOpacity(0.7);
     $("slider").value = i;
     var hora = new Date(frames[i].time * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     var ehFuturo = i >= pastCount;
@@ -323,7 +423,59 @@
   function play(on) {
     clearInterval(timer); timer = null;
     $("play").textContent = on ? "Pausar" : "Reproduzir";
-    if (on) timer = setInterval(function () { show((cur + 1) % frames.length); }, 700);
+    if (on && modoMapaAtual === "radar" && frames.length) {
+      timer = setInterval(function () { show((cur + 1) % frames.length); }, 700);
+    }
+  }
+
+  function alternarModoMapa(modo) {
+    inicializarMapa();
+    if (!map) return;
+    modoMapaAtual = modo;
+    var botoes = document.querySelectorAll(".modo-mapa");
+    for (var i = 0; i < botoes.length; i++) {
+      if (botoes[i].getAttribute("data-modo") === modo) botoes[i].classList.add("ativo-modo");
+      else botoes[i].classList.remove("ativo-modo");
+    }
+    // Oculta ou mostra quadros do radar de chuva
+    if (modo !== "radar") {
+      play(false);
+      layers.forEach(function (l) { l.setOpacity(0); });
+      if ($("radarControles")) $("radarControles").hidden = true;
+    } else {
+      if ($("radarControles")) $("radarControles").hidden = false;
+      if (layers[cur]) layers[cur].setOpacity(0.7);
+      play(true);
+    }
+
+    // Remove camadas de satélite automáticas antes de ativar a do modo selecionado
+    [camadaGoesGeo, camadaGoesIr, camadaTermicaNasa].forEach(function (c) {
+      if (c && map.hasLayer(c)) map.removeLayer(c);
+    });
+
+    var m = $("rmsg");
+    if (modo === "goes_geocolor") {
+      if (camadaGoesGeo) camadaGoesGeo.addTo(map);
+      if (m) m.textContent = "Satélite GOES-East (GOES-16 / GOES-19) GeoColor ativo — cobertura de nuvens sobre Cajamar e Sudeste (NASA GIBS / NOAA).";
+    } else if (modo === "goes_ir") {
+      if (camadaGoesIr) camadaGoesIr.addTo(map);
+      if (m) m.textContent = "Satélite GOES-East Banda 13 Infravermelho Limpo (10,3 µm) ativo — destaca topo frio de nuvens de tempestade dia e noite.";
+    } else if (modo === "fogo_sat") {
+      if (camadaTermicaNasa) camadaTermicaNasa.addTo(map);
+      if (layerFogo && !map.hasLayer(layerFogo)) layerFogo.addTo(map);
+      if (m) m.textContent = "Monitoramento de Fogo por Satélite ativo: Focos INPE BDQueimadas + Anomalias Térmicas NASA (VIIRS 375m NOAA-20/21/NPP-375 e MODIS).";
+    } else {
+      if (m && frames.length) {
+        m.textContent = pastCount + " quadros passados (chuva detectada) + " + (frames.length - pastCount) + " de projeção (nowcast).";
+      }
+    }
+  }
+
+  var botoesModo = document.querySelectorAll(".modo-mapa");
+  for (var bm = 0; bm < botoesModo.length; bm++) {
+    botoesModo[bm].onclick = function () {
+      alternarModoMapa(this.getAttribute("data-modo"));
+    };
   }
 
   async function radar() {
@@ -333,6 +485,7 @@
       m.textContent = "Mapa indisponível (biblioteca não carregou). Use o atalho do RainViewer.";
       return;
     }
+    inicializarMapa();
     try {
       var r = await Fontes.consultar("radar", "https://api.rainviewer.com/public/weather-maps.json", function (x) { return x && x.host && x.radar; });
       if (r.antigo) { Fontes.marcarErro("radar", "sem resposta nova"); throw new Error("sem resposta nova"); }
@@ -344,32 +497,6 @@
       frames = pastFrames.concat(nowcastFrames);
       if (!frames.length) throw new Error("sem quadros");
 
-      if (!map) {
-        map = L.map("mapa", { zoomControl: true }).setView([LAT, LON], 10);
-        var camadaRuas = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 14, attribution: "© OpenStreetMap" });
-        var camadaSatelite = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 14, attribution: "Tiles © Esri" });
-        var camadaRelevo = L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", { maxZoom: 14, attribution: "© OpenTopoMap" });
-        camadaRuas.addTo(map);
-
-        var layerPontos = L.layerGroup();
-        PONTOS_CAJAMAR.forEach(function (pt) {
-          var circ = L.circleMarker([pt.lat, pt.lon], {
-            radius: pt.tipo === "Base Operacional" ? 7 : 5,
-            color: pt.cor, fillColor: pt.cor, fillOpacity: 0.9, weight: 2
-          });
-          circ.bindTooltip("<b>" + pt.nome + "</b><br><small>" + pt.tipo + "</small>", { direction: "top" });
-          layerPontos.addLayer(circ);
-        });
-        layerPontos.addTo(map);
-        layerAvisos = L.layerGroup().addTo(map);
-
-        L.control.layers(
-          { "Ruas": camadaRuas, "Satélite": camadaSatelite, "Relevo/Topografia": camadaRelevo },
-          { "Pontos de Cajamar": layerPontos, "Áreas dos avisos do INMET": layerAvisos },
-          { position: "topright" }
-        ).addTo(map);
-      }
-
       desenharAvisosNoMapa();
       layers.forEach(function (l) { map.removeLayer(l); }); layers = [];
       frames.forEach(function (f) {
@@ -378,12 +505,208 @@
       });
       var s = $("slider"); s.max = frames.length - 1; cur = 0;
       var quadroInicial = pastCount > 0 ? pastCount - 1 : frames.length - 1;
-      show(quadroInicial); play(true);
-      m.textContent = pastFrames.length + " quadros passados (chuva detectada) + " + nowcastFrames.length + " de projeção (nowcast).";
+      show(quadroInicial);
+      if (modoMapaAtual === "radar") {
+        play(true);
+        m.textContent = pastFrames.length + " quadros passados (chuva detectada) + " + nowcastFrames.length + " de projeção (nowcast).";
+      }
     } catch (e) {
-      m.textContent = "Não foi possível carregar o radar agora. Abra o atalho do RainViewer.";
+      if (modoMapaAtual === "radar") {
+        m.textContent = "Não foi possível carregar o radar de chuva agora. Você ainda pode usar os modos de Satélite GOES e Focos de Fogo acima.";
+      }
     }
   }
+
+  // ---------- Monitoramento de Focos de Fogo via Satélite (INPE BDQueimadas) ----------
+  function filtrarFocosAtuais() {
+    if (!dadosQueimadasAtual || !Array.isArray(dadosQueimadasAtual.focos)) return [];
+    var satSel = $("fSatelite") ? $("fSatelite").value : "todos";
+    var raioSel = $("fRaioFogo") ? Number($("fRaioFogo").value) || 50 : 50;
+    return dadosQueimadasAtual.focos.filter(function (f) {
+      if (f.distanciaKm > raioSel) return false;
+      if (satSel !== "todos" && f.grupoSat !== satSel && f.satelite !== satSel) return false;
+      return true;
+    });
+  }
+
+  function desenharFocosNoMapa(listaFiltrada) {
+    inicializarMapa();
+    if (!layerFogo || typeof L === "undefined") return;
+    layerFogo.clearLayers();
+    listaFiltrada.forEach(function (f) {
+      var cor = f.emCajamar || f.distanciaKm <= 12 ? "#dc2626" : f.distanciaKm <= 30 ? "#ea580c" : "#f59e0b";
+      var raio = f.emCajamar || f.distanciaKm <= 12 ? 8 : 6;
+      var m = L.circleMarker([f.lat, f.lon], {
+        radius: raio,
+        color: "#7f1d1d",
+        fillColor: cor,
+        fillOpacity: 0.9,
+        weight: 2
+      });
+      var pop = el("div");
+      pop.appendChild(el("b", "", "🔥 Foco de Calor — " + f.municipio));
+      pop.appendChild(el("br"));
+      pop.appendChild(el("small", "", "Satélite: " + f.rotuloSat + " (" + f.satelite + ")"));
+      pop.appendChild(el("br"));
+      pop.appendChild(el("small", "", "Detecção (BRT): " + f.dataHoraBrt + " · Distância de Cajamar: " + f.distanciaKm.toFixed(1).replace(".", ",") + " km"));
+      if (f.frp !== null || f.riscoFogo !== null) {
+        pop.appendChild(el("br"));
+        pop.appendChild(el("small", "",
+          (f.frp !== null ? "FRP: " + f.frp.toFixed(1) + " MW " : "") +
+          (f.riscoFogo !== null ? "· Risco Fogo INPE: " + f.riscoFogo.toFixed(2) : "") +
+          (f.diasSemChuva !== null ? " · " + f.diasSemChuva + " dia(s) s/ chuva" : "")
+        ));
+      }
+      m.bindPopup(pop);
+      m.bindTooltip("🔥 " + f.municipio + " · " + f.rotuloSat + " (" + f.distanciaKm.toFixed(0) + " km)", { direction: "top" });
+      layerFogo.addLayer(m);
+    });
+  }
+
+  function focarFocoNoMapa(f) {
+    inicializarMapa();
+    if (!map) return;
+    if (layerFogo && !map.hasLayer(layerFogo)) layerFogo.addTo(map);
+    var card = $("mapaCard");
+    if (card && card.scrollIntoView) card.scrollIntoView({ behavior: "smooth", block: "center" });
+    map.setView([f.lat, f.lon], 12);
+    layerFogo.eachLayer(function (l) {
+      if (l.getLatLng && Math.abs(l.getLatLng().lat - f.lat) < 0.0005 && Math.abs(l.getLatLng().lng - f.lon) < 0.0005) {
+        l.openPopup();
+      }
+    });
+  }
+
+  function renderizarPainelFogo(antigo, deTs) {
+    var box = $("fogo");
+    if (!box || !dadosQueimadasAtual) return;
+    box.textContent = ""; box.className = "";
+    if (antigo && deTs) {
+      box.appendChild(el("p", "stale", "Não foi possível atualizar o INPE agora. Mostrando focos coletados em " + dh(deTs) + "."));
+    }
+
+    var todosFocos = dadosQueimadasAtual.focos || [];
+    var emCajamar = todosFocos.filter(function (f) { return f.emCajamar; });
+    var raio50 = todosFocos.filter(function (f) { return f.distanciaKm <= 50; });
+    var filtrados = filtrarFocosAtuais();
+
+    desenharFocosNoMapa(filtrados);
+
+    if (emCajamar.length > 0) {
+      notificarRisco("🔥 Foco de Calor em Cajamar", emCajamar.length + " foco(s) detectado(s) por satélite (" + emCajamar[0].rotuloSat + "). Verifique o painel.");
+    }
+
+    // Resumo em cartões
+    var k = el("div", "k");
+    k.style.marginBottom = "10px";
+    var maisProximo = todosFocos.length ? todosFocos[0].distanciaKm.toFixed(1).replace(".", ",") + " km (" + todosFocos[0].municipio + ")" : "Nenhum a < 300 km";
+    var contSat = {};
+    filtrados.forEach(function (f) { contSat[f.rotuloSat] = (contSat[f.rotuloSat] || 0) + 1; });
+    var satTop = Object.keys(contSat).sort(function (a, b) { return contSat[b] - contSat[a]; })[0] || "—";
+
+    [
+      ["Em Cajamar (24–48 h)", String(emCajamar.length) + " foco(s)"],
+      ["Região (raio 50 km)", String(raio50.length) + " foco(s)"],
+      ["Filtro atual exibido", String(filtrados.length) + " foco(s)"],
+      ["Foco mais próximo", maisProximo],
+      ["Satélite c/ mais registros", satTop !== "—" ? satTop + " (" + contSat[satTop] + ")" : "Sem focos no filtro"]
+    ].forEach(function (par) {
+      var d = el("div");
+      d.appendChild(el("span", "", par[0]));
+      d.appendChild(el("strong", "", par[1]));
+      k.appendChild(d);
+    });
+    box.appendChild(k);
+
+    if (!filtrados.length) {
+      var sem = el("p", "mut", "Nenhum foco de calor detectado pelos satélites para o filtro selecionado nas últimas 24–48 h. Você pode ampliar o raio para 100 km ou 300 km (Estado de SP) acima.");
+      sem.style.margin = "6px 0";
+      box.appendChild(sem);
+    } else {
+      var tw = el("div", "tw");
+      var tb = el("table"), thead = el("thead"), trh = el("tr");
+      ["Data/Hora (BRT)", "Satélite", "Município", "Distância", "FRP (MW)", "Risco INPE", "Ação"].forEach(function (h) {
+        trh.appendChild(el("th", "", h));
+      });
+      thead.appendChild(trh); tb.appendChild(thead);
+      var tbody = el("tbody");
+      filtrados.slice(0, 25).forEach(function (f) {
+        var tr = el("tr");
+        if (f.emCajamar) tr.style.fontWeight = "700";
+        tr.appendChild(el("td", "", f.dataHoraBrt));
+        tr.appendChild(el("td", "", f.rotuloSat));
+        tr.appendChild(el("td", "", f.municipio + (f.emCajamar ? " ⚠️" : "")));
+        tr.appendChild(el("td", "", f.distanciaKm.toFixed(1).replace(".", ",") + " km"));
+        tr.appendChild(el("td", "", f.frp !== null ? f.frp.toFixed(1).replace(".", ",") : "—"));
+        tr.appendChild(el("td", "", f.riscoFogo !== null ? Math.round(f.riscoFogo * 100) + "%" : "—"));
+        var tdBtn = el("td");
+        var btnVer = el("button", "btn small", "📍 Mapa");
+        btnVer.type = "button";
+        btnVer.style.minHeight = "28px";
+        btnVer.style.padding = "2px 8px";
+        btnVer.onclick = function () { focarFocoNoMapa(f); };
+        tdBtn.appendChild(btnVer);
+        tr.appendChild(tdBtn);
+        tbody.appendChild(tr);
+      });
+      tb.appendChild(tbody);
+      tw.appendChild(tb);
+      box.appendChild(tw);
+      if (filtrados.length > 25) {
+        box.appendChild(el("p", "mut", "Exibindo os 25 focos mais próximos de " + filtrados.length + " encontrados (todos estão plotados no mapa)."));
+      }
+    }
+
+    // Quadro informativo de cobertura dos satélites solicitados
+    var det = el("details");
+    det.style.marginTop = "10px";
+    det.appendChild(el("summary", "mut", "🛰️ Ver status e cobertura dos satélites monitorados (GOES-19, MSG-03, METOP-B/C, NOAA-20/21, NPP-375 Manhã/Tarde)"));
+    var twSat = el("div", "tw");
+    twSat.style.marginTop = "8px";
+    var tbSat = el("table"), thSat = el("tr");
+    ["Satélite", "Órbita / Passagem", "Finalidade (Clima / Fogo)", "Focos (SP/Região)"].forEach(function (h) {
+      thSat.appendChild(el("th", "", h));
+    });
+    tbSat.appendChild(thSat);
+    (Queimadas.SATELITES || []).forEach(function (sat) {
+      var qtd = todosFocos.filter(function (f) { return f.grupoSat === sat.id; }).length;
+      var tr = el("tr");
+      tr.appendChild(el("td", "", sat.nome));
+      tr.appendChild(el("td", "", sat.orbita));
+      tr.appendChild(el("td", "", sat.uso));
+      tr.appendChild(el("td", "", String(qtd)));
+      tbSat.appendChild(tr);
+    });
+    twSat.appendChild(tbSat);
+    det.appendChild(twSat);
+    box.appendChild(det);
+  }
+
+  async function fogoSatelites() {
+    var box = $("fogo");
+    if (!box || typeof Queimadas === "undefined") return;
+    try {
+      var d = await Queimadas.coletarInpeAoVivo();
+      dadosQueimadasAtual = d;
+      try { localStorage.setItem("cajamar:queimadas", JSON.stringify({ t: Date.now(), d: d })); } catch (e) {}
+      Fontes.marcarOk("queimadas");
+      renderizarPainelFogo(false, Date.now());
+    } catch (e) {
+      var guardado = null;
+      try { guardado = JSON.parse(localStorage.getItem("cajamar:queimadas") || "null"); } catch (e2) {}
+      if (guardado && guardado.d) {
+        dadosQueimadasAtual = guardado.d;
+        Fontes.estado.queimadas = { estado: "velho", tentativa: Date.now(), sucesso: guardado.t, msg: e.message || "falha" };
+        renderizarPainelFogo(true, guardado.t);
+      } else {
+        Fontes.marcarErro("queimadas", e && e.message ? e.message : "falha ao consultar INPE");
+        fail(box, "Não foi possível consultar o servidor de focos do INPE agora. Use os links diretos do Painel do Fogo (CENSIPAM), BDQueimadas (INPE) e ALARMES abaixo.");
+      }
+    }
+  }
+
+  if ($("fSatelite")) $("fSatelite").onchange = function () { renderizarPainelFogo(false, null); };
+  if ($("fRaioFogo")) $("fRaioFogo").onchange = function () { renderizarPainelFogo(false, null); };
 
   // Controles do mapa: GPS e Tela Cheia
   var marcadorGps = null;
@@ -429,7 +752,7 @@
 
   function go() {
     $("reload").disabled = true;
-    Promise.all([clima(), alertas(), previsaoInmet(), Cemaden.carregar(), radar()].map(function (p) { return p.then(desenharFontes); })).then(function () { $("reload").disabled = false; desenharFontes(); });
+    Promise.all([clima(), alertas(), previsaoInmet(), Cemaden.carregar(), fogoSatelites(), radar()].map(function (p) { return p.then(desenharFontes); })).then(function () { $("reload").disabled = false; desenharFontes(); });
     desenharFontes();
   }
   $("reload").onclick = go;
