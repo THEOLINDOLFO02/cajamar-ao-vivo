@@ -142,8 +142,9 @@
       if (dias[k].nvMax !== null && dias[k].nvMax !== undefined) vs.push(dias[k].nvMax);
     });
     if (!vs.length) return svg;
+    var cotas = (typeof Estacao !== "undefined" && Estacao.carregarCotasRio) ? Estacao.carregarCotasRio() : null;
     var mn = Math.max(0, Math.floor(Math.min.apply(null, vs) * 2) / 2 - 0.2);
-    var mx = Math.ceil(Math.max.apply(null, vs) * 2) / 2 + 0.2;
+    var mx = Math.ceil(Math.max.apply(null, vs.concat(cotas ? [cotas.atencaoM + 0.1] : [])) * 2) / 2 + 0.2;
     if (mx <= mn) mx = mn + 1;
     [0, .5, 1].forEach(function (f) {
       var y = y1 - f * (y1 - y0);
@@ -152,6 +153,21 @@
       t.textContent = (mn + f * (mx - mn)).toFixed(2).replace(".", ",") + "m";
       svg.appendChild(t);
     });
+    if (cotas) {
+      [
+        { v: cotas.atencaoM, cor: "#ca8a04", rot: "Atenção " + cotas.atencaoM.toFixed(2).replace(".", ",") + "m" },
+        { v: cotas.alertaM, cor: "#ea580c", rot: "Alerta " + cotas.alertaM.toFixed(2).replace(".", ",") + "m" },
+        { v: cotas.transbordoM, cor: "#dc2626", rot: "Transbordo " + cotas.transbordoM.toFixed(2).replace(".", ",") + "m" }
+      ].forEach(function (ct) {
+        if (ct.v >= mn && ct.v <= mx) {
+          var yc = y1 - (ct.v - mn) / (mx - mn) * (y1 - y0);
+          svg.appendChild(sv("line", { x1: x0, x2: x1, y1: yc, y2: yc, stroke: ct.cor, "stroke-width": "1.5", "stroke-dasharray": "5 4" }));
+          var tc = sv("text", { x: x1 - 4, y: Math.max(12, yc - 3), "text-anchor": "end", class: "eix", fill: ct.cor });
+          tc.textContent = ct.rot;
+          svg.appendChild(tc);
+        }
+      });
+    }
     var larg = x1 - x0;
     function linha(campo, cls) {
       var pts = [];
@@ -326,6 +342,27 @@
     if ($("cardNivel")) {
       $("cardNivel").hidden = !temNivel;
       if (temNivel) {
+        var cotasAtuais = Estacao.carregarCotasRio ? Estacao.carregarCotasRio() : null;
+        if (cotasAtuais) {
+          if ($("cotaAtencaoM")) $("cotaAtencaoM").value = cotasAtuais.atencaoM.toFixed(2);
+          if ($("cotaAlertaM")) $("cotaAlertaM").value = cotasAtuais.alertaM.toFixed(2);
+          if ($("cotaTransbordoM")) $("cotaTransbordoM").value = cotasAtuais.transbordoM.toFixed(2);
+        }
+        if ($("boxStatusRioHist") && Estacao.avaliarNivelRio) {
+          var bxRio = $("boxStatusRioHist");
+          bxRio.textContent = "";
+          var ultDiaRio = chaves[chaves.length - 1];
+          var dUltRio = dias[ultDiaRio];
+          var avRioUlt = Estacao.avaliarNivelRio(dUltRio.nvMax, dUltRio.nvDelta, cotasAtuais);
+          var banRio = el("div", "desliz-banner");
+          banRio.style.background = avRioUlt.corFundo;
+          banRio.style.borderLeftColor = avRioUlt.corBorda || "#0b6e8f";
+          banRio.style.color = avRioUlt.corTexto;
+          banRio.appendChild(el("strong", "", avRioUlt.icone + " Último dia na Régua (" + fdataLonga(ultDiaRio) + "): " + avRioUlt.estado.toUpperCase()));
+          banRio.appendChild(el("span", "", "Nível Máx: " + f2(dUltRio.nvMax) + " m · Mín: " + f2(dUltRio.nvMin) + " m · Subida (Δ): +" + Math.round((dUltRio.nvDelta || 0) * 100) + " cm"));
+          banRio.appendChild(el("small", "", avRioUlt.motivo));
+          bxRio.appendChild(banRio);
+        }
         var gn = $("gNivel"); gn.textContent = ""; gn.appendChild(graficoNivel(dias, chaves));
       }
     }
@@ -444,6 +481,48 @@
       banco = Estacao.criarBancoVazio();
       guardar();
       aviso("Todos os históricos foram apagados."); desenhar(false);
+    };
+  }
+  if ($("btnSalvarCotasRio") && Estacao.salvarCotasRio) {
+    $("btnSalvarCotasRio").onclick = function () {
+      var cAt = parseFloat($("cotaAtencaoM").value) || 1.80;
+      var cAl = parseFloat($("cotaAlertaM").value) || 2.30;
+      var cTr = parseFloat($("cotaTransbordoM").value) || 2.80;
+      Estacao.salvarCotasRio({ atencaoM: cAt, alertaM: cAl, transbordoM: cTr });
+      desenhar(true);
+      aviso("Cotas de alerta da régua de nível atualizadas (Atenção: " + f2(cAt) + " m · Alerta: " + f2(cAl) + " m · Transbordamento: " + f2(cTr) + " m).", false);
+    };
+  }
+  if ($("btnExportarTudoHist") && Estacao.gerarBackupCompleto) {
+    $("btnExportarTudoHist").onclick = function () {
+      var bkp = Estacao.gerarBackupCompleto();
+      var blob = new Blob([JSON.stringify(bkp, null, 2)], { type: "application/json" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "backup-completo-defesa-civil-cajamar-" + new Date().toISOString().slice(0, 10) + ".json";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      aviso("Backup completo do sistema exportado (.json).", false);
+    };
+  }
+  if ($("btnImportarTudoHist") && $("arqBackupTudoHist") && Estacao.restaurarBackupCompleto) {
+    $("btnImportarTudoHist").onclick = function () { $("arqBackupTudoHist").click(); };
+    $("arqBackupTudoHist").onchange = function () {
+      var f = this.files && this.files[0];
+      this.value = "";
+      if (!f) return;
+      var rd = new FileReader();
+      rd.onload = function () {
+        try {
+          var res = Estacao.restaurarBackupCompleto(String(rd.result));
+          banco = Estacao.carregarBanco();
+          desenhar(false);
+          aviso("Backup restaurado com sucesso: " + res.estacoesRestauradas + " equipamento(s), +" + res.ocorrenciasNovas + " ocorrência(s) e +" + res.observacoesNovas + " observação(ões).", false);
+        } catch (e) {
+          aviso("Arquivo de backup não reconhecido.", true);
+        }
+      };
+      rd.readAsText(f);
     };
   }
 

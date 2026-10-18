@@ -281,8 +281,194 @@
     };
   }
 
+  // ---------- Limiares (Cotas) da Régua de Nível do Rio ----------
+  var CHAVE_COTAS_RIO = "cajamar:cotas_rio:v1";
+  var COTAS_RIO_PADRAO = {
+    atencaoM: 1.80,
+    alertaM: 2.30,
+    transbordoM: 2.80,
+    deltaAtencaoCm: 35,
+    deltaAlertaCm: 60
+  };
+
+  function carregarCotasRio(storage) {
+    var st = storage || (typeof localStorage !== "undefined" ? localStorage : null);
+    var c = {
+      atencaoM: COTAS_RIO_PADRAO.atencaoM,
+      alertaM: COTAS_RIO_PADRAO.alertaM,
+      transbordoM: COTAS_RIO_PADRAO.transbordoM,
+      deltaAtencaoCm: COTAS_RIO_PADRAO.deltaAtencaoCm,
+      deltaAlertaCm: COTAS_RIO_PADRAO.deltaAlertaCm
+    };
+    if (!st) return c;
+    try {
+      var salvo = JSON.parse(st.getItem(CHAVE_COTAS_RIO) || "null");
+      if (salvo && typeof salvo === "object") {
+        if (typeof salvo.atencaoM === "number" && salvo.atencaoM > 0) c.atencaoM = salvo.atencaoM;
+        if (typeof salvo.alertaM === "number" && salvo.alertaM > 0) c.alertaM = salvo.alertaM;
+        if (typeof salvo.transbordoM === "number" && salvo.transbordoM > 0) c.transbordoM = salvo.transbordoM;
+        if (typeof salvo.deltaAtencaoCm === "number" && salvo.deltaAtencaoCm > 0) c.deltaAtencaoCm = salvo.deltaAtencaoCm;
+        if (typeof salvo.deltaAlertaCm === "number" && salvo.deltaAlertaCm > 0) c.deltaAlertaCm = salvo.deltaAlertaCm;
+      }
+    } catch (e) {}
+    return c;
+  }
+
+  function salvarCotasRio(novasCotas, storage) {
+    var st = storage || (typeof localStorage !== "undefined" ? localStorage : null);
+    var atual = carregarCotasRio(st);
+    if (novasCotas && typeof novasCotas === "object") {
+      if (typeof novasCotas.atencaoM === "number" && isFinite(novasCotas.atencaoM) && novasCotas.atencaoM > 0) atual.atencaoM = novasCotas.atencaoM;
+      if (typeof novasCotas.alertaM === "number" && isFinite(novasCotas.alertaM) && novasCotas.alertaM > 0) atual.alertaM = novasCotas.alertaM;
+      if (typeof novasCotas.transbordoM === "number" && isFinite(novasCotas.transbordoM) && novasCotas.transbordoM > 0) atual.transbordoM = novasCotas.transbordoM;
+      if (typeof novasCotas.deltaAtencaoCm === "number" && isFinite(novasCotas.deltaAtencaoCm) && novasCotas.deltaAtencaoCm > 0) atual.deltaAtencaoCm = novasCotas.deltaAtencaoCm;
+      if (typeof novasCotas.deltaAlertaCm === "number" && isFinite(novasCotas.deltaAlertaCm) && novasCotas.deltaAlertaCm > 0) atual.deltaAlertaCm = novasCotas.deltaAlertaCm;
+    }
+    if (st) {
+      try { st.setItem(CHAVE_COTAS_RIO, JSON.stringify(atual)); } catch (e) {}
+    }
+    return atual;
+  }
+
+  function avaliarNivelRio(nvMax, nvDelta, cotas) {
+    var c = cotas || carregarCotasRio();
+    var m = typeof nvMax === "number" && isFinite(nvMax) ? nvMax : null;
+    var dCm = typeof nvDelta === "number" && isFinite(nvDelta) ? Math.round(nvDelta * 100) : 0;
+    if (m === null) {
+      return { nivel: 0, id: "sem_dado", estado: "Sem leitura", icone: "⚪", corFundo: "#64748b", corTexto: "#ffffff", motivo: "Sem leitura de nível do rio." };
+    }
+    if (m >= c.transbordoM) {
+      return {
+        nivel: 3,
+        id: "transbordo",
+        estado: "Cota de Transbordamento / Inundação",
+        icone: "🔴",
+        corFundo: "#991b1b",
+        corBorda: "#7f1d1d",
+        corTexto: "#ffffff",
+        motivo: "Nível máximo (" + m.toFixed(2).replace(".", ",") + " m) atingiu/ultrapassou a cota de transbordamento (" + c.transbordoM.toFixed(2).replace(".", ",") + " m)."
+      };
+    }
+    if (m >= c.alertaM || dCm >= c.deltaAlertaCm) {
+      return {
+        nivel: 2,
+        id: "alerta",
+        estado: "Alerta Hidrológico (Cheia)",
+        icone: "🟠",
+        corFundo: "#f97316",
+        corBorda: "#c2410c",
+        corTexto: "#111827",
+        motivo: m >= c.alertaM
+          ? "Nível (" + m.toFixed(2).replace(".", ",") + " m) atingiu a cota de alerta (" + c.alertaM.toFixed(2).replace(".", ",") + " m)."
+          : "Subida abrupta do rio (+" + dCm + " cm no dia ≥ " + c.deltaAlertaCm + " cm)."
+      };
+    }
+    if (m >= c.atencaoM || dCm >= c.deltaAtencaoCm) {
+      return {
+        nivel: 1,
+        id: "atencao",
+        estado: "Atenção Hidrológica",
+        icone: "🟡",
+        corFundo: "#facc15",
+        corBorda: "#ca8a04",
+        corTexto: "#1f2937",
+        motivo: m >= c.atencaoM
+          ? "Nível (" + m.toFixed(2).replace(".", ",") + " m) atingiu a cota de atenção (" + c.atencaoM.toFixed(2).replace(".", ",") + " m)."
+          : "Elevação moderada do rio (+" + dCm + " cm no dia ≥ " + c.deltaAtencaoCm + " cm)."
+      };
+    }
+    return {
+      nivel: 0,
+      id: "normal",
+      estado: "Calha Normal",
+      icone: "🟢",
+      corFundo: "#4ade80",
+      corBorda: "#16a34a",
+      corTexto: "#052e16",
+      motivo: "Nível (" + m.toFixed(2).replace(".", ",") + " m) abaixo da cota de atenção (" + c.atencaoM.toFixed(2).replace(".", ",") + " m)."
+    };
+  }
+
+  // ---------- Backup Unificado do Sistema (Estações + Régua + Cotas + Ocorrências + Observações) ----------
+  function gerarBackupCompleto(storage) {
+    var st = storage || (typeof localStorage !== "undefined" ? localStorage : null);
+    var banco = carregarBanco(st);
+    var cotas = carregarCotasRio(st);
+    var ocorrencias = [];
+    var observacoes = [];
+    var contato = "";
+    if (st) {
+      try { ocorrencias = JSON.parse(st.getItem("cajamar:ocorrencias:v1") || "[]"); } catch (e) {}
+      try { observacoes = JSON.parse(st.getItem("cajamar:observacoes:v1") || "[]"); } catch (e) {}
+      try { contato = st.getItem("cajamar:contato") || ""; } catch (e) {}
+    }
+    return {
+      sistema: "cajamar-ao-vivo-backup-completo",
+      versao: 2,
+      exportadoEm: new Date().toISOString(),
+      estacoes: banco,
+      cotasRio: cotas,
+      ocorrencias: Array.isArray(ocorrencias) ? ocorrencias : [],
+      observacoes: Array.isArray(observacoes) ? observacoes : [],
+      contato: contato
+    };
+  }
+
+  function restaurarBackupCompleto(dadosJson, storage) {
+    var st = storage || (typeof localStorage !== "undefined" ? localStorage : null);
+    var obj = typeof dadosJson === "string" ? JSON.parse(dadosJson) : dadosJson;
+    if (!obj || typeof obj !== "object") throw new Error("Arquivo de backup inválido");
+
+    var contEstacoes = 0, contOcorr = 0, contObs = 0;
+
+    if (obj.estacoes && obj.estacoes.slots && st) {
+      salvarBanco(obj.estacoes, st);
+      ["est1", "est2", "est3", "regua"].forEach(function (k) {
+        var sl = obj.estacoes.slots[k];
+        if (sl && sl.dias && Object.keys(sl.dias).length) contEstacoes++;
+      });
+    }
+    if (obj.cotasRio && st) {
+      salvarCotasRio(obj.cotasRio, st);
+    }
+    if (Array.isArray(obj.ocorrencias) && st) {
+      try {
+        var atuaisOc = JSON.parse(st.getItem("cajamar:ocorrencias:v1") || "[]");
+        var idsOc = {};
+        if (Array.isArray(atuaisOc)) atuaisOc.forEach(function (r) { if (r && r.id) idsOc[r.id] = true; });
+        else atuaisOc = [];
+        obj.ocorrencias.forEach(function (r) {
+          if (r && r.id && !idsOc[r.id]) { atuaisOc.push(r); idsOc[r.id] = true; contOcorr++; }
+        });
+        st.setItem("cajamar:ocorrencias:v1", JSON.stringify(atuaisOc));
+      } catch (e) {}
+    }
+    if (Array.isArray(obj.observacoes) && st) {
+      try {
+        var atuaisOb = JSON.parse(st.getItem("cajamar:observacoes:v1") || "[]");
+        var idsOb = {};
+        if (Array.isArray(atuaisOb)) atuaisOb.forEach(function (r) { if (r && r.id) idsOb[r.id] = true; });
+        else atuaisOb = [];
+        obj.observacoes.forEach(function (r) {
+          if (r && r.id && !idsOb[r.id]) { atuaisOb.push(r); idsOb[r.id] = true; contObs++; }
+        });
+        st.setItem("cajamar:observacoes:v1", JSON.stringify(atuaisOb));
+      } catch (e) {}
+    }
+    if (typeof obj.contato === "string" && obj.contato && st) {
+      try { st.setItem("cajamar:contato", obj.contato); } catch (e) {}
+    }
+
+    return {
+      estacoesRestauradas: contEstacoes,
+      ocorrenciasNovas: contOcorr,
+      observacoesNovas: contObs
+    };
+  }
+
   w.Estacao = {
     SLOTS_PADRAO: SLOTS_PADRAO,
+    COTAS_RIO_PADRAO: COTAS_RIO_PADRAO,
     lerCsv: lerCsv,
     resumir: resumir,
     detectarTipo: detectarTipo,
@@ -290,7 +476,12 @@
     carregarBanco: carregarBanco,
     salvarBanco: salvarBanco,
     escolherSlotAutomatico: escolherSlotAutomatico,
-    mesclarNoSlot: mesclarNoSlot
+    mesclarNoSlot: mesclarNoSlot,
+    carregarCotasRio: carregarCotasRio,
+    salvarCotasRio: salvarCotasRio,
+    avaliarNivelRio: avaliarNivelRio,
+    gerarBackupCompleto: gerarBackupCompleto,
+    restaurarBackupCompleto: restaurarBackupCompleto
   };
 })(typeof window !== "undefined" ? window : globalThis);
 

@@ -248,6 +248,64 @@
       }).join(" | ");
       box.appendChild(pEst);
     }
+
+    ultimaAvDeslizamento = avEscolhida;
+    atualizarStatusRioPainel();
+    if (typeof atualizarPontosCajamarNoMapa === "function") atualizarPontosCajamarNoMapa();
+  }
+
+  var ultimaAvDeslizamento = null;
+
+  function atualizarStatusRioPainel() {
+    var boxRio = $("statusRioPainel");
+    if (!boxRio || typeof Estacao === "undefined") return;
+    try {
+      var banco = Estacao.carregarBanco();
+      var slReg = banco.slots && banco.slots.regua;
+      var datas = slReg && slReg.dias ? Object.keys(slReg.dias).sort() : [];
+      if (!datas.length) {
+        boxRio.hidden = true;
+        return;
+      }
+      var ultD = datas[datas.length - 1];
+      var dRio = slReg.dias[ultD];
+      if (!dRio || dRio.nvMax === null || dRio.nvMax === undefined) {
+        boxRio.hidden = true;
+        return;
+      }
+      var cotas = Estacao.carregarCotasRio();
+      var avRio = Estacao.avaliarNivelRio(dRio.nvMax, dRio.nvDelta, cotas);
+      boxRio.hidden = false;
+      boxRio.textContent = "";
+      var ban = el("div", "desliz-banner");
+      ban.style.background = avRio.corFundo;
+      ban.style.borderLeftColor = avRio.corBorda || "#0b6e8f";
+      ban.style.color = avRio.corTexto;
+      ban.style.marginBottom = "0";
+      ban.appendChild(el("strong", "", "🌊 " + (slReg.estacao || "Régua de Nível do Rio") + " [" + ultD.slice(8, 10) + "/" + ultD.slice(5, 7) + "]: " + avRio.icone + " " + avRio.estado.toUpperCase()));
+      ban.appendChild(el("span", "", "Nível Máx: " + dRio.nvMax.toFixed(2).replace(".", ",") + " m · Mín: " + (dRio.nvMin !== null ? dRio.nvMin.toFixed(2).replace(".", ",") : "—") + " m · Subida (Δ): +" + Math.round((dRio.nvDelta || 0) * 100) + " cm"));
+      ban.appendChild(el("small", "", avRio.motivo + " (Cotas configuradas: Atenção " + cotas.atencaoM.toFixed(2).replace(".", ",") + "m · Alerta " + cotas.alertaM.toFixed(2).replace(".", ",") + "m · Transbordo " + cotas.transbordoM.toFixed(2).replace(".", ",") + "m)"));
+      boxRio.appendChild(ban);
+    } catch (e) {
+      boxRio.hidden = true;
+    }
+  }
+
+  function abrirOcorrenciaEncosta(localSugerido) {
+    var av = ultimaAvDeslizamento || (typeof Deslizamento !== "undefined" ? Deslizamento.avaliarRisco({ mm1h: 0, mm24h: 0, mm168h: 0 }) : null);
+    var rascunho = {
+      tipo: "Eventos Hidrológicos e Geológicos",
+      subtipo: av && av.nivel >= 3 ? "Escorregamento" : "Monitoramento de áreas de risco",
+      local: localSugerido || "",
+      descricao: av
+        ? "Estado de Deslizamento: " + av.estado.toUpperCase() + " (" + av.fonte + "). Volumes registrados: 1h = " +
+          av.mm1h.toFixed(1).replace(".", ",") + " mm/h (" + av.estado1h + ") | 24h = " +
+          av.mm24h.toFixed(1).replace(".", ",") + " mm/24h (" + av.estado24h + ") | 168h (7d) = " +
+          av.mm168h.toFixed(1).replace(".", ",") + " mm/168h (" + av.estado168h + "). Protocolo: " + av.acaoDefesaCivil
+        : "Vistoria preventiva de área de risco de escorregamento."
+    };
+    try { sessionStorage.setItem("cajamar:rascunho_ocorrencia", JSON.stringify(rascunho)); } catch (e) {}
+    window.location.href = "quadro.html?acao=encosta";
   }
 
   function atualizarRiscoFogoBox() {
@@ -541,17 +599,85 @@
 
   // ---------- Radar, Satélites (GOES / VIIRS / MODIS), Focos de Fogo e Mapa Operacional ----------
   var map = null, frames = [], layers = [], cur = 0, timer = null, host = "", pastCount = 0;
-  var layerFogo = null, camadaGoesGeo = null, camadaGoesIr = null, camadaViirsSnpp = null, camadaViirsNoaa20 = null, camadaTermicaNasa = null;
+  var layerFogo = null, layerPontos = null, camadaGoesGeo = null, camadaGoesIr = null, camadaViirsSnpp = null, camadaViirsNoaa20 = null, camadaTermicaNasa = null;
   var modoMapaAtual = "radar";
   var dadosQueimadasAtual = null;
 
   var PONTOS_CAJAMAR = [
-    { nome: "Cajamar (Centro)", lat: -23.3556, lon: -46.8778, cor: "#c2410c", tipo: "Distrito" },
-    { nome: "Jordanésia", lat: -23.3283, lon: -46.8622, cor: "#c2410c", tipo: "Distrito" },
-    { nome: "Polvilho", lat: -23.3853, lon: -46.8286, cor: "#c2410c", tipo: "Distrito" },
-    { nome: "Ponunduva", lat: -23.3108, lon: -46.9458, cor: "#0b6e8f", tipo: "Região" },
-    { nome: "Defesa Civil / Bombeiros", lat: -23.3325, lon: -46.8603, cor: "#b91c1c", tipo: "Base Operacional" }
+    { nome: "Jordanésia (Estação 1 / Encostas)", lat: -23.3283, lon: -46.8622, cor: "#c2410c", tipo: "Estação Meteorológica / Área de Encosta", slotId: "est1" },
+    { nome: "Polvilho (Estação 2 / Urbano)", lat: -23.3853, lon: -46.8286, cor: "#c2410c", tipo: "Estação Meteorológica / Área Urbana", slotId: "est2" },
+    { nome: "Cajamar Centro (Estação 3 / Encostas)", lat: -23.3556, lon: -46.8778, cor: "#c2410c", tipo: "Estação Meteorológica / Distrito Sede", slotId: "est3" },
+    { nome: "Rio Juquery — Régua de Nível (Cajamar)", lat: -23.3595, lon: -46.8710, cor: "#0284c7", tipo: "Monitoramento Fluviométrico (Régua)", slotId: "regua" },
+    { nome: "Ponunduva / KM 43 (Serra e Matas)", lat: -23.3108, lon: -46.9458, cor: "#0b6e8f", tipo: "Encostas e Zona Rural / Mata", slotId: null },
+    { nome: "Base Defesa Civil / Bombeiros (199)", lat: -23.3325, lon: -46.8603, cor: "#b91c1c", tipo: "Base Operacional COMPDEC", slotId: null }
   ];
+
+  function atualizarPontosCajamarNoMapa() {
+    if (!layerPontos || typeof L === "undefined") return;
+    layerPontos.clearLayers();
+    var banco = (typeof Estacao !== "undefined") ? Estacao.carregarBanco() : null;
+    var cotas = (typeof Estacao !== "undefined") ? Estacao.carregarCotasRio() : null;
+
+    PONTOS_CAJAMAR.forEach(function (pt) {
+      var corPino = pt.cor;
+      var raioPino = pt.slotId ? 8 : 6;
+      var sl = banco && pt.slotId && banco.slots ? banco.slots[pt.slotId] : null;
+      var datas = sl && sl.dias ? Object.keys(sl.dias).sort() : [];
+      var ultData = datas.length ? datas[datas.length - 1] : null;
+      var dUlt = ultData ? sl.dias[ultData] : null;
+
+      var avDesl = null;
+      var avRio = null;
+      if (pt.slotId === "regua" && dUlt && dUlt.nvMax !== null && typeof Estacao !== "undefined") {
+        avRio = Estacao.avaliarNivelRio(dUlt.nvMax, dUlt.nvDelta, cotas);
+        corPino = avRio.corFundo;
+      } else if (pt.slotId && dUlt && typeof Deslizamento !== "undefined") {
+        avDesl = Deslizamento.avaliarDiaEstacao(sl.dias, ultData, sl.estacao || pt.nome);
+        if (avDesl) corPino = avDesl.corFundo;
+      } else if (ultimaAvDeslizamento && pt.tipo.indexOf("Encosta") > -1) {
+        avDesl = ultimaAvDeslizamento;
+        if (avDesl.nivel >= 1) corPino = avDesl.corFundo;
+      }
+
+      var circ = L.circleMarker([pt.lat, pt.lon], {
+        radius: raioPino,
+        color: "#0f172a",
+        fillColor: corPino,
+        fillOpacity: 0.92,
+        weight: 2
+      });
+
+      var pop = el("div");
+      pop.appendChild(el("b", "", "📍 " + (sl && sl.estacao ? sl.estacao + " (" + pt.nome + ")" : pt.nome)));
+      pop.appendChild(el("br"));
+      pop.appendChild(el("small", "", pt.tipo));
+
+      if (avRio && dUlt) {
+        pop.appendChild(el("br"));
+        pop.appendChild(el("small", "", "🌊 " + avRio.icone + " " + avRio.estado + " [" + ultData.slice(8, 10) + "/" + ultData.slice(5, 7) + "]"));
+        pop.appendChild(el("br"));
+        pop.appendChild(el("small", "", "Nível Máx: " + dUlt.nvMax.toFixed(2).replace(".", ",") + " m · Δ: +" + Math.round((dUlt.nvDelta || 0) * 100) + " cm"));
+      } else if (avDesl) {
+        pop.appendChild(el("br"));
+        pop.appendChild(el("small", "", "⛰️ Risco Deslizamento: " + avDesl.icone + " " + avDesl.estado));
+        pop.appendChild(el("br"));
+        pop.appendChild(el("small", "", "1h: " + avDesl.mm1h.toFixed(1).replace(".", ",") + " mm · 24h: " + avDesl.mm24h.toFixed(1).replace(".", ",") + " mm · 168h: " + avDesl.mm168h.toFixed(1).replace(".", ",") + " mm"));
+      }
+
+      var btnOc = el("button", "btn small", "🚨 Abrir Vistoria aqui");
+      btnOc.type = "button";
+      btnOc.style.marginTop = "6px";
+      btnOc.style.minHeight = "28px";
+      btnOc.style.padding = "2px 8px";
+      btnOc.onclick = function () { abrirOcorrenciaEncosta(pt.nome); };
+      pop.appendChild(el("br"));
+      pop.appendChild(btnOc);
+
+      circ.bindPopup(pop);
+      circ.bindTooltip("<b>" + pt.nome + "</b><br><small>" + (avRio ? avRio.icone + " " + avRio.estado : avDesl ? avDesl.icone + " " + avDesl.estado : pt.tipo) + "</small>", { direction: "top" });
+      layerPontos.addLayer(circ);
+    });
+  }
 
   function inicializarMapa() {
     if (map || typeof L === "undefined") return;
@@ -582,23 +708,15 @@
       attribution: "NASA GIBS FIRMS (VIIRS 375m NOAA-20/21/S-NPP & MODIS)"
     });
 
-    var layerPontos = L.layerGroup();
-    PONTOS_CAJAMAR.forEach(function (pt) {
-      var circ = L.circleMarker([pt.lat, pt.lon], {
-        radius: pt.tipo === "Base Operacional" ? 7 : 5,
-        color: pt.cor, fillColor: pt.cor, fillOpacity: 0.9, weight: 2
-      });
-      circ.bindTooltip("<b>" + pt.nome + "</b><br><small>" + pt.tipo + "</small>", { direction: "top" });
-      layerPontos.addLayer(circ);
-    });
-    layerPontos.addTo(map);
+    layerPontos = L.layerGroup().addTo(map);
+    atualizarPontosCajamarNoMapa();
     layerAvisos = L.layerGroup().addTo(map);
     layerFogo = L.layerGroup().addTo(map);
 
     L.control.layers(
       { "Ruas": camadaRuas, "Satélite (Base Esri)": camadaSatelite, "Relevo/Topografia": camadaRelevo },
       {
-        "📍 Pontos de Cajamar": layerPontos,
+        "📍 Estações, Rio e Encostas de Cajamar": layerPontos,
         "⚠️ Áreas dos avisos do INMET": layerAvisos,
         "🔥 Focos de Calor INPE (BDQueimadas)": layerFogo,
         "🔥 Anomalias Térmicas NASA (VIIRS/MODIS)": camadaTermicaNasa,
@@ -667,6 +785,11 @@
       if (camadaTermicaNasa) camadaTermicaNasa.addTo(map);
       if (layerFogo && !map.hasLayer(layerFogo)) layerFogo.addTo(map);
       if (m) m.textContent = "Monitoramento de Fogo por Satélite ativo: Focos INPE BDQueimadas + Anomalias Térmicas NASA (VIIRS 375m NOAA-20/21/NPP-375 e MODIS).";
+    } else if (modo === "pontos_cajamar") {
+      atualizarPontosCajamarNoMapa();
+      if (layerPontos && !map.hasLayer(layerPontos)) layerPontos.addTo(map);
+      map.setView([LAT, LON], 12);
+      if (m) m.textContent = "Pontos monitorados de Cajamar: clique em qualquer marcador (Jordanésia, Polvilho, Centro, Ponunduva ou Rio Juquery) para ver o risco de deslizamento, nível do rio e abrir vistoria.";
     } else {
       if (m && frames.length) {
         m.textContent = pastCount + " quadros passados (chuva detectada) + " + (frames.length - pastCount) + " de projeção (nowcast).";
@@ -911,6 +1034,9 @@
   if ($("fSatelite")) $("fSatelite").onchange = function () { renderizarPainelFogo(false, null); };
   if ($("fRaioFogo")) $("fRaioFogo").onchange = function () { renderizarPainelFogo(false, null); };
   if ($("fFonteDesliz")) $("fFonteDesliz").onchange = atualizarPainelDeslizamento;
+  if ($("btnAbrirOcorrenciaDesliz")) {
+    $("btnAbrirOcorrenciaDesliz").onclick = function () { abrirOcorrenciaEncosta(""); };
+  }
   if ($("btnSimularDesliz")) {
     $("btnSimularDesliz").onclick = function () {
       if ($("fFonteDesliz")) $("fFonteDesliz").value = "simulador";
@@ -932,6 +1058,43 @@
     }
   });
   atualizarPainelDeslizamento();
+
+  // ---------- Backup Unificado do Sistema ----------
+  if ($("btnExportarTudo") && typeof Estacao !== "undefined" && Estacao.gerarBackupCompleto) {
+    $("btnExportarTudo").onclick = function () {
+      var bkp = Estacao.gerarBackupCompleto();
+      var blob = new Blob([JSON.stringify(bkp, null, 2)], { type: "application/json" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "backup-completo-defesa-civil-cajamar-" + new Date().toISOString().slice(0, 10) + ".json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      if ($("msgBackupTudo")) $("msgBackupTudo").textContent = "✅ Backup completo exportado com sucesso.";
+    };
+  }
+  if ($("btnImportarTudo") && $("arqBackupTudo") && typeof Estacao !== "undefined" && Estacao.restaurarBackupCompleto) {
+    $("btnImportarTudo").onclick = function () { $("arqBackupTudo").click(); };
+    $("arqBackupTudo").onchange = function () {
+      var f = this.files && this.files[0];
+      this.value = "";
+      if (!f) return;
+      var rd = new FileReader();
+      rd.onload = function () {
+        try {
+          var res = Estacao.restaurarBackupCompleto(String(rd.result));
+          atualizarPainelDeslizamento();
+          if ($("msgBackupTudo")) {
+            $("msgBackupTudo").textContent = "✅ Backup restaurado: " + res.estacoesRestauradas + " equipamento(s), +" + res.ocorrenciasNovas + " ocorrência(s) e +" + res.observacoesNovas + " observação(ões).";
+          }
+        } catch (e) {
+          if ($("msgBackupTudo")) $("msgBackupTudo").textContent = "❌ Arquivo de backup não reconhecido.";
+        }
+      };
+      rd.readAsText(f);
+    };
+  }
 
   // Controles do mapa: GPS e Tela Cheia
   var marcadorGps = null;

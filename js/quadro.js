@@ -159,6 +159,39 @@
     if (listaAlvo.length !== rows.length) {
       texto += "🔍 *Filtro:* " + (fs ? ST[fs] + " " : "") + (ft ? ft + " " : "") + (fb ? '"' + fb + '"' : "") + "\n";
     }
+
+    // Inclui resumo hidrometeorológico e de risco de deslizamento se houver dados das estações/régua
+    if (typeof Estacao !== "undefined" && typeof Deslizamento !== "undefined") {
+      try {
+        var banco = Estacao.carregarBanco();
+        var avs = [];
+        ["est1", "est2", "est3"].forEach(function (id, idx) {
+          var sl = banco.slots[id];
+          if (!sl || !sl.dias) return;
+          var ds = Object.keys(sl.dias).sort();
+          if (!ds.length) return;
+          var u = ds[ds.length - 1];
+          var av = Deslizamento.avaliarDiaEstacao(sl.dias, u, sl.estacao || ("Estação " + (idx + 1)));
+          if (av) avs.push(av);
+        });
+        var slReg = banco.slots && banco.slots.regua;
+        var dsReg = slReg && slReg.dias ? Object.keys(slReg.dias).sort() : [];
+        var dRio = dsReg.length ? slReg.dias[dsReg[dsReg.length - 1]] : null;
+        if (avs.length || (dRio && dRio.nvMax !== null)) {
+          texto += "\n⛰️ *Status Hidrometeorológico e Encostas:*\n";
+          if (avs.length) {
+            avs.sort(function (a, b) { return b.nivel - a.nivel || b.mm24h - a.mm24h; });
+            var p = avs[0];
+            texto += "• Risco Deslizamento: " + p.icone + " *" + p.estado.toUpperCase() + "* (" + p.fonte + " — 1h: " + p.mm1h.toFixed(1).replace(".", ",") + "mm | 24h: " + p.mm24h.toFixed(1).replace(".", ",") + "mm | 168h: " + p.mm168h.toFixed(1).replace(".", ",") + "mm)\n";
+          }
+          if (dRio && dRio.nvMax !== null) {
+            var avRio = Estacao.avaliarNivelRio(dRio.nvMax, dRio.nvDelta);
+            texto += "• Régua do Rio: " + avRio.icone + " *" + avRio.estado + "* (Máx: " + dRio.nvMax.toFixed(2).replace(".", ",") + "m · Δ: +" + Math.round((dRio.nvDelta || 0) * 100) + "cm)\n";
+          }
+        }
+      } catch (e) {}
+    }
+
     texto += "\n📊 *Resumo:*\n";
     texto += "• Total no relatório: " + listaAlvo.length + "\n";
     texto += "• 🔴 Abertas: " + c.aberta + "\n";
@@ -297,4 +330,21 @@
   rows = carregar();
   if (memoria) aviso("Armazenamento do navegador indisponível: os registros não serão guardados. Use Exportar.", "ruim");
   render();
+
+  // Se veio do Painel de Deslizamento ou do Mapa ("Abrir Vistoria / Ocorrência"), abre o formulário já preenchido
+  try {
+    var rasc = JSON.parse(sessionStorage.getItem("cajamar:rascunho_ocorrencia") || "null");
+    if (rasc && typeof rasc === "object") {
+      sessionStorage.removeItem("cajamar:rascunho_ocorrencia");
+      $("novo").click();
+      if (rasc.tipo && CAT[rasc.tipo]) {
+        $("tipo").value = rasc.tipo;
+        subs();
+      }
+      if (rasc.subtipo) $("subtipo").value = rasc.subtipo;
+      if (rasc.local) $("local").value = rasc.local;
+      if (rasc.descricao) $("desc").value = rasc.descricao.slice(0, 600);
+      aviso("Formulário preenchido automaticamente com os volumes de água e o estado de risco de deslizamento atual. Informe o bairro/local e clique em Registrar.", "ok");
+    }
+  } catch (e) {}
 })();

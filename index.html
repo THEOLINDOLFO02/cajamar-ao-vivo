@@ -48,9 +48,11 @@
           <option value="simulador">Simulador / Leitura Manual de Pluviômetro</option>
         </select>
         <a href="publicar.html" class="btn small">📰 Gerar Panfleto de Alerta</a>
+        <button id="btnAbrirOcorrenciaDesliz" type="button" class="btn small" title="Abrir ficha de ocorrência ou vistoria preventiva de encosta já preenchida com os volumes atuais">🚨 Abrir Vistoria / Ocorrência</button>
       </div>
     </div>
     <div id="deslizamentoPainel" class="mut">Analisando volumes de chuva (1h, 24h e 168h) para risco de deslizamento…</div>
+    <div id="statusRioPainel" style="margin-top:8px" hidden></div>
     <div class="desliz-sim">
       <strong style="font-size:.86rem">🧮 Simulador / Teste Rápido de Volume de Água (mm/h · mm/24h · mm/168h)</strong>
       <p class="mut" style="margin:2px 0 6px;font-size:.78rem">Digite os volumes medidos em campo ou previstos nos boletins para verificar imediatamente o nível de alerta de deslizamento:</p>
@@ -130,6 +132,7 @@
       <button type="button" class="btn small modo-mapa" data-modo="goes_geocolor">🛰️ Satélite GOES (GeoColor)</button>
       <button type="button" class="btn small modo-mapa" data-modo="goes_ir">🌡️ Satélite GOES IR (Tempestades)</button>
       <button type="button" class="btn small modo-mapa" data-modo="fogo_sat">🔥 Satélite + Focos de Fogo</button>
+      <button type="button" class="btn small modo-mapa" data-modo="pontos_cajamar">📍 Estações, Rio e Encostas</button>
     </div>
     <div id="mapa"></div>
     <div class="rc" id="radarControles">
@@ -141,6 +144,16 @@
     <p id="amsg" class="mut" style="margin:4px 0 0;font-size:.82rem"></p>
   </section>
   <section class="card"><h2>Próximos 7 dias</h2><div class="tw" id="dias" class="mut">Carregando…</div></section>
+  <section class="card">
+    <h2>💾 Backup Unificado do Sistema (Estações + Régua + Ocorrências + Observações)</h2>
+    <p class="mut" style="margin:0 0 8px;font-size:.84rem">Exporte ou restaure em 1 clique todos os dados salvos neste navegador (histórico das 3 estações meteorológicas, régua do rio, cotas de cheia, ocorrências do plantão e observações manuais) para transferir entre computadores ou celulares da equipe.</p>
+    <div class="barra-acoes" style="margin:0">
+      <button id="btnExportarTudo" type="button" class="btn small">💾 Exportar Backup Completo (.json)</button>
+      <button id="btnImportarTudo" type="button" class="btn small">📂 Restaurar Backup Completo</button>
+      <input id="arqBackupTudo" type="file" accept="application/json,.json" hidden>
+      <span id="msgBackupTudo" class="mut" style="font-size:.82rem"></span>
+    </div>
+  </section>
   <section class="card links"><h2>Abrir direto (fontes oficiais — Chuva, Satélites e Queimadas)</h2>
     <div class="links-grupo">
       <strong>🌧️ Clima, Chuva e Radar:</strong>

@@ -46,9 +46,11 @@ test("toda página carrega o menu completo e cada link do menu leva a uma págin
 
 test("scripts usados por uma página são carregados antes de quem depende deles", () => {
   const ordem = {
-    "painel.js": ["fontes.js", "inmet.js", "cemaden.js", "queimadas.js", "deslizamento.js", "config.js"],
+    "painel.js": ["fontes.js", "inmet.js", "cemaden.js", "estacao.js", "queimadas.js", "deslizamento.js", "config.js"],
     "publicar.js": ["fontes.js", "inmet.js", "estacao.js", "queimadas.js", "deslizamento.js"],
     "historico.js": ["estacao.js", "deslizamento.js"],
+    "quadro.js": ["estacao.js", "deslizamento.js"],
+    "observacoes.js": ["deslizamento.js"],
     "comparar.js": ["estacao.js"],
     "cemaden.js": ["fontes.js"]
   };
@@ -109,4 +111,44 @@ test("critérios de risco de deslizamento (Pinheiro et al., 2005; AlertaRio, 201
   assert.equal(D.avaliarRisco({ mm1h: 55, mm24h: 60, mm168h: 70 }).id, "alerta_maximo");
   assert.equal(D.avaliarRisco({ mm1h: 15, mm24h: 160, mm168h: 180 }).id, "alerta_maximo");
   assert.equal(D.avaliarRisco({ mm1h: 10, mm24h: 40, mm168h: 225 }).id, "alerta_maximo");
+});
+
+test("Estacao.avaliarNivelRio e backup completo funcionam corretamente", async () => {
+  const { carregarScript } = await import("./util.mjs");
+  const win = carregarScript("js/estacao.js");
+  const E = win.Estacao;
+  const cotas = { atencaoM: 1.80, alertaM: 2.30, transbordoM: 2.80, deltaAtencaoCm: 35, deltaAlertaCm: 60 };
+
+  assert.equal(E.avaliarNivelRio(1.20, 0.10, cotas).id, "normal");
+  assert.equal(E.avaliarNivelRio(1.90, 0.10, cotas).id, "atencao");
+  assert.equal(E.avaliarNivelRio(1.40, 0.40, cotas).id, "atencao"); // subida rápida Δ 40 cm
+  assert.equal(E.avaliarNivelRio(2.45, 0.20, cotas).id, "alerta");
+  assert.equal(E.avaliarNivelRio(2.90, 0.30, cotas).id, "transbordo");
+
+  // Teste de backup completo em memória
+  const mem = {
+    dados: {},
+    getItem(k) { return this.dados[k] || null; },
+    setItem(k, v) { this.dados[k] = String(v); },
+    removeItem(k) { delete this.dados[k]; }
+  };
+  E.salvarCotasRio({ atencaoM: 1.95, alertaM: 2.40, transbordoM: 3.00 }, mem);
+  mem.setItem("cajamar:ocorrencias:v1", JSON.stringify([{ id: "oc1", tipo: "Incêndios" }]));
+  mem.setItem("cajamar:observacoes:v1", JSON.stringify([{ id: "ob1", local: "Jordanésia" }]));
+
+  const bkp = E.gerarBackupCompleto(mem);
+  assert.equal(bkp.cotasRio.atencaoM, 1.95);
+  assert.equal(bkp.ocorrencias.length, 1);
+  assert.equal(bkp.observacoes.length, 1);
+
+  const memDestino = {
+    dados: {},
+    getItem(k) { return this.dados[k] || null; },
+    setItem(k, v) { this.dados[k] = String(v); },
+    removeItem(k) { delete this.dados[k]; }
+  };
+  const r = E.restaurarBackupCompleto(JSON.stringify(bkp), memDestino);
+  assert.equal(r.ocorrenciasNovas, 1);
+  assert.equal(r.observacoesNovas, 1);
+  assert.equal(E.carregarCotasRio(memDestino).atencaoM, 1.95);
 });

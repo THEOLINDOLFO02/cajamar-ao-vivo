@@ -149,20 +149,61 @@
   }
   function cartao(rot, val, nota) { var d = el("div", "cx"); d.appendChild(el("span", "", rot)); d.appendChild(el("strong", "", val)); if (nota) d.appendChild(el("small", "", nota)); return d; }
 
+  // Avalia o risco de deslizamento de uma observação manual combinando a leitura atual
+  // com outras leituras recentes do mesmo local nas últimas 24h e 168h (7 dias)
+  function avaliarDeslizamentoObservacao(r) {
+    if (typeof Deslizamento === "undefined" || r.chuvaMm === null) return null;
+    var tRef = new Date(r.quando).getTime();
+    var locNorm = String(r.local || "").trim().toLowerCase();
+    var mm1h = r.janela === "1 h" ? r.chuvaMm : 0;
+    var mm24h = r.janela === "24 h" ? r.chuvaMm : (r.janela === "1 h" ? r.chuvaMm : 0);
+    var mm168h = r.janela === "168 h" ? r.chuvaMm : 0;
+
+    var soma24Local = 0, soma168Local = 0;
+    rows.forEach(function (o) {
+      if (o.chuvaMm === null) return;
+      if (String(o.local || "").trim().toLowerCase() !== locNorm) return;
+      var dt = tRef - new Date(o.quando).getTime();
+      if (dt < 0 || dt > 168 * 3600000) return;
+      if (o.janela === "1 h" && dt <= 3600000 && o.chuvaMm > mm1h) mm1h = o.chuvaMm;
+      if (o.janela !== "168 h") {
+        if (dt <= 24 * 3600000) soma24Local += o.chuvaMm;
+        soma168Local += o.chuvaMm;
+      }
+    });
+    if (soma24Local > mm24h) mm24h = soma24Local;
+    if (soma168Local > mm168h) mm168h = soma168Local;
+    if (mm24h > mm168h) mm168h = mm24h;
+
+    return Deslizamento.avaliarRisco({
+      mm1h: mm1h,
+      mm24h: mm24h,
+      mm168h: mm168h,
+      fonte: r.local
+    });
+  }
+
   function render() {
     var vis = filtradas();
     // resumo
     var rs = $("resumo"); rs.textContent = "";
     $("resumoCard").hidden = !vis.length;
     if (vis.length) {
-      var maxC = null, maxV = null;
+      var maxC = null, maxV = null, piorDesl = null;
       vis.forEach(function (r) {
         if (r.chuvaMm !== null && (maxC === null || r.chuvaMm > maxC.chuvaMm)) maxC = r;
         if (r.ventoKmh !== null && (maxV === null || r.ventoKmh > maxV.ventoKmh)) maxV = r;
+        var avD = avaliarDeslizamentoObservacao(r);
+        if (avD && (!piorDesl || avD.nivel > piorDesl.nivel || (avD.nivel === piorDesl.nivel && avD.mm24h > piorDesl.mm24h))) {
+          piorDesl = avD;
+        }
       });
       rs.appendChild(cartao("Observações", String(vis.length), "no filtro atual"));
       rs.appendChild(cartao("Maior chuva registrada", maxC ? f1(maxC.chuvaMm) + " mm" : "—", maxC ? "em " + maxC.janela + " · " + fmt(maxC.quando) : "nenhuma leitura em mm"));
       rs.appendChild(cartao("Maior vento registrado", maxV ? Math.round(maxV.ventoKmh) + " km/h" : "—", maxV ? fmt(maxV.quando) : "nenhuma leitura em km/h"));
+      if (piorDesl) {
+        rs.appendChild(cartao("⛰️ Risco de Deslizamento (Máx)", piorDesl.icone + " " + piorDesl.estado, piorDesl.fonte + " (24h: " + f1(piorDesl.mm24h) + " mm · 168h: " + f1(piorDesl.mm168h) + " mm)"));
+      }
     }
     // lista
     var ul = $("lista"); ul.textContent = "";
@@ -181,6 +222,13 @@
       if (r.ventoKmh !== null) par("Vento:", Math.round(r.ventoKmh) + " km/h" + (r.ventoDir ? " de " + r.ventoDir : ""));
       else if (r.ventoDir) par("Vento de:", r.ventoDir);
       if (r.ventoEscala) par("Intensidade do vento:", r.ventoEscala);
+      var avObs = avaliarDeslizamentoObservacao(r);
+      if (avObs) {
+        var bdg = el("span", "desliz-badge", "⛰️ " + avObs.icone + " " + avObs.estado);
+        bdg.style.background = avObs.corFundo;
+        bdg.style.color = avObs.corTexto;
+        v.appendChild(bdg);
+      }
       li.appendChild(v);
       if (r.obs) li.appendChild(el("div", "texto", r.obs));
       var ac = el("div", "acoes");
