@@ -34,8 +34,9 @@
     <div class="barra-modos-mapa" style="margin-bottom:12px">
       <button type="button" class="btn small atalho-pub ativo-modo" data-tipo="flyer_dia">📰 Panfleto Diário (População)</button>
       <button type="button" class="btn small atalho-pub" data-tipo="flyer_5dias">📅 Panfleto 5 Dias (População)</button>
+      <button type="button" class="btn small atalho-pub" data-tipo="flyer_fogo">🔥 Panfleto Risco de Fogo</button>
+      <button type="button" class="btn small atalho-pub" data-tipo="flyer_estacoes">🌧️🌊 Balanço Estações + Rio</button>
       <button type="button" class="btn small atalho-pub" data-tipo="aviso">⚠️ Aviso INMET</button>
-      <button type="button" class="btn small atalho-pub" data-tipo="chuva">🌧️ Chuva Medida (Estação)</button>
       <button type="button" class="btn small atalho-pub" data-tipo="dica">🛟 Dicas de Prevenção</button>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
@@ -43,10 +44,12 @@
         <select id="tipo">
           <option value="flyer_dia">📰 Panfleto Diário do Clima (para a População)</option>
           <option value="flyer_5dias">📅 Panfleto de 5 Dias (Previsão para a População)</option>
+          <option value="flyer_fogo">🔥 Panfleto de Risco de Fogo e Estiagem (Satélites + Clima)</option>
+          <option value="flyer_estacoes">🌧️🌊 Balanço das 3 Estações + Régua do Rio (CSV)</option>
           <option value="aviso">⚠️ Aviso oficial do INMET</option>
           <option value="prevdia">Previsão do dia (texto INMET)</option>
           <option value="prevsemana">Previsão dos próximos dias (texto INMET)</option>
-          <option value="chuva">Chuva medida em Cajamar (estação)</option>
+          <option value="chuva">Chuva medida em Cajamar (1 estação)</option>
           <option value="semana">Resumo semanal da chuva (estação)</option>
           <option value="dica">Dica de prevenção</option>
         </select>
@@ -58,6 +61,15 @@
           <option value="feed">Feed Quadrado (1080 × 1080 · 1:1)</option>
         </select>
       </label>
+      <label class="campo">Nível / Cor da faixa de status
+        <select id="nivelFaixa">
+          <option value="auto">🔄 Automático (conforme condição do tempo)</option>
+          <option value="normal">🟢 Normal / Observação (Verde)</option>
+          <option value="atencao">🟡 Atenção (Amarelo)</option>
+          <option value="alerta">🟠 Alerta Importante (Laranja)</option>
+          <option value="emergencia">🔴 Alerta Máximo / Emergência (Vermelho)</option>
+        </select>
+      </label>
     </div>
     <label class="campo" id="boxEscolha">Dia / Opção
       <select id="escolha"></select>
@@ -67,11 +79,12 @@
 
   <section class="card">
     <h2>2. Conteúdo (editável)</h2>
+    <label class="campo">Texto da faixa superior de status<input id="textoFaixa" maxlength="80" placeholder="Ex.: 🟢 CONDIÇÃO NORMAL · TEMPO SEM ALERTAS SEVEROS"></label>
     <label class="campo">Título<input id="titulo" maxlength="90"></label>
     <label class="campo">Subtítulo<input id="subtitulo" maxlength="110"></label>
-    <label class="campo">Linhas da imagem (uma por linha)<textarea id="linhas" rows="7"></textarea></label>
-    <label class="campo">Telefone/contato local da Defesa Civil (opcional, fica salvo neste aparelho)<input id="contato" maxlength="60" placeholder="Ex.: (11) 0000-0000"></label>
-    <label class="campo">Legenda do Instagram<textarea id="legenda" rows="8"></textarea></label>
+    <label class="campo">Linhas / Orientações da imagem (uma por linha)<textarea id="linhas" rows="7"></textarea></label>
+    <label class="campo">Telefone/contato local da Defesa Civil (opcional, fica salvo neste aparelho)<input id="contato" maxlength="60" placeholder="Ex.: (11) 4446-0199"></label>
+    <label class="campo">Legenda para redes sociais (Instagram / WhatsApp / Facebook)<textarea id="legenda" rows="8"></textarea></label>
   </section>
 
   <section class="card">
@@ -79,8 +92,9 @@
     <div class="previa"><canvas id="tela" width="1080" height="1920" aria-label="Prévia da imagem para publicação"></canvas></div>
     <div class="barra-acoes">
       <button id="compartilhar" type="button" class="btn primary">📲 Compartilhar (Instagram / WhatsApp)</button>
-      <button id="baixar" type="button">Baixar imagem (PNG)</button>
-      <button id="copiar" type="button">Copiar legenda</button>
+      <button id="copiarImg" type="button" class="btn">📋 Copiar imagem (Ctrl+V no WhatsApp)</button>
+      <button id="baixar" type="button">💾 Baixar imagem (PNG)</button>
+      <button id="copiar" type="button">📝 Copiar legenda</button>
     </div>
     <p id="msg" class="mut" style="margin:8px 0 0;font-size:.86rem" aria-live="polite"></p>
   </section>
@@ -88,6 +102,8 @@
 </main>
 <script src="js/fontes.js"></script>
 <script src="js/inmet.js"></script>
+<script src="js/estacao.js"></script>
+<script src="js/queimadas.js"></script>
 <script src="js/publicar.js"></script>
 <script>
 if ('serviceWorker' in navigator) {

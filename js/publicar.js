@@ -10,8 +10,8 @@
   var CHAVE_CONTATO = "cajamar:contato";
 
   // Estado dos dados carregados
-  var avisos = null, previsao = null, climaOM = null, historico = null;
-  var coletaAvisos = null, coletaPrev = null, coletaOM = null;
+  var avisos = null, previsao = null, climaOM = null, historico = null, bancoEstacoes = null, focosInpe = null;
+  var coletaAvisos = null, coletaPrev = null, coletaOM = null, coletaFocos = null;
   var modelo = { cor: LARANJA, tag: "", rodape: "", tipoFlyer: null };
 
   var DICAS = {
@@ -93,15 +93,30 @@
       .then(function (p) { if (!p.antigo) { previsao = Inmet.previsaoDoMunicipio(p.dados); coletaPrev = Date.now(); } })
       .catch(function () {});
 
-    await Promise.all([pOM, pAv, pPr]);
+    var pFocos = (typeof Queimadas !== "undefined" && Queimadas.coletarInpeAoVivo)
+      ? Queimadas.coletarInpeAoVivo().then(function (res) { focosInpe = res && res.focos ? res.focos : []; coletaFocos = Date.now(); }).catch(function () {})
+      : Promise.resolve();
+
+    await Promise.all([pOM, pAv, pPr, pFocos]);
     atualizarEscolha();
   }
 
   function carregarHistorico() {
     try {
-      var x = JSON.parse(localStorage.getItem("cajamar:historico:v1") || "null");
-      historico = x && x.dias ? x : null;
-    } catch (e) { historico = null; }
+      if (typeof Estacao !== "undefined" && Estacao.carregarBanco) {
+        bancoEstacoes = Estacao.carregarBanco();
+        var sAtivo = bancoEstacoes.slots[bancoEstacoes.ativo];
+        if (!sAtivo || !Object.keys(sAtivo.dias || {}).length) {
+          ["est1", "est2", "est3"].forEach(function (id) {
+            if (!sAtivo || !Object.keys(sAtivo.dias || {}).length) sAtivo = bancoEstacoes.slots[id];
+          });
+        }
+        historico = sAtivo && Object.keys(sAtivo.dias || {}).length ? sAtivo : null;
+      } else {
+        var x = JSON.parse(localStorage.getItem("cajamar:historico:v1") || "null");
+        historico = x && x.dias ? x : null;
+      }
+    } catch (e) { historico = null; bancoEstacoes = null; }
   }
 
   // ---------- extração de dados por dia (Open-Meteo + INMET) ----------
@@ -229,18 +244,102 @@
     };
   }
 
-  // ---------- resumo semanal (estação) ----------
+  // ---------- resumo semanal e consolidação multi-estação ----------
   function chaveDia(d) { return d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()); }
   function fdm(k) { return k.slice(8, 10) + "/" + k.slice(5, 7); }
-  function semanaCompleta(fim) {
+  function f2(v) { return typeof v === "number" && isFinite(v) ? v.toFixed(2).replace(".", ",") : "—"; }
+  function semanaCompleta(fim, slotDias) {
+    var mapa = slotDias || (historico && historico.dias);
+    if (!mapa) return null;
     var base = new Date(fim + "T12:00:00"), dias = [];
     for (var i = 6; i >= 0; i--) {
       var x = new Date(base); x.setDate(x.getDate() - i);
-      var k = chaveDia(x), d = historico && historico.dias[k];
+      var k = chaveDia(x), d = mapa[k];
       if (!d || d.n < 1296) return null;
       dias.push({ k: k, d: d });
     }
     return dias;
+  }
+
+  function diasConsolidadosEstacoes() {
+    carregarHistorico();
+    var datas = {};
+    if (bancoEstacoes && bancoEstacoes.slots) {
+      ["est1", "est2", "est3", "regua"].forEach(function (id) {
+        var sl = bancoEstacoes.slots[id];
+        if (!sl || !sl.dias) return;
+        Object.keys(sl.dias).forEach(function (k) { datas[k] = true; });
+      });
+    } else if (historico && historico.dias) {
+      Object.keys(historico.dias).forEach(function (k) { datas[k] = true; });
+    }
+    return Object.keys(datas).sort().reverse();
+  }
+
+  function extrairBalancoEstacoesDia(dataIso) {
+    carregarHistorico();
+    if (!dataIso) return null;
+    var dtCurta = dataIso.slice(8, 10) + "/" + dataIso.slice(5, 7) + "/" + dataIso.slice(0, 4);
+    var dtObj = new Date(dataIso + "T12:00:00");
+    var diaSemLongo = DIAS_LONGO[dtObj.getDay()] || "";
+    var estacoes = [];
+    var regua = null;
+
+    if (bancoEstacoes && bancoEstacoes.slots) {
+      ["est1", "est2", "est3"].forEach(function (id, idx) {
+        var sl = bancoEstacoes.slots[id];
+        var d = sl && sl.dias ? sl.dias[dataIso] : null;
+        estacoes.push({
+          id: id,
+          nome: (sl && sl.estacao) ? sl.estacao : ("Estação Meteorológica " + (idx + 1)),
+          temDado: !!d,
+          d: d || null
+        });
+        if (d && d.nvMax !== null && d.nvMax !== undefined && !regua) {
+          regua = { nome: "Régua de Nível do Rio", nvMin: d.nvMin, nvMax: d.nvMax, nvMed: d.nvMed, nvDelta: d.nvDelta };
+        }
+      });
+      var slReg = bancoEstacoes.slots.regua;
+      if (slReg && slReg.dias && slReg.dias[dataIso] && slReg.dias[dataIso].nvMax !== null) {
+        var dr = slReg.dias[dataIso];
+        regua = {
+          nome: slReg.estacao || "Régua de Nível do Rio",
+          nvMin: dr.nvMin,
+          nvMax: dr.nvMax,
+          nvMed: dr.nvMed,
+          nvDelta: dr.nvDelta
+        };
+      }
+    } else if (historico && historico.dias && historico.dias[dataIso]) {
+      estacoes.push({
+        id: "est1",
+        nome: historico.estacao || "Estação Meteorológica 1",
+        temDado: true,
+        d: historico.dias[dataIso]
+      });
+    }
+
+    var comDados = estacoes.filter(function (e) { return e.temDado; });
+    var maxChuva = 0, somaChuva = 0, maior1h = 0, estMaior = null;
+    comDados.forEach(function (e) {
+      somaChuva += e.d.chuva;
+      if (e.d.chuva >= maxChuva) { maxChuva = e.d.chuva; estMaior = e; }
+      if (e.d.c60 > maior1h) maior1h = e.d.c60;
+    });
+    var mediaChuva = comDados.length ? somaChuva / comDados.length : 0;
+
+    return {
+      dataIso: dataIso,
+      dtCurta: dtCurta,
+      diaSemLongo: diaSemLongo,
+      estacoes: estacoes,
+      comDados: comDados,
+      regua: regua,
+      maxChuva: maxChuva,
+      mediaChuva: mediaChuva,
+      maior1h: maior1h,
+      estMaior: estMaior
+    };
   }
 
   // ---------- por tipo: lista de opções e modelo ----------
@@ -254,15 +353,47 @@
           o.push([String(i), rot]);
         });
       }
+    } else if (tipo === "flyer_fogo") {
+      if (climaOM && climaOM.daily && Array.isArray(climaOM.daily.time)) {
+        climaOM.daily.time.slice(0, 3).forEach(function (dtIso, i) {
+          var d = extrairDiaOM(i);
+          var rf = (typeof Queimadas !== "undefined" && Queimadas.calcularRiscoFogoLocal)
+            ? Queimadas.calcularRiscoFogoLocal({ temp: d.tmax, umid: d.uMin !== null ? d.uMin : 45, vento: d.ventoMax, rajada: d.rajadaMax, chuva24h: d.chuvaMm })
+            : { nivel: "Monitorado" };
+          var rot = (i === 0 ? "Hoje — " : i === 1 ? "Amanhã — " : "") + d.diaSemLongo + " (" + d.dataCurta + ") · Risco " + (rf ? rf.nivel : "—") + " · Umid. mín " + n0(d.uMin) + "%";
+          o.push([String(i), rot]);
+        });
+      }
+    } else if (tipo === "flyer_estacoes") {
+      diasConsolidadosEstacoes().forEach(function (k) {
+        var b = extrairBalancoEstacoesDia(k);
+        if (!b) return;
+        var resumoTxt = b.comDados.length + " est. (máx " + f1(b.maxChuva) + " mm)" + (b.regua ? " + 🌊 Rio máx " + f2(b.regua.nvMax) + " m" : "");
+        o.push([k, b.dtCurta + " (" + b.diaSemLongo + ") — " + resumoTxt]);
+      });
     } else if (tipo === "aviso") {
       if (avisos) avisos.forEach(function (a, i) { o.push([i, (a.evento || "Aviso") + " — " + (a.severidade || "") + " (" + fhora(a.inicio) + " a " + fhora(a.fim) + ")"]); });
     } else if (tipo === "prevdia") {
       if (previsao) previsao.forEach(function (d, i) { o.push([i, (d.ref.dia_semana || "") + " " + d.dia.slice(0, 5)]); });
     } else if (tipo === "chuva") {
-      if (historico) Object.keys(historico.dias).sort().reverse().forEach(function (k) {
-        var d = historico.dias[k]; o.push([k, k.slice(8, 10) + "/" + k.slice(5, 7) + "/" + k.slice(0, 4) + " — " + f1(d.chuva) + " mm" + (d.n < 1296 ? " (dia incompleto)" : "")]);
-      });
+      carregarHistorico();
+      if (bancoEstacoes && bancoEstacoes.slots) {
+        ["est1", "est2", "est3"].forEach(function (id, idx) {
+          var sl = bancoEstacoes.slots[id];
+          if (!sl || !sl.dias) return;
+          var nomeEst = sl.estacao || ("Estação " + (idx + 1));
+          Object.keys(sl.dias).sort().reverse().forEach(function (k) {
+            var d = sl.dias[k];
+            o.push([id + ":" + k, "[" + nomeEst + "] " + k.slice(8, 10) + "/" + k.slice(5, 7) + "/" + k.slice(0, 4) + " — " + f1(d.chuva) + " mm" + (d.n < 1296 ? " (parcial)" : "")]);
+          });
+        });
+      } else if (historico) {
+        Object.keys(historico.dias).sort().reverse().forEach(function (k) {
+          var d = historico.dias[k]; o.push([k, k.slice(8, 10) + "/" + k.slice(5, 7) + "/" + k.slice(0, 4) + " — " + f1(d.chuva) + " mm" + (d.n < 1296 ? " (dia incompleto)" : "")]);
+        });
+      }
     } else if (tipo === "semana") {
+      carregarHistorico();
       if (historico) Object.keys(historico.dias).sort().reverse().forEach(function (k) {
         var sm = semanaCompleta(k); if (!sm) return;
         var t = sm.reduce(function (a, x) { return a + x.d.chuva; }, 0);
@@ -291,9 +422,13 @@
     var o = opcoes(tipo);
     o.forEach(function (x) { var op = document.createElement("option"); op.value = x[0]; op.textContent = x[1]; sel.appendChild(op); });
     var bloqueio = "";
-    if (tipo === "flyer_dia" || tipo === "flyer_5dias") {
+    if (tipo === "flyer_dia" || tipo === "flyer_5dias" || tipo === "flyer_fogo") {
       if (!climaOM) bloqueio = "Consultando dados meteorológicos atualizados para o panfleto… Se falhar, verifique sua conexão.";
-      else setStatus("Dados meteorológicos de Cajamar atualizados às " + hm(coletaOM) + " (Open-Meteo" + (avisos ? " + Avisos INMET" : "") + ").");
+      else setStatus("Dados meteorológicos de Cajamar atualizados às " + hm(coletaOM) + (focosInpe ? " · Satélites INPE (" + focosInpe.length + " focos na região)" : "") + ".");
+    }
+    if (tipo === "flyer_estacoes") {
+      if (!o.length) bloqueio = "Nenhum arquivo CSV carregado ainda. Envie de 1 a 4 CSVs (estações e régua do rio) na aba “Histórico da estação” ou “Previsão × medido”.";
+      else setStatus("Dados locais das estações e régua de nível prontos para gerar o panfleto consolidado.");
     }
     if (tipo === "aviso") { if (!avisos) bloqueio = "Sem dado novo dos avisos do INMET."; else if (!o.length) bloqueio = "Nenhum aviso ativo para Cajamar agora: não há o que publicar."; else setStatus("Avisos do INMET coletados às " + hm(coletaAvisos) + "."); }
     if (tipo === "prevdia" || tipo === "prevsemana") { if (!previsao) bloqueio = "Sem dado novo da previsão do INMET. Use o “Panfleto Diário” ou “Panfleto de 5 Dias” acima!"; else setStatus("Previsão do INMET coletada às " + hm(coletaPrev) + "."); }
@@ -303,12 +438,14 @@
     if (bloqueio) setStatus(bloqueio);
     $("baixar").disabled = !!bloqueio; $("copiar").disabled = !!bloqueio;
     if ($("compartilhar")) $("compartilhar").disabled = !!bloqueio;
+    if ($("copiarImg")) $("copiarImg").disabled = !!bloqueio;
     if (bloqueio) { limparCampos(); desenhar(); return; }
     montar();
   }
 
   function limparCampos() {
     $("titulo").value = ""; $("subtitulo").value = ""; $("linhas").value = ""; $("legenda").value = "";
+    if ($("textoFaixa")) $("textoFaixa").value = "";
     modelo = { cor: LARANJA, tag: "", rodape: "", tipoFlyer: null };
   }
 
@@ -323,6 +460,7 @@
   function montar() {
     var tipo = $("tipo").value, v = $("escolha").value, L = [], leg = "";
     var m = { cor: LARANJA, tag: "", rodape: "", tipoFlyer: null };
+    if ($("nivelFaixa")) $("nivelFaixa").value = "auto";
 
     if (tipo === "flyer_dia") {
       var dDia = extrairDiaOM(+v || 0);
@@ -395,6 +533,90 @@
         "\n\n📌 DESTAQUES PARA A POPULAÇÃO:\n" +
         L.map(function (t) { return "✔️ " + t; }).join("\n") +
         "\n\n📞 Emergência: Defesa Civil 199 | Bombeiros 193";
+    } else if (tipo === "flyer_fogo") {
+      var dFogo = extrairDiaOM(+v || 0);
+      if (!dFogo) return;
+      var rfFogo = (typeof Queimadas !== "undefined" && Queimadas.calcularRiscoFogoLocal)
+        ? Queimadas.calcularRiscoFogoLocal({
+            temp: dFogo.tmax,
+            umid: dFogo.uMin !== null ? dFogo.uMin : 40,
+            vento: dFogo.ventoMax,
+            rajada: dFogo.rajadaMax,
+            chuva24h: dFogo.chuvaMm
+          })
+        : { nivel: "Moderado", classe: "am", regra30: 0, angstrom: 2.5, recomendacao: "Atenção ao tempo seco e proibição de queimadas." };
+
+      var listaFocos = Array.isArray(focosInpe) ? focosInpe : [];
+      var nCajamar = listaFocos.filter(function (f) { return f.emCajamar; }).length;
+      var nRaio50 = listaFocos.filter(function (f) { return f.distanciaKm <= 50; }).length;
+
+      m.tipoFlyer = "fogo";
+      m.dadosFogo = {
+        dia: dFogo,
+        risco: rfFogo,
+        nCajamar: nCajamar,
+        nRaio50: nRaio50,
+        totalRegiao: listaFocos.length
+      };
+
+      var ehCritico = rfFogo.classe === "v" || nCajamar > 0;
+      var ehAlto = rfFogo.classe === "l" || nRaio50 >= 3;
+      m.cor = ehCritico ? VERMELHO : ehAlto ? LARANJA : rfFogo.classe === "am" ? "#d97706" : VERDE;
+      m.tag = "🔥 MONITORAMENTO DE QUEIMADAS E ESTIAGEM · " + rfFogo.nivel.toUpperCase();
+
+      $("titulo").value = "RISCO DE FOGO: " + rfFogo.nivel.toUpperCase();
+      $("subtitulo").value = dFogo.diaSemLongo + " (" + dFogo.dataCurta + ") · Cajamar/SP · Vigilância por Satélite";
+
+      L.push(rfFogo.recomendacao);
+      L.push("PROIBIDO atear fogo em mato, terrenos, lixo ou folhas secas (Crime Ambiental — Lei Municipal e Federal).");
+      L.push("Não jogue bitucas de cigarro às margens de rodovias (Anhanguera, Bandeirantes e Edgard Máximo Zambotto).");
+      if (dFogo.uMin !== null && dFogo.uMin <= 35) {
+        L.push("Umidade do ar baixa (" + n0(dFogo.uMin) + "%): beba bastante água e evite esforço físico no sol entre 11h e 16h.");
+      }
+      L.push("Ao avistar fumaça ou foco de incêndio em vegetação, acione imediatamente o 193 (Bombeiros) ou 199 (Defesa Civil).");
+
+      m.rodape = "Fontes: Satélites INPE BDQueimadas (GOES-19 / NPP-375 / NOAA-20/21) + Open-Meteo · " + hm(coletaOM);
+
+      leg = "🔥 BOLETIM DE RISCO DE FOGO E ESTIAGEM — CAJAMAR (" + dFogo.dataCurta + ")\n\n" +
+        "⚠️ Nível de Risco Meteorológico: " + rfFogo.nivel.toUpperCase() + "\n" +
+        "💧 Umidade mínima prevista: " + n0(dFogo.uMin) + "%\n" +
+        "🌡️ Temperatura máxima: " + n0(dFogo.tmax) + "°C\n" +
+        "💨 Rajadas de vento: até " + n0(dFogo.rajadaMax) + " km/h\n" +
+        "🛰️ Monitoramento Satelital (INPE): " + (nCajamar > 0 ? nCajamar + " foco(s) em Cajamar / " : "0 focos em Cajamar · ") + nRaio50 + " foco(s) num raio de 50 km\n\n" +
+        "🚫 ORIENTAÇÕES IMPORTANTES À POPULAÇÃO:\n" +
+        L.map(function (t) { return "• " + t; }).join("\n") +
+        "\n\n📞 Denúncias e Emergências: Defesa Civil 199 | Bombeiros 193";
+    } else if (tipo === "flyer_estacoes") {
+      var bal = extrairBalancoEstacoesDia(v);
+      if (!bal) return;
+      m.tipoFlyer = "estacoes";
+      m.dadosEstacoes = bal;
+      var alertaChuva = bal.maxChuva >= 30 || (bal.regua && bal.regua.nvDelta >= 0.5);
+      m.cor = alertaChuva ? LARANJA : "#0284c7";
+      m.tag = "🌧️🌊 BALANÇO DAS ESTAÇÕES METEOROLÓGICAS + NÍVEL DO RIO";
+      $("titulo").value = "MONITORAMENTO LOCAL · " + bal.dtCurta;
+      $("subtitulo").value = "3 Estações Meteorológicas e Régua de Nível do Rio em Cajamar";
+
+      L.push("Maior volume registrado no dia: " + f1(bal.maxChuva) + " mm" + (bal.estMaior ? " (" + bal.estMaior.nome + ")" : "") + " · Pico em 1h: " + f1(bal.maior1h) + " mm.");
+      if (bal.comDados.length > 1) {
+        L.push("Média de chuva entre as " + bal.comDados.length + " estações ativas: " + f1(bal.mediaChuva) + " mm.");
+      }
+      if (bal.regua) {
+        L.push("Régua de Nível do Rio: mínimo de " + f2(bal.regua.nvMin) + " m, máximo de " + f2(bal.regua.nvMax) + " m (variação Δ de +" + Math.round((bal.regua.nvDelta || 0) * 100) + " cm no dia).");
+      }
+      L.push("Em caso de alagamento, elevação rápida do rio ou risco em encostas, acione a Defesa Civil pelo 199.");
+
+      m.rodape = "Fonte: Rede de Estações Locais e Régua Fluviométrica — Defesa Civil de Cajamar";
+
+      leg = "🌧️🌊 BALANÇO DAS ESTAÇÕES E NÍVEL DO RIO EM CAJAMAR — " + bal.dtCurta + "\n\n" +
+        "Confira os registros medidos pela rede de monitoramento de Cajamar (" + bal.diaSemLongo + "):\n\n" +
+        bal.estacoes.map(function (e) {
+          return "• 🌡️ " + e.nome + ": " + (e.temDado ? f1(e.d.chuva) + " mm no dia (máx 1h: " + f1(e.d.c60) + " mm | Temp " + n0(e.d.tmin) + "° a " + n0(e.d.tmax) + "°C)" : "sem leitura importada");
+        }).join("\n") +
+        (bal.regua ? "\n• 🌊 " + bal.regua.nome + ": Nível mín " + f2(bal.regua.nvMin) + " m / máx " + f2(bal.regua.nvMax) + " m (subida Δ +" + Math.round((bal.regua.nvDelta || 0) * 100) + " cm)" : "") +
+        "\n\n📌 DESTAQUES:\n" +
+        L.map(function (t) { return "✔️ " + t; }).join("\n") +
+        "\n\n📞 Emergência: Defesa Civil 199 | Bombeiros 193";
     } else if (tipo === "aviso") {
       var a = avisos[+v]; if (!a) return;
       m.cor = corAviso(a); m.tag = "AVISO OFICIAL · INMET";
@@ -424,21 +646,28 @@
       m.rodape = "Fonte: INMET, previsão coletada às " + hm(coletaPrev);
       leg = "🌦️ PREVISÃO PARA CAJAMAR — PRÓXIMOS DIAS\n\n" + L.join("\n") + "\n\nPrevisão pode mudar: acompanhe os avisos oficiais.\nFonte: INMET (previsao.inmet.gov.br).";
     } else if (tipo === "chuva") {
-      var dd = historico.dias[v]; if (!dd) return;
-      var dt = v.slice(8, 10) + "/" + v.slice(5, 7) + "/" + v.slice(0, 4);
+      var slotRef = historico, chaveData = v;
+      if (v && v.indexOf(":") > 0 && bancoEstacoes && bancoEstacoes.slots) {
+        var partes = v.split(":");
+        slotRef = bancoEstacoes.slots[partes[0]] || historico;
+        chaveData = partes[1];
+      }
+      var dd = slotRef && slotRef.dias ? slotRef.dias[chaveData] : null; if (!dd) return;
+      var nomeEstChuva = (slotRef && slotRef.estacao) ? slotRef.estacao : "Estação meteorológica local";
+      var dt = chaveData.slice(8, 10) + "/" + chaveData.slice(5, 7) + "/" + chaveData.slice(0, 4);
       m.tag = "CHUVA MEDIDA EM CAJAMAR";
       $("titulo").value = "Chuva medida em " + dt;
-      $("subtitulo").value = "Estação meteorológica local";
+      $("subtitulo").value = nomeEstChuva + " · Cajamar/SP";
       L.push("Chuva no dia: " + f1(dd.chuva) + " mm");
       L.push("Maior chuva em 1 hora: " + f1(dd.c60) + " mm");
       if (dd.tmin !== null && dd.tmax !== null) L.push("Temperatura: " + n0(dd.tmin) + "° a " + n0(dd.tmax) + "°");
       if (dd.vmax !== null) L.push("Vento máximo: " + f1(dd.vmax) + " km/h");
-      var soma = 0, completo = true, base = new Date(v + "T12:00:00");
-      for (var i = 0; i < 7; i++) { var x = new Date(base); x.setDate(x.getDate() - i); var k2 = x.getFullYear() + "-" + p2(x.getMonth() + 1) + "-" + p2(x.getDate()); if (!historico.dias[k2] || historico.dias[k2].n < 1296) { completo = false; break; } soma += historico.dias[k2].chuva; }
+      var soma = 0, completo = true, base = new Date(chaveData + "T12:00:00");
+      for (var i = 0; i < 7; i++) { var x = new Date(base); x.setDate(x.getDate() - i); var k2 = x.getFullYear() + "-" + p2(x.getMonth() + 1) + "-" + p2(x.getDate()); if (!slotRef.dias[k2] || slotRef.dias[k2].n < 1296) { completo = false; break; } soma += slotRef.dias[k2].chuva; }
       if (completo) L.push("Acumulado em 7 dias: " + f1(soma) + " mm");
       if (dd.n < 1296) L.push("Atenção: dia com leituras incompletas; a chuva pode ser maior.");
-      m.rodape = "Medição de uma estação local em Cajamar. Não é dado oficial do INMET/CEMADEN.";
-      leg = "🌧️ CHUVA MEDIDA EM CAJAMAR — " + dt + "\n\n" + L.join("\n") + "\n\nMedição de uma estação local, em um ponto da cidade. Não substitui os dados oficiais do INMET e do CEMADEN.";
+      m.rodape = "Medição da estação local (" + nomeEstChuva + "). Não é dado oficial do INMET/CEMADEN.";
+      leg = "🌧️ CHUVA MEDIDA EM CAJAMAR — " + dt + " (" + nomeEstChuva + ")\n\n" + L.join("\n") + "\n\nMedição de estação local em Cajamar. Não substitui os dados oficiais do INMET e do CEMADEN.";
     } else if (tipo === "semana") {
       var sem = semanaCompleta(v); if (!sem) return;
       var tot = 0, comChuva = 0, maxD = sem[0], max1h = sem[0];
@@ -462,6 +691,7 @@
       leg = "🛟 DICA DE PREVENÇÃO — " + v + "\n\n" + dc.legenda + "\n\n" + L.map(function (t) { return "• " + t; }).join("\n");
     }
     $("linhas").value = L.join("\n");
+    if ($("textoFaixa")) $("textoFaixa").value = m.tag || "";
     modelo = m;
     var c = contatoLocal(); if (c) leg += "\nDefesa Civil de Cajamar: " + c;
     $("legenda").value = leg + "\n\n#DefesaCivil #Cajamar #ClimaCajamar #Jordanésia #Polvilho";
@@ -501,6 +731,20 @@
     feed: { w: 1080, h: 1080, yTopo: 30, headerBox: 98, logoDim: 88, titleSize: 38, subSize: 24, maxLinhas: 26, minLinhas: 18, limite: 900, yr: 928, prefix: "feed" }
   };
 
+  function corEfetivaFaixa() {
+    var nv = $("nivelFaixa") ? $("nivelFaixa").value : "auto";
+    if (nv === "normal") return VERDE;
+    if (nv === "atencao") return "#d97706";
+    if (nv === "alerta") return LARANJA;
+    if (nv === "emergencia") return VERMELHO;
+    return modelo.cor || LARANJA;
+  }
+
+  function textoEfetivoFaixa() {
+    var t = $("textoFaixa") ? $("textoFaixa").value.trim() : "";
+    return t || modelo.tag || "";
+  }
+
   function desenharCabecalhoInstitucional(cfg, fmtKey) {
     var yTopo = cfg.yTopo;
     ctx.fillStyle = "#fff";
@@ -523,13 +767,14 @@
 
     var hTag = fmtKey === "feed" ? 50 : 62;
     var yTag = yTopo + cfg.headerBox + (fmtKey === "feed" ? 12 : 16);
-    ctx.fillStyle = modelo.cor || LARANJA;
+    var corTag = corEfetivaFaixa();
+    ctx.fillStyle = corTag;
     rr(60, yTag, W - 120, hTag, 12);
     ctx.fill();
-    var clara = /^#(f|e|d)/i.test(modelo.cor || "") && !/^#(dc|d9|ea)/i.test(modelo.cor || "");
+    var clara = /^#(f|e|d)/i.test(corTag) && !/^#(dc|d9|ea)/i.test(corTag);
     ctx.fillStyle = clara ? "#111" : "#fff";
     ctx.font = "800 " + (fmtKey === "feed" ? "24px " : "29px ") + FONTE;
-    ctx.fillText(modelo.tag || "", W / 2, yTag + (fmtKey === "feed" ? 34 : 42));
+    ctx.fillText(textoEfetivoFaixa(), W / 2, yTag + (fmtKey === "feed" ? 34 : 42));
     return yTag + hTag;
   }
 
@@ -773,6 +1018,197 @@
     }
   }
 
+  // ---------- Panfleto Visual de Risco de Fogo e Estiagem (flyer_fogo) ----------
+  function desenharFlyerFogo(cfg, fmtKey, yBase) {
+    var fg = modelo.dadosFogo;
+    if (!fg || !fg.dia) return;
+    var d = fg.dia, rf = fg.risco;
+    var x = 60, larg = W - 120;
+    var y = yBase + (fmtKey === "feed" ? 20 : 30);
+
+    var hHero = fmtKey === "stories" ? 150 : fmtKey === "retrato" ? 115 : 92;
+    ctx.fillStyle = "rgba(220, 38, 38, 0.16)";
+    rr(x, y, larg, hHero, 16);
+    ctx.fill();
+    ctx.fillStyle = corEfetivaFaixa();
+    ctx.fillRect(x, y + 14, 9, hHero - 28);
+
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#fff";
+    ctx.font = "800 " + (fmtKey === "stories" ? "44px " : fmtKey === "retrato" ? "35px " : "29px ") + FONTE;
+    ctx.fillText($("titulo").value || ("RISCO DE FOGO: " + rf.nivel.toUpperCase()), x + 26, y + (fmtKey === "stories" ? 56 : fmtKey === "retrato" ? 44 : 36));
+
+    ctx.fillStyle = "#fde047";
+    ctx.font = "700 " + (fmtKey === "stories" ? "30px " : fmtKey === "retrato" ? "24px " : "20px ") + FONTE;
+    ctx.fillText($("subtitulo").value || (d.diaSemLongo + " (" + d.dataCurta + ") · Cajamar/SP"), x + 26, y + (fmtKey === "stories" ? 102 : fmtKey === "retrato" ? 80 : 64));
+
+    ctx.fillStyle = "#cbd5e1";
+    ctx.font = "500 " + (fmtKey === "stories" ? "23px " : "18px ") + FONTE;
+    ctx.fillText("Regra dos 30: " + rf.regra30 + "/3 fatores ativos · Índice de Angström: " + String(rf.angstrom).replace(".", ","), x + 26, y + (fmtKey === "stories" ? 136 : fmtKey === "retrato" ? 105 : 84));
+
+    y += hHero + (fmtKey === "feed" ? 14 : 22);
+
+    var hCard = fmtKey === "stories" ? 150 : fmtKey === "retrato" ? 114 : 90;
+    var gap = 16;
+    var wCard = (larg - gap) / 2;
+    var cards = [
+      { rot: "💧 UMIDADE MÍNIMA", val: n0(d.uMin) + "%", sub: (d.uMin !== null && d.uMin <= 30) ? "⚠️ Estado de Atenção (< 30%)" : "Mínima prevista para a tarde", cor: "#f97316" },
+      { rot: "🌡️ TEMPERATURA MÁXIMA", val: n0(d.tmax) + "°C", sub: "Sensação térmica até " + n0(d.sMax) + "°C", cor: "#ef4444" },
+      { rot: "💨 RAJADAS DE VENTO", val: n0(d.rajadaMax) + " km/h", sub: d.rajadaMax >= 30 ? "⚠️ Vento acelera propagação" : "Velocidade máxima prevista", cor: "#eab308" },
+      { rot: "🛰️ SATÉLITES INPE / NASA", val: fg.nCajamar > 0 ? fg.nCajamar + " foco(s) local" : fg.nRaio50 + " foco(s) (50 km)", sub: "GOES-19 · NPP-375 · NOAA-20/21", cor: "#38bdf8" }
+    ];
+
+    cards.forEach(function (ind, i) {
+      var col = i % 2, row = Math.floor(i / 2);
+      var cx = x + col * (wCard + gap);
+      var cy = y + row * (hCard + gap);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.72)";
+      rr(cx, cy, wCard, hCard, 14);
+      ctx.fill();
+      ctx.fillStyle = ind.cor;
+      ctx.fillRect(cx, cy + 14, 7, hCard - 28);
+
+      ctx.fillStyle = "#93c5fd";
+      ctx.font = "700 " + (fmtKey === "feed" ? "17px " : "21px ") + FONTE;
+      ctx.fillText(ind.rot, cx + 22, cy + (fmtKey === "stories" ? 36 : fmtKey === "retrato" ? 30 : 24));
+
+      ctx.fillStyle = "#fff";
+      ctx.font = "800 " + (fmtKey === "stories" ? "42px " : fmtKey === "retrato" ? "32px " : "26px ") + FONTE;
+      ctx.fillText(ind.val, cx + 22, cy + (fmtKey === "stories" ? 88 : fmtKey === "retrato" ? 68 : 54));
+
+      ctx.fillStyle = "#cbd5e1";
+      ctx.font = "500 " + (fmtKey === "feed" ? "16px " : "20px ") + FONTE;
+      ctx.fillText(ind.sub, cx + 22, cy + (fmtKey === "stories" ? 128 : fmtKey === "retrato" ? 98 : 78));
+    });
+
+    y += hCard * 2 + gap + (fmtKey === "feed" ? 14 : 24);
+
+    var altRest = cfg.limite - y;
+    ctx.fillStyle = "rgba(15, 23, 42, 0.78)";
+    rr(x, y, larg, Math.max(120, altRest), 16);
+    ctx.fill();
+
+    ctx.fillStyle = "#fde047";
+    var tamCab = fmtKey === "stories" ? 28 : fmtKey === "retrato" ? 23 : 19;
+    ctx.font = "800 " + tamCab + "px " + FONTE;
+    ctx.fillText("🚫 QUEIMADA É CRIME AMBIENTAL · ORIENTAÇÕES À POPULAÇÃO:", x + 24, y + tamCab + 14);
+
+    var yTxt = y + tamCab * 2 + (fmtKey === "feed" ? 12 : 22);
+    var linhas = $("linhas").value.split(/\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+    var tamTxt = fmtKey === "stories" ? 27 : fmtKey === "retrato" ? 21 : 17;
+    ctx.font = "500 " + tamTxt + "px " + FONTE;
+    ctx.fillStyle = "#fff";
+    linhas.slice(0, 5).forEach(function (lin) {
+      quebrar("• " + lin, larg - 48).slice(0, 2).forEach(function (ql) {
+        if (yTxt <= cfg.limite - 12) {
+          ctx.fillText(ql, x + 24, yTxt);
+          yTxt += tamTxt * 1.28;
+        }
+      });
+      yTxt += 6;
+    });
+  }
+
+  // ---------- Panfleto Visual das 3 Estações + Régua de Nível (flyer_estacoes) ----------
+  function desenharFlyerEstacoes(cfg, fmtKey, yBase) {
+    var b = modelo.dadosEstacoes;
+    if (!b) return;
+    var x = 60, larg = W - 120;
+    var y = yBase + (fmtKey === "feed" ? 16 : 24);
+
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#fff";
+    ctx.font = "800 " + (fmtKey === "stories" ? "42px " : fmtKey === "retrato" ? "34px " : "28px ") + FONTE;
+    ctx.fillText($("titulo").value || ("BALANÇO DAS ESTAÇÕES · " + b.dtCurta), x, y + (fmtKey === "feed" ? 26 : 34));
+    ctx.fillStyle = "#b9c6ee";
+    ctx.font = "500 " + (fmtKey === "stories" ? "26px " : "21px ") + FONTE;
+    ctx.fillText($("subtitulo").value || "Rede Meteorológica e Fluviométrica de Cajamar/SP", x, y + (fmtKey === "feed" ? 52 : 68));
+
+    y += (fmtKey === "feed" ? 66 : 86);
+
+    var hRow = fmtKey === "stories" ? 156 : fmtKey === "retrato" ? 110 : 82;
+    var gapRow = fmtKey === "stories" ? 16 : fmtKey === "retrato" ? 10 : 8;
+
+    // 3 Cartões de Estações + 1 Cartão da Régua do Rio
+    var blocos = b.estacoes.map(function (e) {
+      return {
+        icone: "🌡️",
+        nome: e.nome,
+        cor: e.temDado ? (e.d.chuva >= 25 ? LARANJA : "#38bdf8") : "#64748b",
+        principal: e.temDado ? f1(e.d.chuva) + " mm" : "Sem CSV",
+        det1: e.temDado ? ("Pico 1h: " + f1(e.d.c60) + " mm · 10m: " + f1(e.d.c10) + " mm") : "Envie o CSV na aba Histórico",
+        det2: e.temDado ? ("Temp: " + n0(e.d.tmin) + "° a " + n0(e.d.tmax) + "°C · Vento máx: " + f1(e.d.vmax) + " km/h") : "—"
+      };
+    });
+
+    blocos.push({
+      icone: "🌊",
+      nome: b.regua ? b.regua.nome : "Régua de Nível do Rio",
+      cor: b.regua ? (b.regua.nvDelta >= 0.4 ? LARANJA : "#34d399") : "#64748b",
+      principal: b.regua ? (f2(b.regua.nvMax) + " m (máx)") : "Sem CSV",
+      det1: b.regua ? ("Nível Mín: " + f2(b.regua.nvMin) + " m · Médio: " + f2(b.regua.nvMed) + " m") : "Envie o CSV da régua de nível",
+      det2: b.regua ? ("Subida máxima no dia (Δ): +" + Math.round((b.regua.nvDelta || 0) * 100) + " cm (" + f2(b.regua.nvDelta) + " m)") : "—"
+    });
+
+    blocos.forEach(function (bl, idx) {
+      var ry = y + idx * (hRow + gapRow);
+      ctx.fillStyle = idx === 3 ? "rgba(16, 185, 129, 0.14)" : "rgba(15, 23, 42, 0.7)";
+      rr(x, ry, larg, hRow, 14);
+      ctx.fill();
+
+      ctx.fillStyle = bl.cor;
+      ctx.fillRect(x, ry + 12, 8, hRow - 24);
+
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#fde047";
+      ctx.font = "800 " + (fmtKey === "stories" ? "29px " : fmtKey === "retrato" ? "23px " : "19px ") + FONTE;
+      ctx.fillText(bl.icone + " " + bl.nome, x + 24, ry + hRow * 0.36);
+
+      ctx.fillStyle = "#e2e8f0";
+      ctx.font = "600 " + (fmtKey === "stories" ? "22px " : "17px ") + FONTE;
+      ctx.fillText(bl.det1, x + 24, ry + hRow * 0.65);
+
+      ctx.fillStyle = "#93c5fd";
+      ctx.font = "500 " + (fmtKey === "stories" ? "20px " : "15px ") + FONTE;
+      ctx.fillText(bl.det2, x + 24, ry + hRow * 0.88);
+
+      ctx.textAlign = "right";
+      ctx.fillStyle = "#fff";
+      ctx.font = "800 " + (fmtKey === "stories" ? "40px " : fmtKey === "retrato" ? "30px " : "24px ") + FONTE;
+      ctx.fillText(bl.principal, x + larg - 24, ry + hRow * 0.56);
+    });
+
+    ctx.textAlign = "left";
+    y += blocos.length * (hRow + gapRow) + (fmtKey === "feed" ? 8 : 14);
+
+    var altRest = cfg.limite - y;
+    if (altRest > 70) {
+      ctx.fillStyle = "rgba(15, 23, 42, 0.74)";
+      rr(x, y, larg, altRest, 14);
+      ctx.fill();
+
+      var tamTit = fmtKey === "stories" ? 26 : fmtKey === "retrato" ? 21 : 17;
+      ctx.fillStyle = "#fde047";
+      ctx.font = "800 " + tamTit + "px " + FONTE;
+      ctx.fillText("📌 RESUMO HIDROMETEOROLÓGICO DO DIA:", x + 22, y + tamTit + 10);
+
+      var yL = y + tamTit * 2 + (fmtKey === "feed" ? 8 : 16);
+      var tamL = fmtKey === "stories" ? 25 : fmtKey === "retrato" ? 19 : 16;
+      ctx.font = "500 " + tamL + "px " + FONTE;
+      ctx.fillStyle = "#fff";
+      var linhas = $("linhas").value.split(/\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+      linhas.slice(0, 4).forEach(function (lin) {
+        quebrar("• " + lin, larg - 44).slice(0, 2).forEach(function (ql) {
+          if (yL <= cfg.limite - 10) {
+            ctx.fillText(ql, x + 22, yL);
+            yL += tamL * 1.25;
+          }
+        });
+        yL += 4;
+      });
+    }
+  }
+
   function desenhar() {
     var fmtKey = ($("formato") && $("formato").value) || "stories";
     var cfg = FORMATOS[fmtKey] || FORMATOS.stories;
@@ -805,6 +1241,16 @@
     }
     if (modelo.tipoFlyer === "5dias" && modelo.dados5Dias) {
       desenharFlyer5Dias(cfg, fmtKey, yBase);
+      desenharRodapeInstitucional(cfg, fmtKey);
+      return;
+    }
+    if (modelo.tipoFlyer === "fogo" && modelo.dadosFogo) {
+      desenharFlyerFogo(cfg, fmtKey, yBase);
+      desenharRodapeInstitucional(cfg, fmtKey);
+      return;
+    }
+    if (modelo.tipoFlyer === "estacoes" && modelo.dadosEstacoes) {
+      desenharFlyerEstacoes(cfg, fmtKey, yBase);
       desenharRodapeInstitucional(cfg, fmtKey);
       return;
     }
@@ -842,8 +1288,9 @@
       if (y + alt <= limiteTexto) break;
     }
 
+    var corBarraLateral = corEfetivaFaixa();
     blocos.forEach(function (b) {
-      ctx.fillStyle = modelo.cor || LARANJA;
+      ctx.fillStyle = corBarraLateral;
       ctx.fillRect(x, y - tam * .75, 8, b.length * tam * 1.25 - tam * .2);
       ctx.fillStyle = "#fff";
       b.forEach(function (l) {
@@ -864,7 +1311,7 @@
     ctx.fillStyle = "rgba(255,255,255,.18)"; ctx.fillRect(x0, y0 + topo + base, larg, 2);
     dados.forEach(function (d, i) {
       var h = d.v / max * base, cx = x0 + passo * (i + .5);
-      ctx.fillStyle = modelo.cor || LARANJA;
+      ctx.fillStyle = corEfetivaFaixa();
       ctx.fillRect(cx - bw / 2, y0 + topo + base - h, bw, Math.max(h, d.v > 0 ? 3 : 0));
       ctx.fillStyle = "#fff"; ctx.textAlign = "center";
       ctx.font = "600 26px " + FONTE; if (d.v > 0) ctx.fillText(f1(d.v), cx, y0 + topo + base - h - 8);
@@ -917,6 +1364,27 @@
     }
   };
 
+  if ($("copiarImg")) {
+    $("copiarImg").onclick = function () {
+      setMsg("");
+      try {
+        cv.toBlob(async function (b) {
+          if (!b) { setMsg("Não foi possível gerar a imagem."); return; }
+          if (navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem !== "undefined") {
+            try {
+              await navigator.clipboard.write([new ClipboardItem({ "image/png": b })]);
+              setMsg("✅ Imagem copiada! Agora basta dar Ctrl+V direto na conversa do WhatsApp Web.");
+              return;
+            } catch (errClip) {}
+          }
+          setMsg("Seu navegador bloqueou a cópia direta de imagem. Use o botão “Baixar imagem (PNG)”.");
+        }, "image/png");
+      } catch (e) {
+        setMsg("Não foi possível copiar a imagem. Use o botão “Baixar imagem (PNG)”.");
+      }
+    };
+  }
+
   $("baixar").onclick = function () {
     setMsg("");
     try {
@@ -944,9 +1412,10 @@
     };
   }
 
-  ["titulo", "subtitulo", "linhas"].forEach(function (i) { $(i).oninput = desenhar; });
+  ["titulo", "subtitulo", "linhas", "textoFaixa"].forEach(function (i) { if ($(i)) $(i).oninput = desenhar; });
   $("tipo").onchange = atualizarEscolha;
   if ($("formato")) $("formato").onchange = desenhar;
+  if ($("nivelFaixa")) $("nivelFaixa").onchange = desenhar;
   $("escolha").onchange = montar;
   $("contato").oninput = desenhar;
   $("contato").onchange = function () { try { localStorage.setItem(CHAVE_CONTATO, $("contato").value); } catch (e) {} if (!$("baixar").disabled) montar(); };

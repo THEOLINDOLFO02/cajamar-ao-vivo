@@ -88,6 +88,91 @@
       }
       sel.value = valAnt;
     }
+
+    renderizarQuadroSimultaneo();
+  }
+
+  function renderizarQuadroSimultaneo() {
+    var card = $("cardSimultaneo");
+    if (!card) return;
+    var s1 = banco.slots.est1 || { dias: {} };
+    var s2 = banco.slots.est2 || { dias: {} };
+    var s3 = banco.slots.est3 || { dias: {} };
+    var sr = banco.slots.regua || { dias: {} };
+
+    var mapaDatas = {};
+    [s1, s2, s3, sr].forEach(function (sl) {
+      Object.keys(sl.dias || {}).forEach(function (k) { mapaDatas[k] = true; });
+    });
+    var datas = Object.keys(mapaDatas).sort().reverse();
+    if (!datas.length) {
+      card.hidden = true;
+      return;
+    }
+    card.hidden = false;
+
+    if ($("thSimEst1")) $("thSimEst1").textContent = "🌡️ " + (s1.estacao || "Estação 1");
+    if ($("thSimEst2")) $("thSimEst2").textContent = "🌡️ " + (s2.estacao || "Estação 2");
+    if ($("thSimEst3")) $("thSimEst3").textContent = "🌡️ " + (s3.estacao || "Estação 3");
+
+    var tot1 = 0, n1 = 0, tot2 = 0, n2 = 0, tot3 = 0, n3 = 0, maxNv = null, maxDelta = null;
+    var tb = $("tbSimultaneo");
+    tb.textContent = "";
+
+    datas.forEach(function (k) {
+      var d1 = s1.dias ? s1.dias[k] : null;
+      var d2 = s2.dias ? s2.dias[k] : null;
+      var d3 = s3.dias ? s3.dias[k] : null;
+      var dr = sr.dias ? sr.dias[k] : null;
+      if (!dr) {
+        [d1, d2, d3].forEach(function (dx) {
+          if (dx && dx.nvMax !== null && dx.nvMax !== undefined && !dr) dr = dx;
+        });
+      }
+
+      var vals = [];
+      if (d1) { tot1 += d1.chuva; n1++; vals.push(d1.chuva); }
+      if (d2) { tot2 += d2.chuva; n2++; vals.push(d2.chuva); }
+      if (d3) { tot3 += d3.chuva; n3++; vals.push(d3.chuva); }
+      if (dr && dr.nvMax !== null && dr.nvMax !== undefined) {
+        if (!maxNv || dr.nvMax > maxNv.v) maxNv = { v: dr.nvMax, k: k };
+        if (!maxDelta || (dr.nvDelta || 0) > maxDelta.v) maxDelta = { v: dr.nvDelta || 0, k: k };
+      }
+
+      var tr = el("tr");
+      tr.appendChild(el("td", "", fdLonga(k)));
+      [d1, d2, d3].forEach(function (dx) {
+        if (!dx) {
+          tr.appendChild(el("td", "mut", "—"));
+        } else {
+          tr.appendChild(el("td", "", f1(dx.chuva) + " mm (1h: " + f1(dx.c60) + " mm)"));
+        }
+      });
+
+      if (vals.length) {
+        var media = vals.reduce(function (a, b) { return a + b; }, 0) / vals.length;
+        var diffEspacial = vals.length > 1 ? (Math.max.apply(null, vals) - Math.min.apply(null, vals)) : 0;
+        tr.appendChild(el("td", "", f1(media) + " mm" + (vals.length > 1 ? " (Δ " + f1(diffEspacial) + " mm)" : "")));
+      } else {
+        tr.appendChild(el("td", "mut", "—"));
+      }
+
+      if (dr && dr.nvMax !== null && dr.nvMax !== undefined) {
+        tr.appendChild(el("td", "", f2(dr.nvMin) + " a " + f2(dr.nvMax) + " m (+" + Math.round((dr.nvDelta || 0) * 100) + " cm)"));
+      } else {
+        tr.appendChild(el("td", "mut", "—"));
+      }
+      tb.appendChild(tr);
+    });
+
+    var rs = $("resumoSimultaneo");
+    if (rs) {
+      rs.textContent = "";
+      if (n1) rs.appendChild(cartao("🌡️ " + (s1.estacao || "Estação 1"), f1(tot1) + " mm", n1 + " dia(s) carregado(s)"));
+      if (n2) rs.appendChild(cartao("🌡️ " + (s2.estacao || "Estação 2"), f1(tot2) + " mm", n2 + " dia(s) carregado(s)"));
+      if (n3) rs.appendChild(cartao("🌡️ " + (s3.estacao || "Estação 3"), f1(tot3) + " mm", n3 + " dia(s) carregado(s)"));
+      if (maxNv) rs.appendChild(cartao("🌊 Pico na Régua do Rio", f2(maxNv.v) + " m", "em " + fdLonga(maxNv.k) + (maxDelta ? " (Δ máx +" + Math.round(maxDelta.v * 100) + " cm)" : "")));
+    }
   }
 
   function importarArquivosComp(arquivos) {
