@@ -36,6 +36,57 @@
   <section class="card"><h2>Agora</h2><div id="agora" class="mut">Carregando…</div></section>
   <section class="card"><h2>Avisos do INMET que incluem Cajamar</h2><div id="alertas" class="mut">Carregando…</div></section>
   <section class="card"><h2>Chuva observada — pluviômetros do CEMADEN</h2><div id="cemaden" class="mut">Carregando…</div></section>
+  <section class="card" id="deslizamentoCard">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+      <h2 style="margin:0">⛰️ Painel de Alerta de Deslizamento de Terra (Pinheiro et al., 2005 / AlertaRio, 2013)</h2>
+      <div class="filtro-periodo" style="margin:0">
+        <label for="fFonteDesliz">Fonte dos volumes:</label>
+        <select id="fFonteDesliz" aria-label="Escolher fonte de volume de chuva para análise de deslizamento">
+          <option value="auto">Automático (Maior volume: Estações CSV / Série 168h)</option>
+          <option value="serie">Série Horária Cajamar (1h / 24h / 168h ao vivo)</option>
+          <option value="estacoes">Estações Locais de Cajamar (último dia no CSV)</option>
+          <option value="simulador">Simulador / Leitura Manual de Pluviômetro</option>
+        </select>
+        <a href="publicar.html" class="btn small">📰 Gerar Panfleto de Alerta</a>
+      </div>
+    </div>
+    <div id="deslizamentoPainel" class="mut">Analisando volumes de chuva (1h, 24h e 168h) para risco de deslizamento…</div>
+    <div class="desliz-sim">
+      <strong style="font-size:.86rem">🧮 Simulador / Teste Rápido de Volume de Água (mm/h · mm/24h · mm/168h)</strong>
+      <p class="mut" style="margin:2px 0 6px;font-size:.78rem">Digite os volumes medidos em campo ou previstos nos boletins para verificar imediatamente o nível de alerta de deslizamento:</p>
+      <div class="desliz-sim-campos">
+        <label>Chuva em 1 hora (mm/h)
+          <input id="simMm1h" type="number" min="0" max="300" step="0.5" value="0">
+        </label>
+        <label>Chuva em 24 horas (mm/24h)
+          <input id="simMm24h" type="number" min="0" max="600" step="1" value="0">
+        </label>
+        <label>Chuva em 7 dias / 168h (mm/168h)
+          <input id="simMm168h" type="number" min="0" max="1000" step="1" value="0">
+        </label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button id="btnSimularDesliz" type="button" class="btn primary small">Avaliar volumes digitados</button>
+          <button id="btnResetDesliz" type="button" class="btn small">Voltar ao automático</button>
+        </div>
+      </div>
+    </div>
+    <details style="margin-top:10px">
+      <summary class="mut" style="cursor:pointer;font-weight:600">📋 Ver Tabela Oficial de Critérios de Risco de Deslizamento (Pinheiro et al., 2005; AlertaRio, 2013)</summary>
+      <div class="tw" style="margin-top:8px">
+        <table class="desliz-tabela" id="tbCriteriosDesliz">
+          <thead>
+            <tr>
+              <th style="width:150px">Estado</th>
+              <th>Descrição (Critérios Pluviométricos: 1h · 24h · 168h)</th>
+              <th>Protocolo / Ação Recomendada em Cajamar</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyCriteriosDesliz"></tbody>
+        </table>
+      </div>
+      <p class="mut" style="margin:6px 0 0;font-size:.78rem">Referência técnica: Adaptado de Pinheiro et al. (2005); Sistema AlertaRio (2013). Monitoramento preventivo para encostas e taludes de Cajamar (Jordanésia, Polvilho, Ponunduva, Centro e Vila Nova).</p>
+    </details>
+  </section>
   <section class="card" id="fogoCard">
     <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:8px">
       <h2 style="margin:0">🔥 Monitoramento de Fogo e Satélites (INPE / NASA / CENSIPAM)</h2>
@@ -115,6 +166,8 @@
 <script src="js/inmet.js"></script>
 <script src="js/config.js"></script>
 <script src="js/cemaden.js"></script>
+<script src="js/estacao.js"></script>
+<script src="js/deslizamento.js"></script>
 <script src="js/queimadas.js"></script>
 <script src="js/painel.js"></script>
 <script>

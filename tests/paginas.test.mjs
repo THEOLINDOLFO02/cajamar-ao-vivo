@@ -45,7 +45,13 @@ test("toda página carrega o menu completo e cada link do menu leva a uma págin
 });
 
 test("scripts usados por uma página são carregados antes de quem depende deles", () => {
-  const ordem = { "painel.js": ["fontes.js", "inmet.js", "cemaden.js", "queimadas.js", "config.js"], "publicar.js": ["fontes.js", "inmet.js", "estacao.js", "queimadas.js"], "historico.js": ["estacao.js"], "comparar.js": ["estacao.js"], "cemaden.js": ["fontes.js"] };
+  const ordem = {
+    "painel.js": ["fontes.js", "inmet.js", "cemaden.js", "queimadas.js", "deslizamento.js", "config.js"],
+    "publicar.js": ["fontes.js", "inmet.js", "estacao.js", "queimadas.js", "deslizamento.js"],
+    "historico.js": ["estacao.js", "deslizamento.js"],
+    "comparar.js": ["estacao.js"],
+    "cemaden.js": ["fontes.js"]
+  };
   for (const p of paginas) {
     const srcs = [...readFileSync(join(RAIZ, p), "utf8").matchAll(/<script src="js\/([^"]+)"/g)].map((m) => m[1]);
     for (const [quem, precisa] of Object.entries(ordem)) {
@@ -73,4 +79,34 @@ test("o manifest aponta para ícone existente", () => {
 test("config.js não contém chaves ou senhas", () => {
   const c = readFileSync(join(RAIZ, "js", "config.js"), "utf8");
   assert.doesNotMatch(c, /(api[_-]?key|secret|token|senha|password)\s*[:=]/i);
+});
+
+test("critérios de risco de deslizamento (Pinheiro et al., 2005; AlertaRio, 2013) classificam corretamente os 5 níveis", async () => {
+  const { carregarScript } = await import("./util.mjs");
+  const win = carregarScript("js/deslizamento.js");
+  const D = win.Deslizamento;
+  assert.ok(D && Array.isArray(D.ESTADOS) && D.ESTADOS.length === 5);
+
+  // Normalidade: < 10 mm/h, < 25 mm/24h, < 50 mm/168h
+  assert.equal(D.avaliarRisco({ mm1h: 5, mm24h: 12, mm168h: 30 }).id, "normalidade");
+
+  // Observação: 10 a 20 mm/h, 25 a 50 mm/24h, 50 a 100 mm/168h
+  assert.equal(D.avaliarRisco({ mm1h: 15, mm24h: 10, mm168h: 20 }).id, "observacao");
+  assert.equal(D.avaliarRisco({ mm1h: 2, mm24h: 35, mm168h: 40 }).id, "observacao");
+  assert.equal(D.avaliarRisco({ mm1h: 2, mm24h: 10, mm168h: 75 }).id, "observacao");
+
+  // Atenção: 20 a 30 mm/h, 50 a 100 mm/24h, 100 a 150 mm/168h
+  assert.equal(D.avaliarRisco({ mm1h: 25, mm24h: 20, mm168h: 30 }).id, "atencao");
+  assert.equal(D.avaliarRisco({ mm1h: 5, mm24h: 70, mm168h: 80 }).id, "atencao");
+  assert.equal(D.avaliarRisco({ mm1h: 5, mm24h: 20, mm168h: 125 }).id, "atencao");
+
+  // Alerta: 30 a 50 mm/h, 100 a 150 mm/24h, 150 a 210 mm/168h (e 40 a 80 mm/h combinado)
+  assert.equal(D.avaliarRisco({ mm1h: 38, mm24h: 40, mm168h: 60 }).id, "alerta");
+  assert.equal(D.avaliarRisco({ mm1h: 10, mm24h: 120, mm168h: 130 }).id, "alerta");
+  assert.equal(D.avaliarRisco({ mm1h: 45, mm24h: 60, mm168h: 175 }).id, "alerta");
+
+  // Alerta Máximo: > 50 mm/h, > 150 mm/24h, > 210 mm/168h (e > 80 mm/h)
+  assert.equal(D.avaliarRisco({ mm1h: 55, mm24h: 60, mm168h: 70 }).id, "alerta_maximo");
+  assert.equal(D.avaliarRisco({ mm1h: 15, mm24h: 160, mm168h: 180 }).id, "alerta_maximo");
+  assert.equal(D.avaliarRisco({ mm1h: 10, mm24h: 40, mm168h: 225 }).id, "alerta_maximo");
 });

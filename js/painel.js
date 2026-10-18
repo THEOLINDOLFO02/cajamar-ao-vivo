@@ -57,6 +57,199 @@
   }
 
   var ultimoClimaFogo = null;
+  var ultimoDeslizSerie = null;
+
+  function renderizarTabelaCriteriosDesliz(nivelAtivo) {
+    var tbody = $("tbodyCriteriosDesliz");
+    if (!tbody || typeof Deslizamento === "undefined") return;
+    tbody.textContent = "";
+    Deslizamento.ESTADOS.forEach(function (st) {
+      var tr = el("tr", st.nivel === nivelAtivo ? "ativo-criterio" : "");
+      tr.style.background = st.corFundo;
+      tr.style.color = st.corTexto;
+      var tdEst = el("td");
+      tdEst.appendChild(el("strong", "", st.icone + " " + st.estado + (st.nivel === nivelAtivo ? " (ATUAL)" : "")));
+      var tdDesc = el("td", "", st.descricao);
+      var tdAcao = el("td", "", st.acaoDefesaCivil);
+      tr.appendChild(tdEst);
+      tr.appendChild(tdDesc);
+      tr.appendChild(tdAcao);
+      tbody.appendChild(tr);
+    });
+  }
+
+  function obterAvaliacoesEstacoesLocais() {
+    if (typeof Estacao === "undefined" || typeof Deslizamento === "undefined") return [];
+    var out = [];
+    try {
+      var banco = Estacao.carregarBanco();
+      ["est1", "est2", "est3"].forEach(function (id, idx) {
+        var sl = banco.slots[id];
+        if (!sl || !sl.dias) return;
+        var datas = Object.keys(sl.dias).sort();
+        if (!datas.length) return;
+        var ultData = datas[datas.length - 1];
+        var av = Deslizamento.avaliarDiaEstacao(sl.dias, ultData, sl.estacao || ("Estação " + (idx + 1)));
+        if (av) {
+          av.nomeEstacao = sl.estacao || ("Estação " + (idx + 1));
+          out.push(av);
+        }
+      });
+    } catch (e) {}
+    return out;
+  }
+
+  function atualizarPainelDeslizamento() {
+    var box = $("deslizamentoPainel");
+    if (!box || typeof Deslizamento === "undefined") return;
+
+    var modo = $("fFonteDesliz") ? $("fFonteDesliz").value : "auto";
+    var avEstacoes = obterAvaliacoesEstacoesLocais();
+    var avSerie = ultimoDeslizSerie ? ultimoDeslizSerie.atual : null;
+    var avProj = ultimoDeslizSerie ? ultimoDeslizSerie.projecao24h : null;
+    var avEscolhida = null;
+
+    if (modo === "simulador") {
+      var s1 = $("simMm1h") ? parseFloat($("simMm1h").value) || 0 : 0;
+      var s24 = $("simMm24h") ? parseFloat($("simMm24h").value) || 0 : 0;
+      var s168 = $("simMm168h") ? parseFloat($("simMm168h").value) || 0 : 0;
+      avEscolhida = Deslizamento.avaliarRisco({
+        mm1h: s1,
+        mm24h: s24,
+        mm168h: s168,
+        fonte: "Simulador / Leitura Manual de Campo"
+      });
+    } else if (modo === "estacoes") {
+      if (avEstacoes.length) {
+        avEscolhida = avEstacoes.slice().sort(function (a, b) {
+          if (b.nivel !== a.nivel) return b.nivel - a.nivel;
+          return b.mm24h - a.mm24h;
+        })[0];
+      } else if (avSerie) {
+        avEscolhida = avSerie;
+      }
+    } else if (modo === "serie") {
+      avEscolhida = avSerie || (avEstacoes[0] || null);
+    } else {
+      // modo === "auto": adota o cenário mais crítico entre estações locais recentes e série horária 168h
+      var candidatos = [];
+      if (avSerie) candidatos.push(avSerie);
+      avEstacoes.forEach(function (x) { candidatos.push(x); });
+      if (candidatos.length) {
+        candidatos.sort(function (a, b) {
+          if (b.nivel !== a.nivel) return b.nivel - a.nivel;
+          if (b.mm24h !== a.mm24h) return b.mm24h - a.mm24h;
+          return b.mm168h - a.mm168h;
+        });
+        avEscolhida = candidatos[0];
+      }
+    }
+
+    if (!avEscolhida) {
+      avEscolhida = Deslizamento.avaliarRisco({ mm1h: 0, mm24h: 0, mm168h: 0, fonte: "Aguardando leitura pluviométrica" });
+    }
+
+    // Sincroniza campos do simulador quando não está em modo simulador manual
+    if (modo !== "simulador") {
+      if ($("simMm1h")) $("simMm1h").value = avEscolhida.mm1h;
+      if ($("simMm24h")) $("simMm24h").value = avEscolhida.mm24h;
+      if ($("simMm168h")) $("simMm168h").value = avEscolhida.mm168h;
+    }
+
+    renderizarTabelaCriteriosDesliz(avEscolhida.nivel);
+
+    if (avEscolhida.nivel >= 2 && modo !== "simulador") {
+      notificarRisco(
+        "⛰️ Risco de Deslizamento: " + avEscolhida.estado.toUpperCase(),
+        "Cajamar: 1h=" + avEscolhida.mm1h.toFixed(1) + "mm · 24h=" + avEscolhida.mm24h.toFixed(1) + "mm · 168h=" + avEscolhida.mm168h.toFixed(1) + "mm."
+      );
+    }
+
+    box.textContent = "";
+    box.className = "";
+
+    // Faixa Principal de Estado (Normalidade, Observação, Atenção, Alerta, Alerta Máximo)
+    var banner = el("div", "desliz-banner");
+    banner.style.background = avEscolhida.corFundo;
+    banner.style.borderLeftColor = avEscolhida.corBorda;
+    banner.style.color = avEscolhida.corTexto;
+    banner.appendChild(el("strong", "", avEscolhida.icone + " ESTADO ATUAL: " + avEscolhida.estado.toUpperCase() + " — " + avEscolhida.fonte));
+    banner.appendChild(el("span", "", "Critério da faixa: " + avEscolhida.descricaoCriterio));
+    banner.appendChild(el("small", "", "Gatilho(s): " + avEscolhida.gatilhos.join(" · ")));
+    box.appendChild(banner);
+
+    // 3 Cartões de Volume de Água (1h, 24h, 168h)
+    var grid = el("div", "desliz-grid");
+    var cartoes = [
+      {
+        titulo: "🌧️ Volume em 1 hora (mm/h)",
+        valor: avEscolhida.mm1h.toFixed(1).replace(".", ",") + " mm/h",
+        estado: avEscolhida.estado1h,
+        cor: avEscolhida.cor1h,
+        corTxt: avEscolhida.nivel1h >= 3 ? "#fff" : "#111",
+        ref: "Obs ≥ 10 · Atenção ≥ 20 · Alerta ≥ 30 · Máx > 50 mm/h"
+      },
+      {
+        titulo: "🌧️ Volume em 24 horas (mm/24h)",
+        valor: avEscolhida.mm24h.toFixed(1).replace(".", ",") + " mm/24h",
+        estado: avEscolhida.estado24h,
+        cor: avEscolhida.cor24h,
+        corTxt: avEscolhida.nivel24h >= 3 ? "#fff" : "#111",
+        ref: "Obs ≥ 25 · Atenção ≥ 50 · Alerta ≥ 100 · Máx > 150 mm/24h"
+      },
+      {
+        titulo: "🌧️ Volume em 7 dias / 168h (mm/168h)",
+        valor: avEscolhida.mm168h.toFixed(1).replace(".", ",") + " mm/168h",
+        estado: avEscolhida.estado168h,
+        cor: avEscolhida.cor168h,
+        corTxt: avEscolhida.nivel168h >= 3 ? "#fff" : "#111",
+        ref: "Obs ≥ 50 · Atenção ≥ 100 · Alerta ≥ 150 · Máx > 210 mm/168h"
+      }
+    ];
+
+    cartoes.forEach(function (c) {
+      var cx = el("div", "desliz-cx");
+      cx.style.borderTopColor = c.cor;
+      cx.appendChild(el("span", "", c.titulo));
+      var linhaVal = el("div", "");
+      linhaVal.style.display = "flex";
+      linhaVal.style.justifyContent = "space-between";
+      linhaVal.style.alignItems = "center";
+      linhaVal.style.gap = "8px";
+      linhaVal.appendChild(el("strong", "", c.valor));
+      var bdg = el("span", "desliz-badge", c.estado);
+      bdg.style.background = c.cor;
+      bdg.style.color = c.corTxt;
+      linhaVal.appendChild(bdg);
+      cx.appendChild(linhaVal);
+      cx.appendChild(el("small", "mut", c.ref));
+      grid.appendChild(cx);
+    });
+    box.appendChild(grid);
+
+    // Orientação Operacional Defesa Civil + População
+    var orient = el("div", "alert " + (avEscolhida.nivel >= 3 ? "v" : avEscolhida.nivel === 2 ? "l" : avEscolhida.nivel === 0 ? "ok-alert" : ""));
+    orient.style.marginTop = "0";
+    orient.appendChild(el("strong", "", "🛟 Protocolo Defesa Civil (" + avEscolhida.estado + "): " + avEscolhida.acaoDefesaCivil));
+    orient.appendChild(el("span", "", "📢 Orientação aos moradores de áreas de encosta: " + avEscolhida.orientacaoPopulacao));
+    if (avProj && avProj.nivel > avEscolhida.nivel && modo !== "simulador") {
+      orient.appendChild(el("small", "", "⚠️ Projeção próximas 24h: a chuva prevista pode elevar o estado para " + avProj.icone + " " + avProj.estado.toUpperCase() + " (previsto ~" + avProj.mm24h.toFixed(1).replace(".", ",") + " mm/24h)."));
+    }
+    box.appendChild(orient);
+
+    // Se houver estações locais carregadas via CSV, mostra o resumo individual de cada estação
+    if (avEstacoes.length) {
+      var pEst = el("p", "mut", "");
+      pEst.style.margin = "8px 0 0";
+      pEst.style.fontSize = ".82rem";
+      pEst.textContent = "📍 Estações locais carregadas (CSV): " + avEstacoes.map(function (e) {
+        return e.nomeEstacao + " [" + e.dataIso.slice(8, 10) + "/" + e.dataIso.slice(5, 7) + "]: " + e.icone + " " + e.estado +
+          " (1h: " + e.mm1h.toFixed(1).replace(".", ",") + " mm · 24h: " + e.mm24h.toFixed(1).replace(".", ",") + " mm · 168h: " + e.mm168h.toFixed(1).replace(".", ",") + " mm)";
+      }).join(" | ");
+      box.appendChild(pEst);
+    }
+  }
+
   function atualizarRiscoFogoBox() {
     var box = $("riscoFogoBox");
     if (!box || typeof Queimadas === "undefined") return;
@@ -78,7 +271,7 @@
   async function clima() {
     var url = "https://api.open-meteo.com/v1/forecast?latitude=" + LAT + "&longitude=" + LON +
       "&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_gusts_10m&hourly=precipitation" +
-      "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum&forecast_days=7&timezone=America%2FSao_Paulo";
+      "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum&past_days=7&forecast_days=7&timezone=America%2FSao_Paulo";
     try {
       var r = await Fontes.consultar("clima", url, function (j) { return j && j.current && j.hourly && j.hourly.time && j.daily && j.daily.time; });
       var j = r.dados, c = j.current, a = $("agora");
@@ -123,6 +316,11 @@
       var soma24 = hv.reduce(function (s, x) { return s + x; }, 0);
       $("tot24").textContent = "Total previsto em 24 h: " + soma24.toFixed(1) + " mm (modelo, não é medição)";
 
+      if (typeof Deslizamento !== "undefined" && Deslizamento.extrairDeSerieHoraria) {
+        ultimoDeslizSerie = Deslizamento.extrairDeSerieHoraria(j.hourly, c.time);
+        atualizarPainelDeslizamento();
+      }
+
       ultimoClimaFogo = {
         temp: c.temperature_2m,
         umid: c.relative_humidity_2m,
@@ -137,19 +335,24 @@
       var tb = el("table"), th = el("tr");
       ["Dia", "Mín", "Máx", "Chance", "Chuva mm"].forEach(function (x) { th.appendChild(el("th", "", x)); });
       tb.appendChild(th);
-      var ps = j.daily.precipitation_sum;
+      var hojeIso = String(c.time).slice(0, 10);
+      var idxDia0 = Math.max(0, j.daily.time.indexOf(hojeIso));
+      var diasTime = j.daily.time.slice(idxDia0, idxDia0 + 7);
+      var ps = j.daily.precipitation_sum.slice(idxDia0, idxDia0 + 7);
       var dm = Math.max.apply(null, ps.filter(function (x) { return typeof x === "number"; }).concat([1]));
-      j.daily.time.forEach(function (d, i) {
+      diasTime.forEach(function (d, kIdx) {
+        var i = idxDia0 + kIdx;
         var tr = el("tr");
         tr.appendChild(el("td", "", fdia(d)));
         tr.appendChild(el("td", "", typeof j.daily.temperature_2m_min[i] === "number" ? Math.round(j.daily.temperature_2m_min[i]) + "°" : "—"));
         tr.appendChild(el("td", "", typeof j.daily.temperature_2m_max[i] === "number" ? Math.round(j.daily.temperature_2m_max[i]) + "°" : "—"));
         tr.appendChild(el("td", "", num(j.daily.precipitation_probability_max[i]) + "%"));
-        var c4 = el("td", "", num(ps[i], 1)), b = el("span", "bar");
-        b.style.width = ((typeof ps[i] === "number" ? ps[i] : 0) / dm * 50) + "px"; c4.appendChild(b); tr.appendChild(c4); tb.appendChild(tr);
+        var c4 = el("td", "", num(j.daily.precipitation_sum[i], 1)), b = el("span", "bar");
+        b.style.width = ((typeof j.daily.precipitation_sum[i] === "number" ? j.daily.precipitation_sum[i] : 0) / dm * 50) + "px"; c4.appendChild(b); tr.appendChild(c4); tb.appendChild(tr);
       });
       D.appendChild(tb);
     } catch (e) {
+      atualizarPainelDeslizamento();
       ["agora", "horas", "dias"].forEach(function (i) { fail($(i), "Não foi possível consultar o Open-Meteo e não há dado guardado."); });
     }
   }
@@ -707,6 +910,28 @@
 
   if ($("fSatelite")) $("fSatelite").onchange = function () { renderizarPainelFogo(false, null); };
   if ($("fRaioFogo")) $("fRaioFogo").onchange = function () { renderizarPainelFogo(false, null); };
+  if ($("fFonteDesliz")) $("fFonteDesliz").onchange = atualizarPainelDeslizamento;
+  if ($("btnSimularDesliz")) {
+    $("btnSimularDesliz").onclick = function () {
+      if ($("fFonteDesliz")) $("fFonteDesliz").value = "simulador";
+      atualizarPainelDeslizamento();
+    };
+  }
+  if ($("btnResetDesliz")) {
+    $("btnResetDesliz").onclick = function () {
+      if ($("fFonteDesliz")) $("fFonteDesliz").value = "auto";
+      atualizarPainelDeslizamento();
+    };
+  }
+  ["simMm1h", "simMm24h", "simMm168h"].forEach(function (id) {
+    if ($(id)) {
+      $(id).oninput = function () {
+        if ($("fFonteDesliz")) $("fFonteDesliz").value = "simulador";
+        atualizarPainelDeslizamento();
+      };
+    }
+  });
+  atualizarPainelDeslizamento();
 
   // Controles do mapa: GPS e Tela Cheia
   var marcadorGps = null;

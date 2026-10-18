@@ -79,7 +79,7 @@
       "&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_gusts_10m" +
       "&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m" +
       "&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,uv_index_max,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max" +
-      "&forecast_days=7&timezone=America%2FSao_Paulo";
+      "&past_days=7&forecast_days=7&timezone=America%2FSao_Paulo";
 
     var pOM = Fontes.consultar("clima_flyer", urlOM, function (j) { return j && j.daily && Array.isArray(j.daily.time) && j.hourly; })
       .then(function (r) { climaOM = r.dados; coletaOM = r.de || Date.now(); })
@@ -119,9 +119,18 @@
     } catch (e) { historico = null; bancoEstacoes = null; }
   }
 
+  function indiceDiaHojeOM() {
+    if (!climaOM || !climaOM.daily || !Array.isArray(climaOM.daily.time)) return 0;
+    var hojeIso = (climaOM.current && climaOM.current.time) ? String(climaOM.current.time).slice(0, 10) : chaveDia(new Date());
+    var idx = climaOM.daily.time.indexOf(hojeIso);
+    return idx >= 0 ? idx : 0;
+  }
+
   // ---------- extração de dados por dia (Open-Meteo + INMET) ----------
-  function extrairDiaOM(idx) {
-    if (!climaOM || !climaOM.daily || !climaOM.daily.time[idx]) return null;
+  function extrairDiaOM(offsetDia) {
+    if (!climaOM || !climaOM.daily) return null;
+    var idx = indiceDiaHojeOM() + (offsetDia || 0);
+    if (!climaOM.daily.time[idx]) return null;
     var dl = climaOM.daily;
     var dataIso = dl.time[idx]; // "YYYY-MM-DD"
     var dt = new Date(dataIso + "T12:00:00");
@@ -174,7 +183,7 @@
     // Gera recomendações para a população local conforme o quadro do dia
     var recs = [];
     var nivel = "NORMAL", corStatus = VERDE, textoStatus = "🟢 CONDIÇÃO NORMAL · TEMPO SEM ALERTAS SEVEROS";
-    if (avisos && avisos.length && idx === 0) {
+    if (avisos && avisos.length && !offsetDia) {
       nivel = "ALERTA";
       corStatus = VERMELHO;
       textoStatus = "⚠️ AVISO INMET ATIVO: " + (avisos[0].evento || "ATENÇÃO").toUpperCase();
@@ -218,7 +227,7 @@
     }
 
     return {
-      idx: idx,
+      idx: offsetDia || 0,
       dataIso: dataIso,
       diaSemLongo: diaSemLongo,
       diaSemCurto: diaSemCurto,
@@ -347,16 +356,47 @@
     var o = [];
     if (tipo === "flyer_dia") {
       if (climaOM && climaOM.daily && Array.isArray(climaOM.daily.time)) {
-        climaOM.daily.time.slice(0, 3).forEach(function (dtIso, i) {
+        [0, 1, 2].forEach(function (i) {
           var d = extrairDiaOM(i);
+          if (!d) return;
           var rot = (i === 0 ? "Hoje — " : i === 1 ? "Amanhã — " : "") + d.diaSemLongo + " (" + d.dataCurta + ") · " + n0(d.tmin) + "° a " + n0(d.tmax) + "°";
           o.push([String(i), rot]);
         });
       }
+    } else if (tipo === "flyer_deslizamento") {
+      if (typeof Deslizamento !== "undefined") {
+        if (climaOM && climaOM.hourly) {
+          var serieD = Deslizamento.extrairDeSerieHoraria(climaOM.hourly, climaOM.current && climaOM.current.time);
+          if (serieD && serieD.atual) {
+            o.push(["serie:atual", "Ao Vivo Cajamar (1h/24h/168h) — " + serieD.atual.icone + " " + serieD.atual.estado + " (" + f1(serieD.atual.mm168h) + " mm/168h)"]);
+            o.push(["serie:proj", "Projeção Próximas 24h — " + serieD.projecao24h.icone + " " + serieD.projecao24h.estado + " (~" + f1(serieD.projecao24h.mm24h) + " mm/24h)"]);
+          }
+        }
+        carregarHistorico();
+        if (bancoEstacoes && bancoEstacoes.slots) {
+          ["est1", "est2", "est3"].forEach(function (id, idx) {
+            var sl = bancoEstacoes.slots[id];
+            if (!sl || !sl.dias) return;
+            var nomeE = sl.estacao || ("Estação " + (idx + 1));
+            Object.keys(sl.dias).sort().reverse().slice(0, 7).forEach(function (k) {
+              var avE = Deslizamento.avaliarDiaEstacao(sl.dias, k, nomeE);
+              if (avE) {
+                o.push(["est:" + id + ":" + k, "[" + nomeE + " · " + fdm(k) + "] " + avE.icone + " " + avE.estado + " (1h:" + f1(avE.mm1h) + " · 24h:" + f1(avE.mm24h) + " · 168h:" + f1(avE.mm168h) + " mm)"]);
+              }
+            });
+          });
+        }
+        o.push(["sim:0", "Modelo Educativo / Preventivo — 🟢 Normalidade (< 10 mm/h · < 25 mm/24h · < 50 mm/168h)"]);
+        o.push(["sim:1", "Comunicado Preventivo — 🟡 Estado de Observação (10–20 mm/h · 25–50 mm/24h · 50–100 mm/168h)"]);
+        o.push(["sim:2", "Comunicado à População — 🟠 Estado de Atenção (20–30 mm/h · 50–100 mm/24h · 100–150 mm/168h)"]);
+        o.push(["sim:3", "Comunicado Urgente — 🔴 Estado de Alerta (30–50 mm/h · 100–150 mm/24h · 150–210 mm/168h)"]);
+        o.push(["sim:4", "Emergência Geodinâmica — 🟣 Estado de Alerta Máximo (> 50 mm/h · > 150 mm/24h · > 210 mm/168h)"]);
+      }
     } else if (tipo === "flyer_fogo") {
       if (climaOM && climaOM.daily && Array.isArray(climaOM.daily.time)) {
-        climaOM.daily.time.slice(0, 3).forEach(function (dtIso, i) {
+        [0, 1, 2].forEach(function (i) {
           var d = extrairDiaOM(i);
+          if (!d) return;
           var rf = (typeof Queimadas !== "undefined" && Queimadas.calcularRiscoFogoLocal)
             ? Queimadas.calcularRiscoFogoLocal({ temp: d.tmax, umid: d.uMin !== null ? d.uMin : 45, vento: d.ventoMax, rajada: d.rajadaMax, chuva24h: d.chuvaMm })
             : { nivel: "Monitorado" };
@@ -426,6 +466,9 @@
       if (!climaOM) bloqueio = "Consultando dados meteorológicos atualizados para o panfleto… Se falhar, verifique sua conexão.";
       else setStatus("Dados meteorológicos de Cajamar atualizados às " + hm(coletaOM) + (focosInpe ? " · Satélites INPE (" + focosInpe.length + " focos na região)" : "") + ".");
     }
+    if (tipo === "flyer_deslizamento") {
+      setStatus("Critérios de Risco de Deslizamento (Pinheiro et al., 2005; AlertaRio, 2013): avaliação simultânea de 1h, 24h e 168h (7 dias).");
+    }
     if (tipo === "flyer_estacoes") {
       if (!o.length) bloqueio = "Nenhum arquivo CSV carregado ainda. Envie de 1 a 4 CSVs (estações e régua do rio) na aba “Histórico da estação” ou “Previsão × medido”.";
       else setStatus("Dados locais das estações e régua de nível prontos para gerar o panfleto consolidado.");
@@ -490,8 +533,9 @@
     } else if (tipo === "flyer_5dias") {
       if (!climaOM || !climaOM.daily) return;
       var dias5 = [];
-      for (var k = 0; k < 5 && k < climaOM.daily.time.length; k++) {
-        dias5.push(extrairDiaOM(k));
+      for (var k = 0; k < 5; k++) {
+        var d5 = extrairDiaOM(k);
+        if (d5) dias5.push(d5);
       }
       if (!dias5.length) return;
       m.tipoFlyer = "5dias";
@@ -531,6 +575,59 @@
           return "• " + x.diaSemCurto + " (" + x.dataCurta + "): " + x.wmo.icone + " " + x.wmo.curto + " | 🌡️ " + n0(x.tmin) + "° a " + n0(x.tmax) + "°C | 🌧️ " + x.probChuva + "% (" + f1(x.chuvaMm) + " mm)";
         }).join("\n") +
         "\n\n📌 DESTAQUES PARA A POPULAÇÃO:\n" +
+        L.map(function (t) { return "✔️ " + t; }).join("\n") +
+        "\n\n📞 Emergência: Defesa Civil 199 | Bombeiros 193";
+    } else if (tipo === "flyer_deslizamento") {
+      if (typeof Deslizamento === "undefined") return;
+      var avDesl = null;
+      if (v === "serie:atual" && climaOM && climaOM.hourly) {
+        var sAt = Deslizamento.extrairDeSerieHoraria(climaOM.hourly, climaOM.current && climaOM.current.time);
+        avDesl = sAt ? sAt.atual : null;
+      } else if (v === "serie:proj" && climaOM && climaOM.hourly) {
+        var sPr = Deslizamento.extrairDeSerieHoraria(climaOM.hourly, climaOM.current && climaOM.current.time);
+        avDesl = sPr ? sPr.projecao24h : null;
+      } else if (v && v.indexOf("est:") === 0 && bancoEstacoes && bancoEstacoes.slots) {
+        var pEst = v.split(":");
+        var slE = bancoEstacoes.slots[pEst[1]];
+        if (slE && slE.dias) avDesl = Deslizamento.avaliarDiaEstacao(slE.dias, pEst[2], slE.estacao || slE.rotulo);
+      } else if (v && v.indexOf("sim:") === 0) {
+        var nvSim = parseInt(v.slice(4), 10) || 0;
+        var exemplos = [
+          { mm1h: 2, mm24h: 8, mm168h: 22, fonte: "Monitoramento Preventivo Cajamar" },
+          { mm1h: 14, mm24h: 35, mm168h: 68, fonte: "Protocolo Preventivo Cajamar" },
+          { mm1h: 24, mm24h: 72, mm168h: 120, fonte: "Alerta Preventivo de Encostas" },
+          { mm1h: 38, mm24h: 118, mm168h: 175, fonte: "Alerta de Risco de Deslizamento" },
+          { mm1h: 56, mm24h: 165, mm168h: 230, fonte: "Emergência de Risco de Deslizamento" }
+        ];
+        avDesl = Deslizamento.avaliarRisco(exemplos[nvSim] || exemplos[0]);
+      }
+      if (!avDesl) {
+        avDesl = Deslizamento.avaliarRisco({ mm1h: 0, mm24h: 0, mm168h: 0, fonte: "Monitoramento Cajamar" });
+      }
+
+      m.tipoFlyer = "deslizamento";
+      m.dadosDeslizamento = avDesl;
+      m.cor = avDesl.corFundo;
+      m.tag = "⛰️ RISCO DE DESLIZAMENTO EM CAJAMAR: " + avDesl.icone + " " + avDesl.estado.toUpperCase();
+
+      $("titulo").value = "ESTADO: " + avDesl.estado.toUpperCase();
+      $("subtitulo").value = "Monitoramento de Encostas · " + avDesl.fonte;
+
+      L.push(avDesl.orientacaoPopulacao);
+      L.push("Sinais de perigo: rachaduras em paredes/muros, árvores ou postes inclinados e água barrenta brotando do barranco.");
+      L.push("Gatilho técnico atual: " + avDesl.gatilhos.join(" · ") + ".");
+      L.push("Moradores de encostas (Jordanésia, Polvilho, Ponunduva, Centro): ao notar qualquer sinal, saia do imóvel e ligue 199.");
+
+      m.rodape = "Critérios: Pinheiro et al. (2005); AlertaRio (2013) · Defesa Civil de Cajamar";
+
+      leg = "⛰️ BOLETIM DE RISCO DE DESLIZAMENTO DE TERRA — CAJAMAR/SP\n\n" +
+        avDesl.icone + " ESTADO ATUAL: " + avDesl.estado.toUpperCase() + "\n" +
+        "📋 Faixa de critério: " + avDesl.descricaoCriterio + "\n\n" +
+        "🌧️ VOLUMES DE ÁGUA ANALISADOS:\n" +
+        "• Em 1 hora (mm/h): " + f1(avDesl.mm1h) + " mm/h (" + avDesl.estado1h + ")\n" +
+        "• Em 24 horas (mm/24h): " + f1(avDesl.mm24h) + " mm/24h (" + avDesl.estado24h + ")\n" +
+        "• Em 7 dias / 168h (mm/168h): " + f1(avDesl.mm168h) + " mm/168h (" + avDesl.estado168h + ")\n\n" +
+        "📌 ORIENTAÇÕES À POPULAÇÃO DE ÁREAS DE ENCOSTA:\n" +
         L.map(function (t) { return "✔️ " + t; }).join("\n") +
         "\n\n📞 Emergência: Defesa Civil 199 | Bombeiros 193";
     } else if (tipo === "flyer_fogo") {
@@ -737,6 +834,7 @@
     if (nv === "atencao") return "#d97706";
     if (nv === "alerta") return LARANJA;
     if (nv === "emergencia") return VERMELHO;
+    if (nv === "maximo") return "#6b21a8";
     return modelo.cor || LARANJA;
   }
 
@@ -1209,6 +1307,126 @@
     }
   }
 
+  // ---------- Panfleto Visual de Risco de Deslizamento (flyer_deslizamento) ----------
+  function desenharFlyerDeslizamento(cfg, fmtKey, yBase) {
+    var av = modelo.dadosDeslizamento;
+    if (!av) return;
+    var x = 60, larg = W - 120;
+    var y = yBase + (fmtKey === "feed" ? 18 : 26);
+
+    var hHero = fmtKey === "stories" ? 142 : fmtKey === "retrato" ? 110 : 88;
+    ctx.fillStyle = "rgba(15, 23, 42, 0.78)";
+    rr(x, y, larg, hHero, 16);
+    ctx.fill();
+    ctx.fillStyle = corEfetivaFaixa();
+    ctx.fillRect(x, y + 14, 9, hHero - 28);
+
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#fff";
+    ctx.font = "800 " + (fmtKey === "stories" ? "42px " : fmtKey === "retrato" ? "34px " : "28px ") + FONTE;
+    ctx.fillText($("titulo").value || ("ESTADO: " + String(av.estado).toUpperCase()), x + 26, y + (fmtKey === "stories" ? 54 : fmtKey === "retrato" ? 42 : 34));
+
+    ctx.fillStyle = "#fde047";
+    ctx.font = "700 " + (fmtKey === "stories" ? "28px " : fmtKey === "retrato" ? "23px " : "19px ") + FONTE;
+    ctx.fillText($("subtitulo").value || ((av.fonte || "Monitoramento Cajamar") + " · Cajamar/SP"), x + 26, y + (fmtKey === "stories" ? 96 : fmtKey === "retrato" ? 76 : 60));
+
+    ctx.fillStyle = "#cbd5e1";
+    ctx.font = "500 " + (fmtKey === "stories" ? "22px " : "17px ") + FONTE;
+    ctx.fillText("Critérios técnicos: Pinheiro et al. (2005) e AlertaRio (2013) — 1h · 24h · 168h (7 dias)", x + 26, y + (fmtKey === "stories" ? 128 : fmtKey === "retrato" ? 100 : 80));
+
+    y += hHero + (fmtKey === "feed" ? 12 : 20);
+
+    // 3 Cartões de Janelas de Acumulado (1h, 24h, 168h)
+    var hJan = fmtKey === "stories" ? 156 : fmtKey === "retrato" ? 118 : 92;
+    var gap = 16;
+    var wJan = (larg - gap * 2) / 3;
+    var janelas = [
+      { rot: "⏱️ CHUVA 1 HORA", val: f1(av.mm1h) + " mm/h", est: window.Deslizamento.ESTADOS[av.nivel1h || 0], ref: "Normal < 10 · Alerta ≥ 30" },
+      { rot: "🌧️ ACUMULADO 24H", val: f1(av.mm24h) + " mm/24h", est: window.Deslizamento.ESTADOS[av.nivel24h || 0], ref: "Normal < 25 · Alerta ≥ 100" },
+      { rot: "📅 ACUM. 168H (7 DIAS)", val: f1(av.mm168h) + " mm", est: window.Deslizamento.ESTADOS[av.nivel168h || 0], ref: "Normal < 50 · Alerta ≥ 150" }
+    ];
+
+    janelas.forEach(function (j, idx) {
+      var jx = x + idx * (wJan + gap);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.72)";
+      rr(jx, y, wJan, hJan, 14);
+      ctx.fill();
+      ctx.fillStyle = j.est.corFundo;
+      ctx.fillRect(jx, y + 12, 7, hJan - 24);
+
+      ctx.fillStyle = "#93c5fd";
+      ctx.font = "700 " + (fmtKey === "feed" ? "15px " : "19px ") + FONTE;
+      ctx.fillText(j.rot, jx + 20, y + (fmtKey === "stories" ? 34 : 26));
+
+      ctx.fillStyle = "#fff";
+      ctx.font = "800 " + (fmtKey === "stories" ? "36px " : fmtKey === "retrato" ? "28px " : "23px ") + FONTE;
+      ctx.fillText(j.val, jx + 20, y + (fmtKey === "stories" ? 80 : fmtKey === "retrato" ? 62 : 50));
+
+      ctx.fillStyle = j.est.corFundo;
+      ctx.font = "800 " + (fmtKey === "stories" ? "22px " : "17px ") + FONTE;
+      ctx.fillText(j.est.icone + " " + j.est.estado, jx + 20, y + (fmtKey === "stories" ? 116 : fmtKey === "retrato" ? 90 : 72));
+
+      ctx.fillStyle = "#cbd5e1";
+      ctx.font = "500 " + (fmtKey === "stories" ? "17px " : "13px ") + FONTE;
+      ctx.fillText(j.ref, jx + 20, y + (fmtKey === "stories" ? 142 : fmtKey === "retrato" ? 110 : 86));
+    });
+
+    y += hJan + (fmtKey === "feed" ? 12 : 20);
+
+    // Escala dos 5 Estados (Normalidade -> Alerta Máximo)
+    var hEsc = fmtKey === "stories" ? 78 : fmtKey === "retrato" ? 62 : 50;
+    var wEsc = (larg - 8 * 4) / 5;
+    window.Deslizamento.ESTADOS.forEach(function (e, i) {
+      var ex = x + i * (wEsc + 8);
+      var ativo = i === av.nivel;
+      ctx.fillStyle = ativo ? e.corFundo : "rgba(15, 23, 42, 0.65)";
+      rr(ex, y, wEsc, hEsc, 10);
+      ctx.fill();
+      if (ativo) {
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 3;
+        rr(ex, y, wEsc, hEsc, 10);
+        ctx.stroke();
+      }
+      ctx.textAlign = "center";
+      ctx.fillStyle = ativo ? e.corTexto : e.corFundo;
+      ctx.font = "800 " + (fmtKey === "stories" ? "19px " : "15px ") + FONTE;
+      ctx.fillText(e.estado.toUpperCase(), ex + wEsc / 2, y + hEsc * 0.46);
+      ctx.fillStyle = ativo ? e.corTexto : "#cbd5e1";
+      ctx.font = "600 " + (fmtKey === "stories" ? "15px " : "12px ") + FONTE;
+      ctx.fillText(e.faixa24h, ex + wEsc / 2, y + hEsc * 0.78);
+    });
+    ctx.textAlign = "left";
+
+    y += hEsc + (fmtKey === "feed" ? 12 : 20);
+
+    // Sinais de Alerta nas Encostas e Orientações
+    var altRest = cfg.limite - y;
+    ctx.fillStyle = "rgba(15, 23, 42, 0.78)";
+    rr(x, y, larg, Math.max(110, altRest), 16);
+    ctx.fill();
+
+    ctx.fillStyle = "#fde047";
+    var tamCab = fmtKey === "stories" ? 27 : fmtKey === "retrato" ? 22 : 18;
+    ctx.font = "800 " + tamCab + "px " + FONTE;
+    ctx.fillText("⛰️ SINAIS DE ALERTA EM ENCOSTAS E ORIENTAÇÕES À POPULAÇÃO:", x + 24, y + tamCab + 12);
+
+    var yTxt = y + tamCab * 2 + (fmtKey === "feed" ? 10 : 18);
+    var linhas = $("linhas").value.split(/\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+    var tamTxt = fmtKey === "stories" ? 26 : fmtKey === "retrato" ? 20 : 16;
+    ctx.font = "500 " + tamTxt + "px " + FONTE;
+    ctx.fillStyle = "#fff";
+    linhas.slice(0, 5).forEach(function (lin) {
+      quebrar("• " + lin, larg - 48).slice(0, 2).forEach(function (ql) {
+        if (yTxt <= cfg.limite - 10) {
+          ctx.fillText(ql, x + 24, yTxt);
+          yTxt += tamTxt * 1.26;
+        }
+      });
+      yTxt += 5;
+    });
+  }
+
   function desenhar() {
     var fmtKey = ($("formato") && $("formato").value) || "stories";
     var cfg = FORMATOS[fmtKey] || FORMATOS.stories;
@@ -1251,6 +1469,11 @@
     }
     if (modelo.tipoFlyer === "estacoes" && modelo.dadosEstacoes) {
       desenharFlyerEstacoes(cfg, fmtKey, yBase);
+      desenharRodapeInstitucional(cfg, fmtKey);
+      return;
+    }
+    if (modelo.tipoFlyer === "deslizamento" && modelo.dadosDeslizamento) {
+      desenharFlyerDeslizamento(cfg, fmtKey, yBase);
       desenharRodapeInstitucional(cfg, fmtKey);
       return;
     }

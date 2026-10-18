@@ -75,6 +75,10 @@
       <span id="periodo" class="mut"></span>
     </div>
     <section class="card"><h2>Resumo do período</h2><div id="resumo" class="resumo"></div></section>
+    <section class="card" id="cardDeslizamentoHist" hidden>
+      <h2>⛰️ Alerta de Risco de Deslizamento (Critérios Pinheiro et al., 2005 / AlertaRio, 2013)</h2>
+      <div id="boxDeslizamentoHist"></div>
+    </section>
     <section class="card" id="cardNivel" hidden>
       <h2>🌊 Nível do Rio por dia (metros — Régua de Nível)</h2>
       <div id="gNivel"></div>
@@ -83,8 +87,8 @@
     <section class="card" id="cardChuva"><h2>Chuva por dia (mm)</h2><div id="gChuva"></div><p id="notaParcial" class="mut" style="margin:6px 0 0;font-size:.82rem"></p></section>
     <section class="card" id="cardTemp"><h2>Temperatura mínima e máxima (°C)</h2><div id="gTemp"></div><p class="mut" style="margin:6px 0 0;font-size:.82rem"><span class="leg max"></span> máxima · <span class="leg min"></span> mínima</p></section>
     <section class="card"><h2>Dia a dia</h2>
-      <div class="tw"><table><thead><tr id="cabTabela"><th>Dia</th><th>Chuva mm</th><th>Máx 1 h</th><th>Máx 10 min</th><th>Mín °C</th><th>Máx °C</th><th>Umid.</th><th>Vento km/h</th><th>Nível Rio (m)</th></tr></thead><tbody id="tabela"></tbody></table></div>
-      <p class="mut" style="margin:6px 0 0;font-size:.82rem">* dia com menos de 90% das leituras. A chuva do dia é a soma do pluviômetro (passos de 0,2 mm); picos de 1 minuto não são tratados como intensidade — use “Máx 10 min”.</p></section>
+      <div class="tw"><table><thead><tr id="cabTabela"><th>Dia</th><th>Chuva 24h</th><th>Máx 1 h</th><th>Acum. 168h (7d)</th><th>⛰️ Risco Deslizamento</th><th>Máx 10 min</th><th>Mín °C</th><th>Máx °C</th><th>Umid.</th><th>Vento km/h</th><th>Nível Rio (m)</th></tr></thead><tbody id="tabela"></tbody></table></div>
+      <p class="mut" style="margin:6px 0 0;font-size:.82rem">* dia com menos de 90% das leituras. O Risco de Deslizamento avalia simultaneamente a chuva em 1h (mm/h), 24h (mm/24h) e 168h / 7 dias (mm/168h) conforme Pinheiro et al. (2005) e AlertaRio (2013).</p></section>
     <div class="rodape-boletim" hidden>
       <div class="boletim-assinaturas">
         <div class="assinatura-box">
@@ -99,6 +103,7 @@
   </div>
 </main>
 <script src="js/estacao.js"></script>
+<script src="js/deslizamento.js"></script>
 <script src="js/historico.js"></script>
 <script>
 if ('serviceWorker' in navigator) {

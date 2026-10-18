@@ -279,6 +279,50 @@
       rs.appendChild(cartao("Vento mais forte", f1(vento.v) + " km/h", fdataLonga(vento.k)));
     }
 
+    if ($("cardDeslizamentoHist") && typeof Deslizamento !== "undefined") {
+      var mostrarDesliz = sl.id !== "regua" || total > 0;
+      $("cardDeslizamentoHist").hidden = !mostrarDesliz;
+      if (mostrarDesliz) {
+        var bxD = $("boxDeslizamentoHist");
+        bxD.textContent = "";
+        var ultDia = chaves[chaves.length - 1];
+        var avUlt = Deslizamento.avaliarDiaEstacao(dias, ultDia, estacao);
+        var avPior = avUlt;
+        var contEstados = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0 };
+        chaves.forEach(function (k) {
+          var avK = Deslizamento.avaliarDiaEstacao(dias, k, estacao);
+          if (avK) {
+            contEstados[avK.nivel] = (contEstados[avK.nivel] || 0) + 1;
+            if (!avPior || avK.nivel > avPior.nivel || (avK.nivel === avPior.nivel && avK.mm24h > avPior.mm24h)) {
+              avPior = avK;
+            }
+          }
+        });
+        if (avUlt) {
+          var ban = el("div", "desliz-banner");
+          ban.style.background = avUlt.corFundo;
+          ban.style.borderLeftColor = avUlt.corBorda;
+          ban.style.color = avUlt.corTexto;
+          ban.appendChild(el("strong", "", avUlt.icone + " Último dia registrado (" + fdataLonga(ultDia) + "): " + avUlt.estado.toUpperCase()));
+          ban.appendChild(el("span", "", "Volumes: 1h = " + f1(avUlt.mm1h) + " mm/h (" + avUlt.estado1h + ") · 24h = " + f1(avUlt.mm24h) + " mm/24h (" + avUlt.estado24h + ") · 168h (7d) = " + f1(avUlt.mm168h) + " mm/168h (" + avUlt.estado168h + ")"));
+          ban.appendChild(el("small", "", avUlt.acaoDefesaCivil));
+          bxD.appendChild(ban);
+
+          var pRes = el("p", "mut", "");
+          pRes.style.margin = "4px 0 0";
+          pRes.style.fontSize = ".82rem";
+          pRes.textContent = "No período filtrado (" + chaves.length + " dias): " +
+            "🟢 Normalidade: " + contEstados[0] + " d · " +
+            "🟡 Observação: " + contEstados[1] + " d · " +
+            "🟠 Atenção: " + contEstados[2] + " d · " +
+            "🔴 Alerta: " + contEstados[3] + " d · " +
+            "🟣 Alerta Máximo: " + contEstados[4] + " d" +
+            (avPior && avPior.nivel > 0 ? " | Maior risco no período: " + avPior.icone + " " + avPior.estado + " em " + fdataLonga(avPior.dataIso) + " (24h: " + f1(avPior.mm24h) + " mm · 168h: " + f1(avPior.mm168h) + " mm)." : ".");
+          bxD.appendChild(pRes);
+        }
+      }
+    }
+
     if ($("cardNivel")) {
       $("cardNivel").hidden = !temNivel;
       if (temNivel) {
@@ -303,10 +347,25 @@
       var txtNivel = (d.nvMax !== null && d.nvMax !== undefined)
         ? f2(d.nvMin) + "–" + f2(d.nvMax) + " m (Δ " + Math.round((d.nvDelta || 0) * 100) + " cm)"
         : "—";
+      var avDia = (typeof Deslizamento !== "undefined") ? Deslizamento.avaliarDiaEstacao(dias, k, estacao) : null;
+
+      tr.appendChild(el("td", "", fdataLonga(k) + (d.n < 1296 ? " *" : "")));
+      tr.appendChild(el("td", "", f1(d.chuva)));
+      tr.appendChild(el("td", "", f1(d.c60)));
+      tr.appendChild(el("td", "", avDia ? f1(avDia.mm168h) + " mm" : "—"));
+
+      var tdRisco = el("td");
+      if (avDia) {
+        var bdg = el("span", "desliz-badge", avDia.icone + " " + avDia.estado);
+        bdg.style.background = avDia.corFundo;
+        bdg.style.color = avDia.corTexto;
+        tdRisco.appendChild(bdg);
+      } else {
+        tdRisco.textContent = "—";
+      }
+      tr.appendChild(tdRisco);
+
       [
-        fdataLonga(k) + (d.n < 1296 ? " *" : ""),
-        f1(d.chuva),
-        f1(d.c60),
         f1(d.c10),
         d.tmin === null || d.tmin === undefined ? "—" : f1(d.tmin),
         d.tmax === null || d.tmax === undefined ? "—" : f1(d.tmax),

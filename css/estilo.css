@@ -77,6 +77,23 @@ a{color:var(--acc)}
 .slot-badge.vazio{background:var(--line);color:var(--mut)}
 .slot-nome{margin:2px 0 0;font-weight:600;font-size:.88rem;word-break:break-word}
 .slot-acoes{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;padding-top:6px}
+.desliz-banner{border-radius:10px;padding:12px 14px;margin-bottom:12px;border-left:8px solid transparent;display:flex;flex-direction:column;gap:4px;transition:all .2s}
+.desliz-banner strong{font-size:1.05rem}
+.desliz-banner small{font-size:.82rem;opacity:.92}
+.desliz-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:12px}
+.desliz-cx{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;border-top:4px solid var(--line)}
+.desliz-cx span{font-size:.78rem;color:var(--mut);font-weight:600}
+.desliz-cx strong{font-size:1.25rem}
+.desliz-cx small{font-size:.78rem;font-weight:600}
+.desliz-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-weight:700;font-size:.76rem;white-space:nowrap}
+.desliz-sim{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px}
+.desliz-sim-campos{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;align-items:end;margin-top:8px}
+.desliz-sim-campos label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--mut);font-weight:600}
+.desliz-sim-campos input{padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);font-size:.92rem;font-weight:600}
+.desliz-tabela{width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;font-size:.84rem;margin-top:8px}
+.desliz-tabela th{background:var(--bg);color:var(--ink);text-align:left;padding:8px 10px;border:1px solid var(--line)}
+.desliz-tabela td{padding:9px 10px;border:1px solid rgba(0,0,0,.12);vertical-align:top;line-height:1.35}
+.desliz-tabela tr.ativo-criterio{outline:3px solid var(--ink);outline-offset:-3px;font-weight:700}
 
 @media print {
   body{background:#fff !important;color:#000 !important;padding:0 !important;font-size:12px !important}

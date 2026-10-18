@@ -34,6 +34,7 @@
     <div class="barra-modos-mapa" style="margin-bottom:12px">
       <button type="button" class="btn small atalho-pub ativo-modo" data-tipo="flyer_dia">📰 Panfleto Diário (População)</button>
       <button type="button" class="btn small atalho-pub" data-tipo="flyer_5dias">📅 Panfleto 5 Dias (População)</button>
+      <button type="button" class="btn small atalho-pub" data-tipo="flyer_deslizamento">⛰️ Alerta de Deslizamento</button>
       <button type="button" class="btn small atalho-pub" data-tipo="flyer_fogo">🔥 Panfleto Risco de Fogo</button>
       <button type="button" class="btn small atalho-pub" data-tipo="flyer_estacoes">🌧️🌊 Balanço Estações + Rio</button>
       <button type="button" class="btn small atalho-pub" data-tipo="aviso">⚠️ Aviso INMET</button>
@@ -44,6 +45,7 @@
         <select id="tipo">
           <option value="flyer_dia">📰 Panfleto Diário do Clima (para a População)</option>
           <option value="flyer_5dias">📅 Panfleto de 5 Dias (Previsão para a População)</option>
+          <option value="flyer_deslizamento">⛰️ Panfleto de Risco de Deslizamento (Critérios 1h / 24h / 168h)</option>
           <option value="flyer_fogo">🔥 Panfleto de Risco de Fogo e Estiagem (Satélites + Clima)</option>
           <option value="flyer_estacoes">🌧️🌊 Balanço das 3 Estações + Régua do Rio (CSV)</option>
           <option value="aviso">⚠️ Aviso oficial do INMET</option>
@@ -64,10 +66,11 @@
       <label class="campo">Nível / Cor da faixa de status
         <select id="nivelFaixa">
           <option value="auto">🔄 Automático (conforme condição do tempo)</option>
-          <option value="normal">🟢 Normal / Observação (Verde)</option>
-          <option value="atencao">🟡 Atenção (Amarelo)</option>
-          <option value="alerta">🟠 Alerta Importante (Laranja)</option>
-          <option value="emergencia">🔴 Alerta Máximo / Emergência (Vermelho)</option>
+          <option value="normal">🟢 Normalidade (Verde)</option>
+          <option value="atencao">🟡 Observação (Amarelo)</option>
+          <option value="alerta">🟠 Atenção (Laranja)</option>
+          <option value="emergencia">🔴 Alerta (Vermelho)</option>
+          <option value="maximo">🟣 Alerta Máximo (Roxo)</option>
         </select>
       </label>
     </div>
@@ -103,6 +106,7 @@
 <script src="js/fontes.js"></script>
 <script src="js/inmet.js"></script>
 <script src="js/estacao.js"></script>
+<script src="js/deslizamento.js"></script>
 <script src="js/queimadas.js"></script>
 <script src="js/publicar.js"></script>
 <script>
