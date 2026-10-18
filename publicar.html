@@ -27,30 +27,39 @@
       <a href="comparar.html">Previsão × medido</a>
     </nav>
   </header>
-  <div class="aux"><b>Rascunho para você revisar.</b> Nada é postado automaticamente: o sistema gera a imagem (Stories ou Feed) e a legenda, e você publica manualmente ou compartilha diretamente no app do Instagram/WhatsApp. Repasse só o que o INMET e a Defesa Civil oficial divulgam, sempre com a fonte e o horário. Se não houver dado novo, a geração fica bloqueada para não publicar informação velha.</div>
+  <div class="aux"><b>Panfletos e Publicações para Redes Sociais.</b> Gere panfletos visuais (<b>Diário</b> ou para <b>5 Dias</b>) com as informações que o morador de Cajamar precisa saber (temperaturas, manhã/tarde/noite, chance de chuva, vento, umidade, alertas e cuidados), prontos para postar no Instagram, WhatsApp ou Facebook nos formatos Stories (9:16) e Feed (1:1 ou 4:5).</div>
 
   <section class="card">
-    <h2>1. Tipo e formato de publicação</h2>
+    <h2>1. Escolha o Panfleto / Tipo e Formato</h2>
+    <div class="barra-modos-mapa" style="margin-bottom:12px">
+      <button type="button" class="btn small atalho-pub ativo-modo" data-tipo="flyer_dia">📰 Panfleto Diário (População)</button>
+      <button type="button" class="btn small atalho-pub" data-tipo="flyer_5dias">📅 Panfleto 5 Dias (População)</button>
+      <button type="button" class="btn small atalho-pub" data-tipo="aviso">⚠️ Aviso INMET</button>
+      <button type="button" class="btn small atalho-pub" data-tipo="chuva">🌧️ Chuva Medida (Estação)</button>
+      <button type="button" class="btn small atalho-pub" data-tipo="dica">🛟 Dicas de Prevenção</button>
+    </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
-      <label class="campo">Tipo
+      <label class="campo">Tipo de publicação
         <select id="tipo">
-          <option value="aviso">Aviso oficial do INMET</option>
-          <option value="prevdia">Previsão do dia (INMET)</option>
-          <option value="prevsemana">Previsão dos próximos dias (INMET)</option>
+          <option value="flyer_dia">📰 Panfleto Diário do Clima (para a População)</option>
+          <option value="flyer_5dias">📅 Panfleto de 5 Dias (Previsão para a População)</option>
+          <option value="aviso">⚠️ Aviso oficial do INMET</option>
+          <option value="prevdia">Previsão do dia (texto INMET)</option>
+          <option value="prevsemana">Previsão dos próximos dias (texto INMET)</option>
           <option value="chuva">Chuva medida em Cajamar (estação)</option>
           <option value="semana">Resumo semanal da chuva (estação)</option>
           <option value="dica">Dica de prevenção</option>
         </select>
       </label>
-      <label class="campo">Formato
+      <label class="campo">Formato da imagem
         <select id="formato">
-          <option value="stories">Stories (1080 × 1920 · 9:16)</option>
+          <option value="stories">Stories / Status WhatsApp (1080 × 1920 · 9:16)</option>
+          <option value="retrato">Feed Retrato Instagram (1080 × 1350 · 4:5)</option>
           <option value="feed">Feed Quadrado (1080 × 1080 · 1:1)</option>
-          <option value="retrato">Feed Retrato (1080 × 1350 · 4:5)</option>
         </select>
       </label>
     </div>
-    <label class="campo" id="boxEscolha">Escolha
+    <label class="campo" id="boxEscolha">Dia / Opção
       <select id="escolha"></select>
     </label>
     <p id="status" class="mut" style="margin:6px 0 0;font-size:.86rem" aria-live="polite"></p>
