@@ -216,18 +216,33 @@
     texto += "━━━━━━━━━━━━━━━━━━━━\n";
     texto += "Defesa Civil de Cajamar (199)";
 
+    var btnRel = $("relatorio");
+    // Guarda o HTML original se ainda não estiver salvo para evitar destruir ícones ou ficar preso no estado copiado
+    if (btnRel && !btnRel.dataset.originalHtml) {
+      btnRel.dataset.originalHtml = btnRel.innerHTML;
+    }
+
+    function showFeedback() {
+      aviso("📋 Resumo do plantão copiado! Cole no WhatsApp da equipe.", "ok");
+      if (!btnRel) return;
+      btnRel.disabled = true;
+      btnRel.innerHTML = "✅ Copiado!";
+      setTimeout(function() {
+        btnRel.innerHTML = btnRel.dataset.originalHtml;
+        btnRel.disabled = false;
+      }, 2000);
+    }
+
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(texto).then(function () {
-        aviso("📋 Resumo do plantão copiado! Cole no WhatsApp da equipe.", "ok");
-      }).catch(function () {
-        copiarFallback(texto);
+      navigator.clipboard.writeText(texto).then(showFeedback).catch(function () {
+        copiarFallback(texto, showFeedback);
       });
     } else {
-      copiarFallback(texto);
+      copiarFallback(texto, showFeedback);
     }
   }
 
-  function copiarFallback(texto) {
+  function copiarFallback(texto, callback) {
     var ta = document.createElement("textarea");
     ta.value = texto;
     ta.style.position = "fixed";
@@ -236,7 +251,7 @@
     ta.select();
     try {
       document.execCommand("copy");
-      aviso("📋 Resumo do plantão copiado! Cole no WhatsApp da equipe.", "ok");
+      if (callback) callback();
     } catch (e) {
       prompt("Copie o texto do relatório abaixo:", texto);
     }
