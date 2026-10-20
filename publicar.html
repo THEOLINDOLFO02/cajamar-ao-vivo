@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
+<meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Gerar Publicação</title>
 <meta name="theme-color" content="#0b6e8f">
@@ -11,14 +12,15 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="assets/logo-dc-cajamar.jpg">
 <link rel="stylesheet" href="css/estilo.css">
-<link rel="stylesheet" href="css/publicar.css">
+<script src="js/ui.js" defer></script>
 </head>
 <body>
-<main>
-  <header>
-    <h1>Gerar publicação (Instagram)</h1>
-    <p class="sub">Defesa Civil de Cajamar/SP · acompanhamento auxiliar</p>
-    <nav class="nav-bar" aria-label="Navegação principal">
+<a class="pular" href="#conteudo">Pular para o conteúdo</a>
+<header class="topo">
+  <a class="marca" href="index.html"><img src="assets/logo-dc-cajamar.jpg" alt="" width="46" height="46"><span><strong>Cajamar ao Vivo</strong><small>Defesa Civil · acompanhamento auxiliar</small></span></a>
+  <div class="topo-acoes"><button id="btnTema" type="button" class="btn-icone" aria-label="Alternar tema: automático, claro ou escuro" title="Tema: automático">◐</button></div>
+</header>
+<nav class="nav-bar" aria-label="Navegação principal">
       <a href="index.html">Painel ao vivo</a>
       <a href="quadro.html">Quadro de ocorrências</a>
       <a href="observacoes.html">Observações manuais</a>
@@ -26,8 +28,9 @@
       <a href="publicar.html" class="ativo" aria-current="page">Gerar publicação</a>
       <a href="comparar.html">Previsão × medido</a>
     </nav>
-  </header>
-  <div class="aux"><b>Panfletos e Publicações para Redes Sociais.</b> Gere panfletos visuais (<b>Diário</b> ou para <b>5 Dias</b>) com as informações que o morador de Cajamar precisa saber (temperaturas, manhã/tarde/noite, chance de chuva, vento, umidade, alertas e cuidados), prontos para postar no Instagram, WhatsApp ou Facebook nos formatos Stories (9:16) e Feed (1:1 ou 4:5).</div>
+<main id="conteudo">
+  <div class="pagina-cab"><h1>Gerar publicação</h1><p class="sub">Imagens e legendas para Instagram e WhatsApp</p></div>
+    <div class="aux"><b>Panfletos e Publicações para Redes Sociais.</b> Gere panfletos visuais (<b>Diário</b> ou para <b>5 Dias</b>) com as informações que o morador de Cajamar precisa saber (temperaturas, manhã/tarde/noite, chance de chuva, vento, umidade, alertas e cuidados), prontos para postar no Instagram, WhatsApp ou Facebook nos formatos Stories (9:16) e Feed (1:1 ou 4:5).</div>
 
   <section class="card">
     <h2>1. Escolha o Panfleto / Tipo e Formato</h2>

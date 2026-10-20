@@ -103,3 +103,12 @@ npm test
 ```
 
 Não precisa instalar nada (usa o executor de testes do próprio Node, versão 22 ou mais nova). Os testes cobrem a leitura dos avisos e da previsão do INMET, a montagem dos dados do CEMADEN, a leitura do CSV da estação e a integridade do site (sintaxe dos scripts, arquivos referenciados, menu, cache do aplicativo). Os dados de teste são fictícios. No GitHub, o publicador roda os testes antes de cada publicação: se um falhar, o site **não** é atualizado e a versão anterior continua no ar.
+
+## Interface e acessibilidade
+
+- **Resumo "Situação agora"** no topo do painel: mostra os avisos oficiais do INMET para Cajamar, o tempo atual e a saúde das fontes. Nunca afirma que está tudo bem: sem aviso listado, diz "nenhum aviso listado" e lembra que isso não garante ausência de risco; se a consulta falhar, diz que não foi possível verificar.
+- **Menu fixo** no topo (com a página atual destacada), atalhos por seção no painel, itens técnicos recolhidos (estado das fontes, backup) e esqueleto de carregamento.
+- **Tema** automático (segue o aparelho), claro ou escuro, pelo botão ◐ no cabeçalho; a escolha fica salva no aparelho.
+- **Celular primeiro:** sem rolagem horizontal em telas de 390 px, botões e campos com pelo menos 40 a 44 px de altura, texto de 16 px nos campos (evita o zoom automático do iPhone).
+- **Acessibilidade:** atalho "Pular para o conteúdo", foco visível em tudo que se clica, contraste mínimo de 4,5:1 nos dois temas (conferido), respeita "reduzir movimento" e avisa quando o aparelho está sem internet.
+- O estilo fica todo em `css/estilo.css` (cores da Defesa Civil de Cajamar como variáveis no topo do arquivo).

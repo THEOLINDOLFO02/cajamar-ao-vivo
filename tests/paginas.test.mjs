@@ -152,3 +152,30 @@ test("Estacao.avaliarNivelRio e backup completo funcionam corretamente", async (
   assert.equal(r.observacoesNovas, 1);
   assert.equal(E.carregarCotasRio(memDestino).atencaoM, 1.95);
 });
+
+test("toda página tem a mesma estrutura: atalho de pular, cabeçalho e menu antes do <main>, um só <h1>", () => {
+  for (const p of paginas) {
+    const html = readFileSync(join(RAIZ, p), "utf8");
+    const iPular = html.indexOf('class="pular"'), iHeader = html.indexOf('class="topo"'), iNav = html.indexOf('class="nav-bar"'), iMain = html.indexOf('<main');
+    assert.ok(iPular > -1 && iHeader > iPular && iNav > iHeader && iMain > iNav, `${p}: ordem esperada: atalho de pular, cabeçalho, menu, main`);
+    assert.match(html, /<main[^>]*id="conteudo"/, `${p}: o <main> precisa de id="conteudo" (destino do atalho de pular)`);
+    assert.equal((html.match(/<h1[ >]/g) || []).length, 1, `${p}: deve ter exatamente um <h1>`);
+    assert.equal((html.match(/aria-current="page"/g) || []).length, 1, `${p}: o menu deve marcar exatamente uma página atual`);
+  }
+});
+
+test("os elementos que cada script procura pelo id existem na página dele", () => {
+  const pares = { "painel.js": "index.html", "quadro.js": "quadro.html", "observacoes.js": "observacoes.html", "historico.js": "historico.html", "comparar.js": "comparar.html", "publicar.js": "publicar.html" };
+  // ids criados pelo próprio script (não precisam estar no HTML)
+  const criadosPeloJs = /\.id\s*=\s*["']([^"']+)["']|\bid=\\?"([^"\\]+)\\?"/g;
+  for (const [js, pagina] of Object.entries(pares)) {
+    const codigo = readFileSync(join(RAIZ, "js", js), "utf8");
+    const html = readFileSync(join(RAIZ, pagina), "utf8");
+    const dinamicos = new Set([...codigo.matchAll(criadosPeloJs)].map((m) => m[1] || m[2]));
+    const usados = new Set([...codigo.matchAll(/\$\("([A-Za-z0-9_-]+)"\)/g)].map((m) => m[1]));
+    for (const id of usados) {
+      if (dinamicos.has(id)) continue;
+      assert.ok(html.includes(`id="${id}"`), `${js} procura #${id}, que não existe em ${pagina}`);
+    }
+  }
+});

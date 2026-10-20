@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
+<meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Histórico da Estação</title>
 <meta name="theme-color" content="#0b6e8f">
@@ -11,13 +12,15 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="assets/logo-dc-cajamar.jpg">
 <link rel="stylesheet" href="css/estilo.css">
+<script src="js/ui.js" defer></script>
 </head>
 <body>
-<main>
-  <header>
-    <h1>Histórico da estação em Cajamar</h1>
-    <p class="sub">Defesa Civil de Cajamar/SP · acompanhamento auxiliar</p>
-    <nav class="nav-bar" aria-label="Navegação principal">
+<a class="pular" href="#conteudo">Pular para o conteúdo</a>
+<header class="topo">
+  <a class="marca" href="index.html"><img src="assets/logo-dc-cajamar.jpg" alt="" width="46" height="46"><span><strong>Cajamar ao Vivo</strong><small>Defesa Civil · acompanhamento auxiliar</small></span></a>
+  <div class="topo-acoes"><button id="btnTema" type="button" class="btn-icone" aria-label="Alternar tema: automático, claro ou escuro" title="Tema: automático">◐</button></div>
+</header>
+<nav class="nav-bar" aria-label="Navegação principal">
       <a href="index.html">Painel ao vivo</a>
       <a href="quadro.html">Quadro de ocorrências</a>
       <a href="observacoes.html">Observações manuais</a>
@@ -25,11 +28,12 @@
       <a href="publicar.html">Gerar publicação</a>
       <a href="comparar.html">Previsão × medido</a>
     </nav>
-  </header>
-  <div class="aux">Os arquivos CSV são lidos <b>aqui no seu navegador</b>: nada é enviado para servidor. Você pode importar de <b>1 a 4 arquivos CSV</b> (as <b>3 estações meteorológicas</b> e a <b>régua de nível do rio</b> de Cajamar). Este histórico é <b>auxiliar</b> e não substitui os dados oficiais do INMET e do CEMADEN.</div>
+<main id="conteudo">
+  <div class="pagina-cab"><h1>Histórico da estação</h1><p class="sub">Chuva, temperatura e vento a partir do CSV importado</p></div>
+    <div class="aux">Os arquivos CSV são lidos <b>aqui no seu navegador</b>: nada é enviado para servidor. Você pode importar de <b>1 a 4 arquivos CSV</b> (as <b>3 estações meteorológicas</b> e a <b>régua de nível do rio</b> de Cajamar). Este histórico é <b>auxiliar</b> e não substitui os dados oficiais do INMET e do CEMADEN.</div>
   <div class="barra-acoes">
     <button id="escolher" type="button" class="btn primary">📂 Importar CSV(s) (1 a 4 arquivos)</button>
-    <label for="slotDestino" style="display:inline-flex;align-items:center;gap:6px;font-size:.85rem">
+    <label for="slotDestino" class="rotulo-inline">
       Destino ao importar:
       <select id="slotDestino" class="sel-inline">
         <option value="auto">Automático (detectar estação / régua pelo CSV)</option>
