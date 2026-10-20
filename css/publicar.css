@@ -1,5 +1,0 @@
-.campo{display:grid;gap:4px;margin:0 0 10px;font-size:.78rem;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
-.campo input,.campo select,.campo textarea{width:100%;font:inherit;font-size:1rem;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;text-transform:none;letter-spacing:0}
-.campo textarea{resize:vertical}
-.previa{display:flex;justify-content:center;margin-bottom:10px}
-.previa canvas{width:100%;max-width:360px;height:auto;border:1px solid var(--line);border-radius:10px;background:#14214d;box-shadow:0 4px 12px rgba(0,0,0,.15)}

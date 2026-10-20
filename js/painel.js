@@ -40,6 +40,7 @@
       li.appendChild(el("span", "mut", t));
       ul.appendChild(li);
     });
+    document.dispatchEvent(new CustomEvent("cajamar:fontes"));
   }
 
   function wmoTexto(cod) {
@@ -357,6 +358,10 @@
       itens.forEach(function (p) {
         var d = el("div"); d.appendChild(el("span", "", p[0])); d.appendChild(el("strong", "", p[1])); k.appendChild(d);
       });
+      document.dispatchEvent(new CustomEvent("cajamar:agora", { detail: {
+        temp: c.temperature_2m, chuva: c.precipitation, vento: c.wind_speed_10m, rajada: c.wind_gusts_10m,
+        hora: String(c.time).slice(11, 16), antigo: !!r.antigo
+      } }));
 
       var i0 = Math.max(0, j.hourly.time.indexOf(String(c.time).slice(0, 13) + ":00"));
       var hs = j.hourly.time.slice(i0, i0 + 24);
@@ -442,6 +447,9 @@
       else if (ter) { r = ter; lista = doTerceiro(ter.dados); rotulo = "radarmeteorologico.com.br (terceiro)"; }
     }
     desenharAvisosNoMapa();
+    document.dispatchEvent(new CustomEvent("cajamar:avisos", { detail: {
+      ok: !!r, antigo: !!(r && r.antigo), lista: lista || [], oficial: String(rotulo).indexOf("INMET") === 0
+    } }));
     if (!r) {
       // Falha NÃO é "sem alerta": deixa isso explícito.
       fail(A, "Não foi possível verificar os alertas agora. Isso NÃO significa que não há alerta. Consulte previsao.inmet.gov.br/3509205 e o CEMADEN.");
