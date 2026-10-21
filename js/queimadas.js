@@ -119,12 +119,31 @@
 
   // Converte "YYYY-MM-DD HH:MM:SS" (GMT) para timestamp ms e texto BRT "DD/MM HH:MM"
   function converterDataGmt(s) {
-    var m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/.exec(String(s || "").trim());
-    if (!m) return { ts: null, brt: String(s || "—") };
-    var ts = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0));
-    var dBrt = new Date(ts - 3 * 3600000);
+    if (!s) return { ts: null, brt: "—" };
+    var str = String(s).trim();
+    var ts, dBrt, brt;
     var p2 = function (n) { return String(n).padStart(2, "0"); };
-    var brt = p2(dBrt.getUTCDate()) + "/" + p2(dBrt.getUTCMonth() + 1) + " " + p2(dBrt.getUTCHours()) + ":" + p2(dBrt.getUTCMinutes());
+
+    // Fast path: string slicing for standard "YYYY-MM-DD HH:MM:SS" format
+    if (str.length >= 16 && str.charAt(4) === '-' && str.charAt(7) === '-') {
+      var y = +str.slice(0, 4), mth = +str.slice(5, 7), d = +str.slice(8, 10);
+      var h = +str.slice(11, 13), min = +str.slice(14, 16);
+      var sec = str.length >= 19 && str.charAt(16) === ':' ? +str.slice(17, 19) : 0;
+
+      if (!isNaN(y) && !isNaN(mth) && !isNaN(d) && !isNaN(h) && !isNaN(min)) {
+        ts = Date.UTC(y, mth - 1, d, h, min, sec);
+        dBrt = new Date(ts - 3 * 3600000);
+        brt = p2(dBrt.getUTCDate()) + "/" + p2(dBrt.getUTCMonth() + 1) + " " + p2(dBrt.getUTCHours()) + ":" + p2(dBrt.getUTCMinutes());
+        return { ts: ts, brt: brt };
+      }
+    }
+
+    // Fallback: regex for other potential date formats
+    var m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/.exec(str);
+    if (!m) return { ts: null, brt: str };
+    ts = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0));
+    dBrt = new Date(ts - 3 * 3600000);
+    brt = p2(dBrt.getUTCDate()) + "/" + p2(dBrt.getUTCMonth() + 1) + " " + p2(dBrt.getUTCHours()) + ":" + p2(dBrt.getUTCMinutes());
     return { ts: ts, brt: brt };
   }
 
@@ -141,13 +160,23 @@
       throw new Error("CSV de focos em formato inesperado");
     }
     var out = [];
+    // 1 grau de latitude é aprox 111km. Para longitude, precisamos considerar o cosseno da latitude.
+    // Em Cajamar (-23.35°), 1 grau de longitude é aprox 111 * cos(-23.35°) ~= 101.8km.
+    // Usamos 100km como denominador seguro para não perder pontos nas bordas leste/oeste.
+    var limiteGrausLat = (maxKm / 110) + 0.1;
+    var limiteGrausLon = (maxKm / 100) + 0.1;
     for (var i = 1; i < linhas.length; i++) {
       var c = linhas[i].split(",");
       var lat = num(c[idx.lat]), lon = num(c[idx.lon]);
       if (lat === null || lon === null) continue;
       // Filtro rápido por caixa antes de Haversine
       var estado = idx.estado !== undefined && c[idx.estado] ? c[idx.estado].trim() : "";
-      var ufSp = /S[ÃA]O PAULO|^SP$/i.test(estado);
+      var estadoMaiusculo = estado.toUpperCase();
+      var ufSp = estadoMaiusculo === "SP" || estadoMaiusculo === "SÃO PAULO" || estadoMaiusculo === "SAO PAULO";
+
+      var foraDaCaixa = Math.abs(lat - LAT_CAJAMAR) > limiteGrausLat || Math.abs(lon - LON_CAJAMAR) > limiteGrausLon;
+      if (foraDaCaixa && !ufSp) continue;
+
       var dist = distanciaKm(LAT_CAJAMAR, LON_CAJAMAR, lat, lon);
       if (dist > maxKm && !ufSp) continue;
 
