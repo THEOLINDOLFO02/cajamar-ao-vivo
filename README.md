@@ -120,3 +120,9 @@ Não precisa instalar nada (usa o executor de testes do próprio Node, versão 2
 - **Qualidade do ar e UV** (cartão no painel, chips no resumo do topo e dica "Sol forte" em Gerar publicação): vêm da API de qualidade do ar do Open-Meteo, que usa o modelo CAMS do programa Copernicus. É uma **estimativa de modelo**, não uma medição local; para dados oficiais do estado, consulte a CETESB. As faixas são as do US AQI (EPA) e do índice UV da OMS.
 - **Limite do município:** o mapa desenha o contorno oficial do IBGE (camada "Limite do município", enquadrando o mapa em Cajamar). Os pontos do mapa que ficarem **fora** da divisa aparecem com borda vermelha tracejada e um aviso no balão. Em 22/10/2026 isso ocorria com "Ponunduva / KM 43" (a 1,3 km da divisa): confira a coordenada.
 - Créditos: dados meteorológicos e de qualidade do ar por [Open-Meteo.com](https://open-meteo.com/) (licença CC BY 4.0; uso gratuito não comercial) com dados do CAMS/Copernicus; malhas e Censo: IBGE.
+
+## Incerteza da previsão de chuva (vários modelos)
+
+O cartão "Incerteza da previsão de chuva" compara a chuva prevista por 5 modelos (ECMWF IFS, GFS, ICON, GEM e Météo-France, via [Open-Meteo](https://open-meteo.com/)) para as próximas 24 h e para 24 a 48 h, e mostra a faixa (menor e maior valor) e quantos modelos preveem chuva (1 mm ou mais). A linha "Padrão do painel" é a previsão que o painel já usa; fica como referência e **não entra** no cálculo.
+
+O selo de concordância é uma **regra deste sistema, não um padrão meteorológico**: "boa" quando a diferença entre o maior e o menor modelo é menor que 3 mm ou menor que 35% do maior; "moderada" até 70%; "diverge muito" acima disso; e "pouca ou nenhuma chuva" quando todos ficam abaixo de 1 mm. Janelas com hora faltando não são completadas com zero: o modelo fica de fora daquela janela. É previsão de modelo, não oficial: confira sempre os avisos do INMET.

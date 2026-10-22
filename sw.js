@@ -4,7 +4,7 @@
 // se a rede falhar, o painel mostra o último dado guardado COM aviso de que é antigo (js/fontes.js).
 // Aumente CACHE_NAME sempre que mudar a lista de arquivos.
 
-var CACHE_NAME = "cajamar-ao-vivo-v10";
+var CACHE_NAME = "cajamar-ao-vivo-v11";
 var RECURSOS_BASE = [
   "./",
   "./index.html",
@@ -19,6 +19,7 @@ var RECURSOS_BASE = [
   "./js/inmet.js",
   "./js/municipio.js",
   "./js/ar.js",
+  "./js/modelos.js",
   "./js/cemaden.js",
   "./js/queimadas.js",
   "./js/deslizamento.js",
