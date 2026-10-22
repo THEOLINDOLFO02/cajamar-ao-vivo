@@ -39,6 +39,8 @@ npx serve .
 | [INMET – previsão](https://apiprevmet3.inmet.gov.br/previsao/3509205) | previsão oficial por município (manhã/tarde/noite nos 2 primeiros dias, depois resumo diário) | |
 | [INMET – avisos ativos](https://apiprevmet3.inmet.gov.br/avisos/ativos) | avisos oficiais para Cajamar (fonte principal) | filtrado pelo código IBGE 3509205 |
 | [radarmeteorologico.com.br](https://radarmeteorologico.com.br/api-publica) | reserva dos avisos, só se a API oficial falhar | terceiro; não é oficial |
+| [Open-Meteo – qualidade do ar](https://open-meteo.com/en/docs/air-quality-api) | índice US AQI, PM2,5, PM10, ozônio e UV para Cajamar | estimativa do modelo CAMS (Copernicus), não é medição local |
+| [IBGE – malhas e Censo](https://servicodados.ibge.gov.br/api/docs/) | limite oficial do município (mapa), população e densidade (Censo 2022) | dados públicos do IBGE |
 | [RainViewer](https://www.rainviewer.com/api.html) | radar | uso pessoal (gratuito): zoom máx. 7, apenas dados passados. Se o site ficar público e muito acessado, confira os termos do RainViewer |
 | [OpenStreetMap](https://www.openstreetmap.org/copyright) / [Leaflet](https://leafletjs.com) | mapa | |
 | [CEMADEN](https://www.cemaden.gov.br/) (pluviômetros) | chuva observada em Cajamar e região (1 h a 72 h) | coletado por um robô do GitHub Actions (agendado a cada 10 min, mas na prática roda a cada 2–5 h), porque o navegador não consegue ler o CEMADEN direto |
@@ -112,3 +114,9 @@ Não precisa instalar nada (usa o executor de testes do próprio Node, versão 2
 - **Celular primeiro:** sem rolagem horizontal em telas de 390 px, botões e campos com pelo menos 40 a 44 px de altura, texto de 16 px nos campos (evita o zoom automático do iPhone).
 - **Acessibilidade:** atalho "Pular para o conteúdo", foco visível em tudo que se clica, contraste mínimo de 4,5:1 nos dois temas (conferido), respeita "reduzir movimento" e avisa quando o aparelho está sem internet.
 - O estilo fica todo em `css/estilo.css` (cores da Defesa Civil de Cajamar como variáveis no topo do arquivo).
+
+## Qualidade do ar, UV e limite do município
+
+- **Qualidade do ar e UV** (cartão no painel, chips no resumo do topo e dica "Sol forte" em Gerar publicação): vêm da API de qualidade do ar do Open-Meteo, que usa o modelo CAMS do programa Copernicus. É uma **estimativa de modelo**, não uma medição local; para dados oficiais do estado, consulte a CETESB. As faixas são as do US AQI (EPA) e do índice UV da OMS.
+- **Limite do município:** o mapa desenha o contorno oficial do IBGE (camada "Limite do município", enquadrando o mapa em Cajamar). Os pontos do mapa que ficarem **fora** da divisa aparecem com borda vermelha tracejada e um aviso no balão. Em 22/10/2026 isso ocorria com "Ponunduva / KM 43" (a 1,3 km da divisa): confira a coordenada.
+- Créditos: dados meteorológicos e de qualidade do ar por [Open-Meteo.com](https://open-meteo.com/) (licença CC BY 4.0; uso gratuito não comercial) com dados do CAMS/Copernicus; malhas e Censo: IBGE.

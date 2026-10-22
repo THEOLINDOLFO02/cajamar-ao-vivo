@@ -21,7 +21,9 @@
     cemaden: "Chuva observada CEMADEN",
     queimadas: "Focos de calor por satélite (INPE BDQueimadas)",
     alertas: "Avisos via radarmeteorologico.com.br (reserva)",
-    radar: "Radar e Satélite (RainViewer / NASA GIBS)"
+    radar: "Radar e Satélite (RainViewer / NASA GIBS)",
+    ar: "Qualidade do ar e UV (Open-Meteo / CAMS)",
+    ibge_limite: "Limite do município e Censo (IBGE)"
   };
 
   function desenharFontes() {
@@ -611,6 +613,30 @@
   var modoMapaAtual = "radar";
   var dadosQueimadasAtual = null;
 
+  var layerLimite = null, limiteEnquadrado = false;
+  function desenharLimite() {
+    if (!layerLimite || typeof L === "undefined") return;
+    layerLimite.clearLayers();
+    var est = typeof Municipio !== "undefined" ? Municipio.dados() : null;
+    var msg = $("imsg");
+    if (!est || !est.geo) { if (msg) msg.textContent = est && est.carregado ? "Não foi possível carregar o limite oficial do município (IBGE) agora." : ""; return; }
+    var tip = el("div");
+    tip.appendChild(el("b", "", "Município de Cajamar"));
+    tip.appendChild(el("br"));
+    tip.appendChild(el("small", "", "Limite oficial (IBGE)" + (est.populacao ? " · " + est.populacao.toLocaleString("pt-BR") + " habitantes (Censo 2022)" : "")));
+    var camadaLimite = L.geoJSON(est.geo, { style: { color: "#1d4ed8", weight: 4, dashArray: "9 6", fillColor: "#2563eb", fillOpacity: 0.04 } })
+      .bindTooltip(tip, { sticky: true }).addTo(layerLimite);
+    // na primeira vez, enquadra o mapa no município (sem aproximar demais)
+    if (!limiteEnquadrado && map) { limiteEnquadrado = true; map.fitBounds(camadaLimite.getBounds(), { padding: [30, 30], maxZoom: 11 }); }
+    if (msg) {
+      var partes = ["Linha tracejada azul: limite oficial do município (IBGE)."];
+      if (est.populacao) partes.push("População: " + est.populacao.toLocaleString("pt-BR") + " (Censo 2022)");
+      if (est.densidade) partes.push("densidade: " + est.densidade.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " hab/km²");
+      msg.textContent = partes.join(" · ");
+    }
+  }
+  document.addEventListener("cajamar:municipio", function () { desenharLimite(); atualizarPontosCajamarNoMapa(); });
+
   var PONTOS_CAJAMAR = [
     { nome: "Jordanésia (Estação 1 / Encostas)", lat: -23.3283, lon: -46.8622, cor: "#c2410c", tipo: "Estação Meteorológica / Área de Encosta", slotId: "est1" },
     { nome: "Polvilho (Estação 2 / Urbano)", lat: -23.3853, lon: -46.8286, cor: "#c2410c", tipo: "Estação Meteorológica / Área Urbana", slotId: "est2" },
@@ -647,9 +673,12 @@
         if (avDesl.nivel >= 1) corPino = avDesl.corFundo;
       }
 
+      var estMun = typeof Municipio !== "undefined" ? Municipio.dados() : null;
+      var foraDoLimite = !!(estMun && estMun.geo && !Geo.pontoDentro(pt.lon, pt.lat, estMun.geo));
       var circ = L.circleMarker([pt.lat, pt.lon], {
         radius: raioPino,
-        color: "#0f172a",
+        dashArray: foraDoLimite ? "3 3" : null,
+        color: foraDoLimite ? "#dc2626" : "#0f172a",
         fillColor: corPino,
         fillOpacity: 0.92,
         weight: 2
@@ -672,6 +701,10 @@
         pop.appendChild(el("small", "", "1h: " + avDesl.mm1h.toFixed(1).replace(".", ",") + " mm · 24h: " + avDesl.mm24h.toFixed(1).replace(".", ",") + " mm · 168h: " + avDesl.mm168h.toFixed(1).replace(".", ",") + " mm"));
       }
 
+      if (foraDoLimite) {
+        pop.appendChild(el("br"));
+        pop.appendChild(el("small", "err", "⚠ Esta coordenada está a " + Geo.distanciaBordaKm(pt.lon, pt.lat, estMun.geo).toFixed(1).replace(".", ",") + " km FORA do limite do município (IBGE): confira o local."));
+      }
       var btnOc = el("button", "btn small", "🚨 Abrir Vistoria aqui");
       btnOc.type = "button";
       btnOc.style.marginTop = "6px";
@@ -716,7 +749,9 @@
       attribution: "NASA GIBS FIRMS (VIIRS 375m NOAA-20/21/S-NPP & MODIS)"
     });
 
+    layerLimite = L.layerGroup().addTo(map);
     layerPontos = L.layerGroup().addTo(map);
+    desenharLimite();
     atualizarPontosCajamarNoMapa();
     layerAvisos = L.layerGroup().addTo(map);
     layerFogo = L.layerGroup().addTo(map);
@@ -724,6 +759,7 @@
     L.control.layers(
       { "Ruas": camadaRuas, "Satélite (Base Esri)": camadaSatelite, "Relevo/Topografia": camadaRelevo },
       {
+        "🗺️ Limite do município (IBGE)": layerLimite,
         "📍 Estações, Rio e Encostas de Cajamar": layerPontos,
         "⚠️ Áreas dos avisos do INMET": layerAvisos,
         "🔥 Focos de Calor INPE (BDQueimadas)": layerFogo,
@@ -1148,7 +1184,7 @@
 
   function go() {
     $("reload").disabled = true;
-    Promise.all([clima(), alertas(), previsaoInmet(), Cemaden.carregar(), fogoSatelites(), radar()].map(function (p) { return p.then(desenharFontes); })).then(function () { $("reload").disabled = false; desenharFontes(); });
+    Promise.all([clima(), alertas(), previsaoInmet(), Cemaden.carregar(), fogoSatelites(), radar(), Ar.carregar(), Municipio.carregar()].map(function (p) { return p.then(desenharFontes); })).then(function () { $("reload").disabled = false; desenharFontes(); });
     desenharFontes();
   }
   $("reload").onclick = go;

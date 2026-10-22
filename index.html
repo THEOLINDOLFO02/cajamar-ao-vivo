@@ -48,12 +48,18 @@
   </section>
 
   <nav class="atalhos" aria-label="Ir para uma seção desta página">
-    <a href="#avisos">Avisos</a><a href="#agora-sec">Agora</a><a href="#chuva">Chuva</a><a href="#deslizamentoCard">Deslizamento</a><a href="#mapaCard">Mapa</a><a href="#previsao">Previsão</a><a href="#fogoCard">Fogo</a>
+    <a href="#avisos">Avisos</a><a href="#agora-sec">Agora</a><a href="#ar-sec">Ar e UV</a><a href="#chuva">Chuva</a><a href="#deslizamentoCard">Deslizamento</a><a href="#mapaCard">Mapa</a><a href="#previsao">Previsão</a><a href="#fogoCard">Fogo</a>
   </nav>
 
   <section class="card" id="avisos"><h2>Avisos oficiais do INMET</h2><div id="alertas" class="mut carregando">Carregando…</div></section>
 
   <section class="card" id="agora-sec"><h2>Agora em Cajamar</h2><div id="agora" class="mut carregando">Carregando…</div></section>
+
+  <section class="card" id="ar-sec">
+    <h2>Qualidade do ar e UV</h2>
+    <p class="card-sub">Índice do ar (US AQI) e radiação ultravioleta para Cajamar</p>
+    <div id="ar" class="mut carregando">Carregando…</div>
+  </section>
 
   <section class="card" id="chuva"><h2>Chuva observada</h2>
     <p class="card-sub">Pluviômetros do CEMADEN em Cajamar e região</p><div id="cemaden" class="mut carregando">Carregando…</div></section>
@@ -134,6 +140,7 @@
     </div>
     <p id="rmsg" class="mut" style="margin:6px 0 0;font-size:.82rem">Carregando radar…</p>
     <p id="amsg" class="mut" style="margin:4px 0 0;font-size:.82rem"></p>
+    <p id="imsg" class="mut" style="margin:4px 0 0;font-size:.82rem"></p>
   </section>
 
   <section class="card" id="previsao"><h2>Previsão oficial do INMET</h2><div id="prevInmet" class="mut carregando">Carregando…</div></section>
@@ -212,7 +219,10 @@
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="js/fontes.js"></script>
+<script src="js/geo.js"></script>
 <script src="js/inmet.js"></script>
+<script src="js/municipio.js"></script>
+<script src="js/ar.js"></script>
 <script src="js/config.js"></script>
 <script src="js/cemaden.js"></script>
 <script src="js/estacao.js"></script>

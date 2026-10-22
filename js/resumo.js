@@ -3,7 +3,7 @@
 (function () {
   "use strict";
   var $ = function (i) { return document.getElementById(i); };
-  var avisos = null, agora = null;
+  var avisos = null, agora = null, ar = null;
 
   function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x !== undefined) e.textContent = x; return e; }
   function hm(ts) { return new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); }
@@ -60,6 +60,11 @@
       if (typeof agora.vento === "number") chips.appendChild(chip("💨 " + Math.round(agora.vento) + " km/h"));
       if (typeof agora.rajada === "number" && agora.rajada >= 40) chips.appendChild(chip("Rajadas de " + Math.round(agora.rajada) + " km/h", true));
     }
+    if (ar) {
+      if (typeof ar.aqiNivel === "number" && ar.aqiNivel >= 2) chips.appendChild(chip("Ar ruim: AQI " + Math.round(ar.aqi), true));
+      var uvAlto = Math.max(ar.uv || 0, ar.uvMax || 0);
+      if (uvAlto >= 8) chips.appendChild(chip("UV " + (uvAlto >= 11 ? "extremo" : "muito alto") + " hoje: " + Math.round(uvAlto), true));
+    }
     var f = fontes();
     if (f.total) {
       if (f.ruins) {
@@ -76,6 +81,7 @@
 
   document.addEventListener("cajamar:avisos", function (e) { avisos = e.detail; render(); });
   document.addEventListener("cajamar:agora", function (e) { agora = e.detail; render(); });
+  document.addEventListener("cajamar:ar", function (e) { ar = e.detail; render(); });
   document.addEventListener("cajamar:fontes", render);
   setInterval(render, 60000);
   render();

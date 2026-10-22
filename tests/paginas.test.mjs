@@ -46,7 +46,9 @@ test("toda página carrega o menu completo e cada link do menu leva a uma págin
 
 test("scripts usados por uma página são carregados antes de quem depende deles", () => {
   const ordem = {
-    "painel.js": ["fontes.js", "inmet.js", "cemaden.js", "estacao.js", "queimadas.js", "deslizamento.js", "config.js"],
+    "painel.js": ["fontes.js", "geo.js", "inmet.js", "municipio.js", "ar.js", "cemaden.js", "estacao.js", "queimadas.js", "deslizamento.js", "config.js"],
+    "municipio.js": ["fontes.js", "geo.js"],
+    "ar.js": ["fontes.js"],
     "publicar.js": ["fontes.js", "inmet.js", "estacao.js", "queimadas.js", "deslizamento.js"],
     "historico.js": ["estacao.js", "deslizamento.js"],
     "quadro.js": ["estacao.js", "deslizamento.js"],

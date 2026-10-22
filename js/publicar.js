@@ -27,6 +27,10 @@
       linhas: ["Beba bastante água ao longo do dia.", "Evite atividade física intensa entre 10h e 16h.", "Umidifique o ambiente (bacia com água, toalha molhada).", "PROIBIDO fazer queimadas em terrenos, matas ou lixo (crime ambiental).", "Em caso de incêndio em vegetação, ligue 193 (Bombeiros) ou 199 (Defesa Civil)."],
       legenda: "Tempo seco exige cuidados com a saúde e com o fogo. Queimada é crime e coloca vidas em risco. Ligue 193 ou 199."
     },
+    "Sol forte (UV alto)": {
+      linhas: ["Evite o sol entre 10h e 16h, quando a radiação é mais forte.", "Use protetor solar (FPS 30 ou mais), chapéu e óculos escuros.", "Procure sombra e beba água com frequência.", "Crianças, idosos e quem tem pele clara precisam de atenção redobrada."],
+      legenda: "Sol forte exige cuidado: evite o horário das 10h às 16h, use protetor e hidrate-se."
+    },
     "Depois da chuva": {
       linhas: ["Cuidado com entulho e mato alto: animais peçonhentos podem se abrigar ali. Use luvas e botas.", "Não encoste em fios caídos nem em postes danificados.", "Evite caminhar em ruas alagadas: a água pode estar contaminada.", "Árvore ou imóvel com risco de queda? Avise a Defesa Civil: 199."],
       legenda: "Depois da chuva, os cuidados continuam. Em caso de risco, avise a Defesa Civil pelo 199."
