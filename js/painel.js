@@ -24,6 +24,7 @@
     radar: "Radar e Satélite (RainViewer / NASA GIBS)",
     ar: "Qualidade do ar e UV (Open-Meteo / CAMS)",
     modelos: "Chuva prevista por vários modelos (Open-Meteo)",
+    climatologia: "Chuva normal de 30 anos (Open-Meteo / ERA5)",
     ibge_limite: "Limite do município e Censo (IBGE)"
   };
 
@@ -1185,7 +1186,7 @@
 
   function go() {
     $("reload").disabled = true;
-    Promise.all([clima(), alertas(), previsaoInmet(), Cemaden.carregar(), fogoSatelites(), radar(), Ar.carregar(), Modelos.carregar(), Municipio.carregar()].map(function (p) { return p.then(desenharFontes); })).then(function () { $("reload").disabled = false; desenharFontes(); });
+    Promise.all([clima(), alertas(), previsaoInmet(), Cemaden.carregar(), fogoSatelites(), radar(), Ar.carregar(), Modelos.carregar(), Clim.carregar(), Municipio.carregar()].map(function (p) { return p.then(desenharFontes); })).then(function () { $("reload").disabled = false; desenharFontes(); });
     desenharFontes();
   }
   $("reload").onclick = go;

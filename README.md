@@ -126,3 +126,12 @@ Não precisa instalar nada (usa o executor de testes do próprio Node, versão 2
 O cartão "Incerteza da previsão de chuva" compara a chuva prevista por 5 modelos (ECMWF IFS, GFS, ICON, GEM e Météo-France, via [Open-Meteo](https://open-meteo.com/)) para as próximas 24 h e para 24 a 48 h, e mostra a faixa (menor e maior valor) e quantos modelos preveem chuva (1 mm ou mais). A linha "Padrão do painel" é a previsão que o painel já usa; fica como referência e **não entra** no cálculo.
 
 O selo de concordância é uma **regra deste sistema, não um padrão meteorológico**: "boa" quando a diferença entre o maior e o menor modelo é menor que 3 mm ou menor que 35% do maior; "moderada" até 70%; "diverge muito" acima disso; e "pouca ou nenhuma chuva" quando todos ficam abaixo de 1 mm. Janelas com hora faltando não são completadas com zero: o modelo fica de fora daquela janela. É previsão de modelo, não oficial: confira sempre os avisos do INMET.
+
+## Chuva recente × normal (30 anos)
+
+O cartão "Chuva recente × normal" compara a chuva do **mês até ontem**, dos **últimos 30 dias** e dos **últimos 90 dias** com o mesmo período em cada ano de 1991 a 2020 (a normal climatológica padrão), usando a reanálise ERA5 via [Open-Meteo](https://open-meteo.com/) (CC BY 4.0). Mostra o total, o normal, a porcentagem do normal, em quantos dos 30 anos choveu menos e a faixa histórica.
+
+- O selo ("bem abaixo" a "bem acima do normal") usa **quintis** dos 30 anos. As cores não indicam "bom" ou "ruim": amarelo é abaixo do normal (seca) e azul é acima do normal (chuva em excesso).
+- É **estimativa de modelo**, que pode diferir de um pluviômetro. Se você importou o CSV da estação, o cartão **confere** o modelo com a estação nos dias completos (mínimo de 7 dias) e mostra a diferença, para você saber o quanto confiar.
+- Dia sem dado nunca é completado com zero (o período fica sem comparação). Usa até ontem, porque o dia de hoje é parcial.
+- Os dados diários (cerca de 33 KB) ficam guardados no aparelho e só são baixados de novo quando muda o dia.

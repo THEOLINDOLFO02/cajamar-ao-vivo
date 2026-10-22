@@ -371,3 +371,25 @@ tbody tr:hover td{background:var(--acc-soft)}
 .mod-valor{font-variant-numeric:tabular-nums;min-width:68px;text-align:right}
 .mod-fonte{margin-top:14px;font-size:.84rem}
 @media (max-width:420px){.mod-linha{grid-template-columns:1fr auto}.mod-trilho{grid-column:1 / -1;order:3}}
+
+/* ---------- Chuva recente x normal ---------- */
+.norm-linha{padding:14px 0;border-top:1px solid var(--line)}
+.norm-linha:first-of-type{border-top:0;padding-top:0}
+.norm-cab{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline}
+.norm-valor{margin:2px 0 6px;font-size:1rem}
+.norm-valor b{font-size:1.3rem;font-variant-numeric:tabular-nums}
+.norm-selo{display:inline-block;padding:3px 12px;border-radius:999px;font-size:.84rem;font-weight:700;background:var(--acc-soft);color:var(--acc);margin-bottom:10px}
+.norm-selo[data-n="0"]{background:var(--yel-soft);color:var(--yel)}
+.norm-selo[data-n="1"]{background:var(--yel-soft);color:var(--yel)}
+.norm-selo[data-n="2"]{background:var(--bg);color:var(--mut);border:1px solid var(--line)}
+.norm-selo[data-n="3"]{background:var(--acc-soft);color:var(--acc)}
+.norm-selo[data-n="4"]{background:var(--acc);color:var(--on-acc)}
+.norm-trilho{position:relative;height:14px;border-radius:7px;background:var(--bg);overflow:hidden}
+.norm-trilho i{position:absolute;top:0;bottom:0;display:block}
+.norm-trilho .faixa{background:var(--line-strong);opacity:.55}
+.norm-trilho .atual{left:0;background:var(--bar);border-radius:7px 0 0 7px;top:3px;bottom:3px}
+.norm-trilho .media{width:3px;background:var(--fg);opacity:.8}
+.norm-nota{font-size:.84rem;margin-top:6px}
+.norm-legenda{font-size:.84rem;margin-top:4px}
+.norm-conf{margin-top:12px;padding:10px 14px;border-radius:var(--r);background:var(--acc-soft);font-size:.92rem}
+.norm-fonte{margin-top:12px;font-size:.84rem}
