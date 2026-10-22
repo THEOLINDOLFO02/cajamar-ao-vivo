@@ -11,3 +11,11 @@ export function carregarScript(caminhoRelativo) {
   runInNewContext(readFileSync(join(RAIZ, caminhoRelativo), "utf8"), { window: janela, console }, { filename: caminhoRelativo });
   return janela;
 }
+
+// Carrega vários scripts no MESMO contexto, com window igual ao objeto global (um script enxerga o que o outro definiu).
+export function carregarScripts(caminhos) {
+  const ctx = { console };
+  ctx.window = ctx;
+  for (const c of caminhos) runInNewContext(readFileSync(join(RAIZ, c), "utf8"), ctx, { filename: c });
+  return ctx;
+}
