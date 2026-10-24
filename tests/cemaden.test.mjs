@@ -71,3 +71,26 @@ test("devolve os campos que o painel usa", () => {
   assert.ok(r.fonte.startsWith("https://"));
   assert.deepEqual(Object.keys(r.estacoes[0].acc), ["h1", "h3", "h6", "h12", "h24", "h48", "h72", "h96"]);
 });
+
+// ---------- buscarBruto: tentativas e limite de tempo ----------
+import { buscarBruto } from "../worker/cemaden-proxy.js";
+const semEspera = () => Promise.resolve();
+
+test("buscarBruto tenta de novo após falha e devolve o JSON", async () => {
+  let n = 0;
+  const buscar = async () => (++n < 3 ? { ok: false, status: 503 } : { ok: true, json: async () => [1, 2] });
+  assert.deepEqual(await buscarBruto({ buscar, dormir: semEspera }), [1, 2]);
+  assert.equal(n, 3);
+});
+
+test("buscarBruto desiste após as tentativas e informa o motivo", async () => {
+  let n = 0;
+  const buscar = async () => { n++; return { ok: false, status: 500 }; };
+  await assert.rejects(buscarBruto({ buscar, tentativas: 2, dormir: semEspera }), /HTTP 500/);
+  assert.equal(n, 2);
+});
+
+test("buscarBruto aborta quando o CEMADEN não responde a tempo", async () => {
+  const buscar = (url, { signal }) => new Promise((_, rej) => signal.addEventListener("abort", () => rej(Object.assign(new Error("x"), { name: "AbortError" }))));
+  await assert.rejects(buscarBruto({ buscar, tentativas: 1, timeoutMs: 20 }), /não respondeu/);
+});

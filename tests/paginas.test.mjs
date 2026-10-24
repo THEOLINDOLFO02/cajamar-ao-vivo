@@ -46,7 +46,13 @@ test("toda página carrega o menu completo e cada link do menu leva a uma págin
 
 test("scripts usados por uma página são carregados antes de quem depende deles", () => {
   const ordem = {
-    "painel.js": ["fontes.js", "geo.js", "inmet.js", "municipio.js", "ar.js", "modelos.js", "climatologia.js", "cemaden.js", "estacao.js", "queimadas.js", "deslizamento.js", "config.js"],
+    "painel.js": ["fontes.js", "geo.js", "inmet.js", "municipio.js", "ar.js", "modelos.js", "climatologia.js", "cemaden.js", "estacao.js", "queimadas.js", "deslizamento.js", "config.js", "painel-base.js", "painel-deslizamento.js", "painel-fogo.js", "painel-mapa.js", "painel-clima.js"],
+    // os módulos do painel dependem do painel-base.js (cria window.Painel) e das bibliotecas de dados
+    "painel-base.js": ["fontes.js"],
+    "painel-deslizamento.js": ["painel-base.js", "deslizamento.js", "estacao.js"],
+    "painel-fogo.js": ["painel-base.js", "queimadas.js"],
+    "painel-mapa.js": ["painel-base.js", "geo.js", "municipio.js"],
+    "painel-clima.js": ["painel-base.js", "inmet.js"],
     "municipio.js": ["fontes.js", "geo.js"],
     "ar.js": ["fontes.js"],
     "modelos.js": ["fontes.js"],
@@ -169,7 +175,7 @@ test("toda página tem a mesma estrutura: atalho de pular, cabeçalho e menu ant
 });
 
 test("os elementos que cada script procura pelo id existem na página dele", () => {
-  const pares = { "painel.js": "index.html", "quadro.js": "quadro.html", "observacoes.js": "observacoes.html", "historico.js": "historico.html", "comparar.js": "comparar.html", "publicar.js": "publicar.html" };
+  const pares = { "painel.js": "index.html", "painel-base.js": "index.html", "painel-deslizamento.js": "index.html", "painel-fogo.js": "index.html", "painel-mapa.js": "index.html", "painel-clima.js": "index.html", "quadro.js": "quadro.html", "observacoes.js": "observacoes.html", "historico.js": "historico.html", "comparar.js": "comparar.html", "publicar.js": "publicar.html" };
   // ids criados pelo próprio script (não precisam estar no HTML)
   const criadosPeloJs = /\.id\s*=\s*["']([^"']+)["']|\bid=\\?"([^"\\]+)\\?"/g;
   for (const [js, pagina] of Object.entries(pares)) {

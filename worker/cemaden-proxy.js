@@ -9,6 +9,27 @@ export const IBGE = [3509205, 3547304, 3509007, 3515004, 3516408, 3525904, 35391
 // Sites autorizados a ler este proxy pelo navegador.
 const ORIGENS = ["https://theolindolfo02.github.io", "http://localhost:8765", "http://localhost:3000"];
 
+export const USER_AGENT = "cajamar-ao-vivo (projeto pessoal, Defesa Civil de Cajamar)";
+
+// Busca o JSON bruto do CEMADEN com limite de tempo e novas tentativas (o servidor deles oscila).
+// Usada pelo Worker e pelo robô do GitHub; `opcoes` permite injetar fetch/espera nos testes.
+export async function buscarBruto({ tentativas = 3, timeoutMs = 15000, esperaMs = 1500, buscar = fetch, extra = {}, dormir = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}) {
+  let ultimo;
+  for (let i = 0; i < tentativas; i++) {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), timeoutMs);
+    try {
+      const r = await buscar(URL_FONTE, { signal: ctl.signal, headers: { "User-Agent": USER_AGENT }, ...extra });
+      if (!r.ok) throw new Error("CEMADEN respondeu HTTP " + r.status);
+      return await r.json();
+    } catch (e) {
+      ultimo = e && e.name === "AbortError" ? new Error("CEMADEN não respondeu em " + timeoutMs / 1000 + " s") : e;
+    } finally { clearTimeout(t); }
+    if (i < tentativas - 1) await dormir(esperaMs * (i + 1));
+  }
+  throw ultimo;
+}
+
 function minutos(texto) {
   const m = /^(\d{2})\/(\d{2})\/(\d{2}) (\d{2}):(\d{2})$/.exec(String(texto || ""));
   return m ? Date.UTC(2000 + +m[3], +m[2] - 1, +m[1], +m[4], +m[5]) / 60000 : null;
@@ -54,14 +75,9 @@ export default {
     if (request.method !== "GET") return new Response("Método não permitido", { status: 405, headers: cors });
     try {
       // A Cloudflare guarda a resposta do CEMADEN por 5 min: protege o CEMADEN e acelera o painel.
-      const r = await fetch(URL_FONTE, {
-        headers: { "User-Agent": "cajamar-ao-vivo (projeto pessoal, Defesa Civil de Cajamar)" },
-        cf: { cacheTtl: 300, cacheEverything: true }
-      });
-      if (!r.ok) throw new Error("CEMADEN respondeu HTTP " + r.status);
-      const corpo = montar(await r.json());
-      return new Response(JSON.stringify(corpo), {
-        headers: { ...cors, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=120" }
+      const bruto = await buscarBruto({ tentativas: 2, timeoutMs: 10000, extra: { cf: { cacheTtl: 300, cacheEverything: true } } });
+      return new Response(JSON.stringify(montar(bruto)), {
+        headers: { ...cors, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=120", "X-Content-Type-Options": "nosniff" }
       });
     } catch (e) {
       return new Response(JSON.stringify({ erro: String(e && e.message ? e.message : e) }), {

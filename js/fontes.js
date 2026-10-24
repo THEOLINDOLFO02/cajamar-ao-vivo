@@ -5,6 +5,7 @@
   var TIMEOUT_MS = 12000;
   var PREFIXO = "cajamar:";
   var estado = {}; // nome -> {estado, tentativa, sucesso, msg}
+  var emAndamento = {}; // nome -> promessa da consulta em curso (evita pedidos duplicados)
 
   function guardar(nome, dados) {
     try { localStorage.setItem(PREFIXO + nome, JSON.stringify({ t: Date.now(), d: dados })); } catch (e) {}
@@ -28,9 +29,18 @@
 
   // Tenta 2 vezes. Devolve {dados, antigo:false} ou, se falhar, o último dado bom
   // ({dados, antigo:true, de:timestamp}); sem nada guardado, lança o erro.
-  async function consultar(nome, url, validar) {
+  function consultar(nome, url, validar) {
+    if (!emAndamento[nome]) {
+      emAndamento[nome] = consultarUmaVez(nome, url, validar).finally(function () { delete emAndamento[nome]; });
+    }
+    return emAndamento[nome];
+  }
+
+  async function consultarUmaVez(nome, url, validar) {
     var ultimoErro;
-    for (var i = 0; i < 2; i++) {
+    // Sem internet não adianta repetir: vai direto para o último dado guardado.
+    var tentativas = navigator.onLine === false ? 1 : 2;
+    for (var i = 0; i < tentativas; i++) {
       try {
         var d = await buscarJson(url);
         if (validar && !validar(d)) throw new Error("resposta em formato inesperado");
@@ -39,7 +49,7 @@
         return { dados: d, antigo: false, de: Date.now() };
       } catch (e) {
         ultimoErro = e;
-        if (i === 0) await new Promise(function (r) { setTimeout(r, 1500); });
+        if (i < tentativas - 1) await new Promise(function (r) { setTimeout(r, 1500); });
       }
     }
     var g = lerGuardado(nome);
