@@ -307,48 +307,61 @@
     }
   }
 
-  // Coleta focos do INPE (últimos 2 arquivos diários disponíveis no servidor + últimos arquivos de 10 min)
-  async function coletarInpeAoVivo() {
+  // Coleta focos do INPE em paralelo (últimos 2 arquivos diários + últimos 3 arquivos de 10 min)
+  var emCursoInpe = null;
+
+  function coletarInpeAoVivo() {
+    if (!emCursoInpe) {
+      emCursoInpe = coletarInpeAoVivoInterno().finally(function () { emCursoInpe = null; });
+    }
+    return emCursoInpe;
+  }
+
+  async function coletarInpeAoVivoInterno() {
     var todos = [];
     var lidos = 0;
-    var arqsDiarios = [];
 
-    try {
-      var htmlDiario = await buscarTexto(URL_DIARIO_BASE, 10000);
-      var rxD = /href="([^"]*focos_diario_br_\d{8}\.csv)"/g, md;
-      while ((md = rxD.exec(htmlDiario)) !== null) arqsDiarios.push(md[1]);
-    } catch (e) {}
-
-    var ultimosDiarios = arqsDiarios.length
-      ? arqsDiarios.slice(-2)
-      : datasRecentesUtc().map(function (d) { return "focos_diario_br_" + d + ".csv"; });
-
-    for (var i = 0; i < ultimosDiarios.length; i++) {
+    async function carregarDiarios() {
+      var arqsDiarios = [];
       try {
-        var nomeArq = ultimosDiarios[i];
+        var htmlDiario = await buscarTexto(URL_DIARIO_BASE, 10000);
+        var rxD = /href="([^"]*focos_diario_br_\d{8}\.csv)"/g, md;
+        while ((md = rxD.exec(htmlDiario)) !== null) arqsDiarios.push(md[1]);
+      } catch (e) {}
+
+      var ultimosDiarios = arqsDiarios.length
+        ? arqsDiarios.slice(-2)
+        : datasRecentesUtc().map(function (d) { return "focos_diario_br_" + d + ".csv"; });
+
+      var promessasD = ultimosDiarios.map(function (nomeArq) {
         var urlD = nomeArq.indexOf("http") === 0 ? nomeArq : URL_DIARIO_BASE + nomeArq;
-        var txt = await buscarTexto(urlD, 15000);
-        todos = todos.concat(lerCsvFocos(txt, 300));
-        lidos++;
+        return buscarTexto(urlD, 15000).then(function (txt) {
+          todos = todos.concat(lerCsvFocos(txt, 300));
+          lidos++;
+        }).catch(function () {});
+      });
+      await Promise.all(promessasD);
+    }
+
+    async function carregar10Min() {
+      try {
+        var html10 = await buscarTexto(URL_10MIN_BASE, 10000);
+        var arq10 = [];
+        var rx = /href="([^"]*focos_10min_[^"]+\.csv)"/g, m;
+        while ((m = rx.exec(html10)) !== null) arq10.push(m[1]);
+        var ultimos = arq10.slice(-3);
+        var promessas10 = ultimos.map(function (nome10) {
+          var u10 = nome10.indexOf("http") === 0 ? nome10 : URL_10MIN_BASE + nome10;
+          return buscarTexto(u10, 8000).then(function (t10) {
+            todos = todos.concat(lerCsvFocos(t10, 300));
+            lidos++;
+          }).catch(function () {});
+        });
+        await Promise.all(promessas10);
       } catch (e) {}
     }
 
-    // Também tenta os últimos 3 arquivos de 10 min (tempo real)
-    try {
-      var html10 = await buscarTexto(URL_10MIN_BASE, 10000);
-      var arq10 = [];
-      var rx = /href="([^"]*focos_10min_[^"]+\.csv)"/g, m;
-      while ((m = rx.exec(html10)) !== null) arq10.push(m[1]);
-      var ultimos = arq10.slice(-3);
-      for (var j = 0; j < ultimos.length; j++) {
-        try {
-          var u10 = ultimos[j].indexOf("http") === 0 ? ultimos[j] : URL_10MIN_BASE + ultimos[j];
-          var t10 = await buscarTexto(u10, 8000);
-          todos = todos.concat(lerCsvFocos(t10, 300));
-          lidos++;
-        } catch (e2) {}
-      }
-    } catch (e) {}
+    await Promise.all([carregarDiarios(), carregar10Min()]);
 
     if (!lidos) throw new Error("servidor de focos do INPE indisponível no momento");
     var focos = consolidarFocos(todos);

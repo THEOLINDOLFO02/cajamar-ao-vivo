@@ -319,4 +319,10 @@
 
   rows = carregar().sort(function (a, b) { return new Date(b.quando) - new Date(a.quando); });
   render();
+  window.addEventListener("storage", function (ev) {
+    if (!ev || !ev.key || ev.key === KEY || ev.key.indexOf("cajamar:") === 0) {
+      rows = carregar().sort(function (a, b) { return new Date(b.quando) - new Date(a.quando); });
+      render();
+    }
+  });
 })();

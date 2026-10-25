@@ -2,7 +2,7 @@
 // Os dados abaixo são FICTÍCIOS, criados só para testar o código.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { montar, IBGE } from "../worker/cemaden-proxy.js";
+import worker, { montar, IBGE, buscarBruto, origemPermitida } from "../worker/cemaden-proxy.js";
 
 function estacao(ibge, cidade, nome, leitura, extra) {
   return Object.assign({
@@ -73,7 +73,6 @@ test("devolve os campos que o painel usa", () => {
 });
 
 // ---------- buscarBruto: tentativas e limite de tempo ----------
-import { buscarBruto } from "../worker/cemaden-proxy.js";
 const semEspera = () => Promise.resolve();
 
 test("buscarBruto tenta de novo após falha e devolve o JSON", async () => {
@@ -93,4 +92,54 @@ test("buscarBruto desiste após as tentativas e informa o motivo", async () => {
 test("buscarBruto aborta quando o CEMADEN não responde a tempo", async () => {
   const buscar = (url, { signal }) => new Promise((_, rej) => signal.addEventListener("abort", () => rej(Object.assign(new Error("x"), { name: "AbortError" }))));
   await assert.rejects(buscarBruto({ buscar, tentativas: 1, timeoutMs: 20 }), /não respondeu/);
+});
+
+test("montar não falha quando todas as estações da rede estão sem data válida", () => {
+  const semDatas = Array.from({ length: 55 }, (_, i) => estacao(3509205, "CAJAMAR", "Est " + i, ""));
+  const r = montar(semDatas);
+  assert.equal(r.referenciaRede, null);
+  assert.equal(r.estacoes[0].minutosAntes, null);
+});
+
+test("origemPermitida aceita produção e qualquer porta localhost/127.0.0.1, mas bloqueia terceiros", () => {
+  assert.equal(origemPermitida("https://theolindolfo02.github.io"), true);
+  assert.equal(origemPermitida("http://localhost:8765"), true);
+  assert.equal(origemPermitida("http://localhost:5173"), true);
+  assert.equal(origemPermitida("http://127.0.0.1:8080"), true);
+  assert.equal(origemPermitida("https://outro-site.exemplo.com"), false);
+  assert.equal(origemPermitida(null), false);
+});
+
+test("Worker responde OPTIONS, GET, HEAD, rejeita POST (405) e trata falha da fonte (502)", async () => {
+  const reqOpt = new Request("https://proxy.exemplo/", {
+    method: "OPTIONS",
+    headers: { Origin: "http://localhost:5500" }
+  });
+  const resOpt = await worker.fetch(reqOpt);
+  assert.equal(resOpt.status, 204);
+  assert.equal(resOpt.headers.get("Access-Control-Allow-Origin"), "http://localhost:5500");
+
+  const reqPost = new Request("https://proxy.exemplo/", { method: "POST" });
+  const resPost = await worker.fetch(reqPost);
+  assert.equal(resPost.status, 405);
+
+  const mockRede = rede([estacao(3509205, "CAJAMAR", "Jordanésia", "15/10/26 10:00", { acc24hr: 14.2 })]);
+  const buscarOk = async () => ({ ok: true, json: async () => mockRede });
+
+  const reqGet = new Request("https://proxy.exemplo/", {
+    method: "GET",
+    headers: { Origin: "https://theolindolfo02.github.io" }
+  });
+  const resGet = await worker.fetch(reqGet, { buscar: buscarOk });
+  assert.equal(resGet.status, 200);
+  assert.equal(resGet.headers.get("Access-Control-Allow-Origin"), "https://theolindolfo02.github.io");
+  assert.ok(resGet.headers.get("Cache-Control").includes("stale-while-revalidate"));
+  const corpo = await resGet.json();
+  assert.equal(corpo.estacoes.length, 1);
+  assert.equal(corpo.estacoes[0].acc.h24, 14.2);
+
+  const reqHead = new Request("https://proxy.exemplo/", { method: "HEAD" });
+  const resHead = await worker.fetch(reqHead, { buscar: buscarOk });
+  assert.equal(resHead.status, 200);
+  assert.equal(await resHead.text(), "");
 });

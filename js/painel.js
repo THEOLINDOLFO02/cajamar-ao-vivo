@@ -58,5 +58,10 @@
     var t = Object.keys(Fontes.estado).map(function (k) { return Fontes.estado[k].tentativa; });
     if (!document.hidden && (!t.length || Date.now() - Math.min.apply(null, t) > 300000)) go();
   });
+  window.addEventListener("storage", function (ev) {
+    if (!ev || !ev.key || ev.key.indexOf("cajamar:") === 0) {
+      P.desliz.atualizar();
+    }
+  });
   setInterval(P.desenharFontes, 60000);
 })();

@@ -535,4 +535,9 @@
   $("rodar").onclick = rodar;
 
   atualizarPainelSlots();
+  window.addEventListener("storage", function (ev) {
+    if (!ev || !ev.key || ev.key.indexOf("cajamar:estacoes") === 0) {
+      atualizarPainelSlots();
+    }
+  });
 })();

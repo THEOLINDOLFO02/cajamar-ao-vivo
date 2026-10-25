@@ -6,8 +6,14 @@
 export const URL_FONTE = "https://resources.cemaden.gov.br/graficos/interativo/getJson2.php?uf=SP";
 // Cajamar e municípios da região (códigos IBGE). O robô do GitHub (scripts/coletar-cemaden.mjs) usa este mesmo arquivo.
 export const IBGE = [3509205, 3547304, 3509007, 3515004, 3516408, 3525904, 3539103, 3505708];
-// Sites autorizados a ler este proxy pelo navegador.
+// Sites autorizados a ler este proxy pelo navegador (produção + qualquer porta local de desenvolvimento).
 const ORIGENS = ["https://theolindolfo02.github.io", "http://localhost:8765", "http://localhost:3000"];
+
+export function origemPermitida(origem) {
+  if (!origem || typeof origem !== "string") return false;
+  if (ORIGENS.includes(origem)) return true;
+  return /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origem);
+}
 
 export const USER_AGENT = "cajamar-ao-vivo (projeto pessoal, Defesa Civil de Cajamar)";
 
@@ -44,8 +50,9 @@ function valor(v) {
 export function montar(bruto, agora = new Date()) {
   if (!Array.isArray(bruto) || bruto.length < 50) throw new Error("resposta do CEMADEN em formato inesperado");
   const todas = bruto.map((x) => minutos(x.datahoraUltimovalor)).filter((x) => x !== null);
-  const referencia = Math.max(...todas);
-  const refTexto = bruto.find((x) => minutos(x.datahoraUltimovalor) === referencia).datahoraUltimovalor;
+  const referencia = todas.length ? todas.reduce((a, b) => (b > a ? b : a), -Infinity) : null;
+  const refItem = referencia !== null ? bruto.find((x) => minutos(x.datahoraUltimovalor) === referencia) : null;
+  const refTexto = refItem ? refItem.datahoraUltimovalor : null;
   const estacoes = bruto
     .filter((x) => IBGE.includes(Number(x.codibge)))
     .map((x) => {
@@ -54,34 +61,50 @@ export function montar(bruto, agora = new Date()) {
         id: x.idestacao, ibge: Number(x.codibge), cidade: x.cidade, nome: x.nomeestacao,
         tipo: x.tipoestacao, status: x.status,
         leitura: x.datahoraUltimovalor || null,
-        minutosAntes: m === null ? null : referencia - m,
+        minutosAntes: m === null || referencia === null ? null : referencia - m,
         ultimo: valor(x.ultimovalor),
         acc: { h1: valor(x.acc1hr), h3: valor(x.acc3hr), h6: valor(x.acc6hr), h12: valor(x.acc12hr), h24: valor(x.acc24hr), h48: valor(x.acc48hr), h72: valor(x.acc72hr), h96: valor(x.acc96hr) }
       };
     })
-    .sort((a, b) => (a.ibge === 3509205 ? 0 : 1) - (b.ibge === 3509205 ? 0 : 1) || a.cidade.localeCompare(b.cidade, "pt-BR") || a.nome.localeCompare(b.nome, "pt-BR"));
+    .sort((a, b) => (a.ibge === 3509205 ? 0 : 1) - (b.ibge === 3509205 ? 0 : 1) || String(a.cidade || "").localeCompare(String(b.cidade || ""), "pt-BR") || String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR"));
   return { coletadoEm: agora.toISOString(), fonte: URL_FONTE, referenciaRede: refTexto, estacoes };
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request, env = {}) {
     const origem = request.headers.get("Origin");
     const cors = { "Vary": "Origin" };
-    if (origem && ORIGENS.includes(origem)) {
+    if (origemPermitida(origem)) {
       cors["Access-Control-Allow-Origin"] = origem;
-      cors["Access-Control-Allow-Methods"] = "GET, OPTIONS";
+      cors["Access-Control-Allow-Methods"] = "GET, HEAD, OPTIONS";
     }
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
-    if (request.method !== "GET") return new Response("Método não permitido", { status: 405, headers: cors });
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return new Response("Método não permitido", { status: 405, headers: cors });
+    }
     try {
       // A Cloudflare guarda a resposta do CEMADEN por 5 min: protege o CEMADEN e acelera o painel.
-      const bruto = await buscarBruto({ tentativas: 2, timeoutMs: 10000, extra: { cf: { cacheTtl: 300, cacheEverything: true } } });
-      return new Response(JSON.stringify(montar(bruto)), {
-        headers: { ...cors, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=120", "X-Content-Type-Options": "nosniff" }
+      const opcoesBusca = {
+        tentativas: 2,
+        timeoutMs: 10000,
+        extra: { cf: { cacheTtl: 300, cacheEverything: true } }
+      };
+      if (env && typeof env.buscar === "function") opcoesBusca.buscar = env.buscar;
+      const bruto = await buscarBruto(opcoesBusca);
+      const corpo = request.method === "HEAD" ? null : JSON.stringify(montar(bruto));
+      return new Response(corpo, {
+        headers: {
+          ...cors,
+          "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": "public, max-age=120, stale-while-revalidate=300",
+          "X-Content-Type-Options": "nosniff"
+        }
       });
     } catch (e) {
-      return new Response(JSON.stringify({ erro: String(e && e.message ? e.message : e) }), {
-        status: 502, headers: { ...cors, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }
+      const corpoErro = request.method === "HEAD" ? null : JSON.stringify({ erro: String(e && e.message ? e.message : e) });
+      return new Response(corpoErro, {
+        status: 502,
+        headers: { ...cors, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }
       });
     }
   }

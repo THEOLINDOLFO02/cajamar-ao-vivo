@@ -4,15 +4,62 @@
   "use strict";
   var TIMEOUT_MS = 12000;
   var PREFIXO = "cajamar:";
+  var CHAVES_PROTEGIDAS = {
+    "cajamar:ocorrencias:v1": 1,
+    "cajamar:observacoes:v1": 1,
+    "cajamar:estacoes:v2": 1,
+    "cajamar:historico:v1": 1,
+    "cajamar:cotas_rio:v1": 1,
+    "cajamar:tema": 1,
+    "cajamar:contato": 1,
+    "cajamar:alertaSom": 1
+  };
   var estado = {}; // nome -> {estado, tentativa, sucesso, msg}
   var emAndamento = {}; // nome -> promessa da consulta em curso (evita pedidos duplicados)
 
+  function obterStorage() {
+    try {
+      return w.localStorage || (typeof localStorage !== "undefined" ? localStorage : null);
+    } catch (e) { return null; }
+  }
+
+  function liberarEspacoCache(excetoChave) {
+    try {
+      var st = obterStorage();
+      if (!st) return;
+      var candidatos = [];
+      for (var i = 0; i < st.length; i++) {
+        var k = st.key(i);
+        if (!k || k.indexOf(PREFIXO) !== 0 || CHAVES_PROTEGIDAS[k] || k === excetoChave) continue;
+        try {
+          var obj = JSON.parse(st.getItem(k));
+          if (obj && typeof obj.t === "number") candidatos.push({ k: k, t: obj.t });
+        } catch (e2) {}
+      }
+      candidatos.sort(function (a, b) { return a.t - b.t; });
+      candidatos.slice(0, Math.max(1, Math.ceil(candidatos.length / 2))).forEach(function (c) {
+        st.removeItem(c.k);
+      });
+    } catch (e) {}
+  }
+
   function guardar(nome, dados) {
-    try { localStorage.setItem(PREFIXO + nome, JSON.stringify({ t: Date.now(), d: dados })); } catch (e) {}
+    var st = obterStorage();
+    if (!st) return;
+    var chave = PREFIXO + nome;
+    var payload = JSON.stringify({ t: Date.now(), d: dados });
+    try {
+      st.setItem(chave, payload);
+    } catch (e) {
+      liberarEspacoCache(chave);
+      try { st.setItem(chave, payload); } catch (e2) {}
+    }
   }
   function lerGuardado(nome) {
     try {
-      var x = JSON.parse(localStorage.getItem(PREFIXO + nome));
+      var st = obterStorage();
+      if (!st) return null;
+      var x = JSON.parse(st.getItem(PREFIXO + nome));
       return x && x.t ? x : null;
     } catch (e) { return null; }
   }
@@ -39,7 +86,8 @@
   async function consultarUmaVez(nome, url, validar) {
     var ultimoErro;
     // Sem internet não adianta repetir: vai direto para o último dado guardado.
-    var tentativas = navigator.onLine === false ? 1 : 2;
+    var offline = typeof navigator !== "undefined" && navigator.onLine === false;
+    var tentativas = offline ? 1 : 2;
     for (var i = 0; i < tentativas; i++) {
       try {
         var d = await buscarJson(url);
@@ -70,5 +118,12 @@
     estado[nome] = { estado: "ok", tentativa: Date.now(), sucesso: Date.now() };
   }
 
-  w.Fontes = { consultar: consultar, estado: estado, marcarErro: marcarErro, marcarOk: marcarOk };
-})(window);
+  w.Fontes = {
+    consultar: consultar,
+    estado: estado,
+    marcarErro: marcarErro,
+    marcarOk: marcarOk,
+    guardar: guardar,
+    lerGuardado: lerGuardado
+  };
+})(typeof window !== "undefined" ? window : globalThis);

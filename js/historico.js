@@ -526,4 +526,10 @@
   }
 
   desenhar(false);
+  window.addEventListener("storage", function (ev) {
+    if (!ev || !ev.key || ev.key.indexOf("cajamar:estacoes") === 0 || ev.key.indexOf("cajamar:cotas_rio") === 0) {
+      banco = Estacao.carregarBanco();
+      desenhar(false);
+    }
+  });
 })();

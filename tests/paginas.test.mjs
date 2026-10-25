@@ -189,3 +189,32 @@ test("os elementos que cada script procura pelo id existem na página dele", () 
     }
   }
 });
+
+test("Fontes.guardar protege dados operacionais do usuário quando o localStorage atinge o limite de quota", async () => {
+  const { carregarScript } = await import("./util.mjs");
+  const win = carregarScript("js/fontes.js");
+  const dados = {
+    "cajamar:ocorrencias:v1": JSON.stringify([{ id: "1", tipo: "Alagamento" }]),
+    "cajamar:clima": JSON.stringify({ t: 1000, d: { old: true } }),
+    "cajamar:modelos": JSON.stringify({ t: 2000, d: { old: true } })
+  };
+  let falharPrimeiraVez = true;
+  win.localStorage = {
+    get length() { return Object.keys(dados).length; },
+    key(i) { return Object.keys(dados)[i] || null; },
+    getItem(k) { return dados[k] || null; },
+    setItem(k, v) {
+      if (falharPrimeiraVez) {
+        falharPrimeiraVez = false;
+        throw new Error("QuotaExceededError");
+      }
+      dados[k] = String(v);
+    },
+    removeItem(k) { delete dados[k]; }
+  };
+
+  win.Fontes.guardar("avisos_inmet", { avisos: [1, 2, 3] });
+  assert.ok(dados["cajamar:ocorrencias:v1"], "nunca deve apagar ocorrências do usuário para liberar espaço de cache");
+  assert.equal(dados["cajamar:clima"], undefined, "deve remover o cache de API mais antigo para abrir espaço");
+  assert.deepEqual(JSON.parse(JSON.stringify(win.Fontes.lerGuardado("avisos_inmet").d)), { avisos: [1, 2, 3] });
+});

@@ -4,7 +4,7 @@
 // se a rede falhar, o painel mostra o último dado guardado COM aviso de que é antigo (js/fontes.js).
 // Aumente CACHE_NAME sempre que mudar a lista de arquivos.
 
-var CACHE_NAME = "cajamar-ao-vivo-v14";
+var CACHE_NAME = "cajamar-ao-vivo-v15";
 var RECURSOS_BASE = [
   "./",
   "./index.html",
@@ -78,7 +78,8 @@ self.addEventListener("fetch", function (event) {
     comLimite(fetch(req), 6000).then(function (resposta) {
       if (resposta && resposta.status === 200) {
         var copia = resposta.clone();
-        caches.open(CACHE_NAME).then(function (cache) { cache.put(req, copia); });
+        var chaveCache = url.search ? url.origin + url.pathname : req;
+        caches.open(CACHE_NAME).then(function (cache) { cache.put(chaveCache, copia); });
       }
       return resposta;
     }).catch(function () {
