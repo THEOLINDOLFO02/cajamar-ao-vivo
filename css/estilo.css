@@ -484,3 +484,16 @@ button.count[aria-pressed="true"]{background:var(--acc-soft);border-color:var(--
 @media print{.barra-ferramentas,.aux-curto{display:none!important}}
 .slot-topo{flex-wrap:wrap}
 .slot-topo .slot-badge{white-space:nowrap}
+
+/* ---------- 10. Informação sob demanda ---------- */
+.info-btn{min-height:28px;min-width:28px;width:28px;height:28px;padding:0;border-radius:50%;font-size:.9rem;font-weight:700;line-height:1;color:var(--acc);background:var(--acc-soft);border-color:transparent;flex:none}
+.info-btn[aria-expanded="true"]{background:var(--acc);color:var(--on-acc)}
+.card-sub{background:var(--acc-soft);border-radius:var(--r-sm);padding:8px 12px;margin:0 0 12px}
+details.hero-nota>summary,details.creditos>summary{cursor:pointer;min-height:32px;display:inline-flex;align-items:center;font-weight:600;color:var(--mut)}
+details.hero-nota p,details.creditos p{margin-top:4px}
+details.creditos{padding:0 4px}
+details.mais-acoes{margin:0 0 12px}
+details.mais-acoes>summary{list-style:none}
+details.mais-acoes>summary::-webkit-details-marker{display:none}
+details.mais-acoes>summary::before{content:"▸ ";display:inline-block;margin-right:4px;transition:transform .15s}
+details.mais-acoes[open]>summary::before{transform:rotate(90deg)}

@@ -50,20 +50,36 @@
         return el("td", "", mm(v));
       }
 
-      var tw = el("div", "tw"), tb = el("table"), th = el("tr");
-      ["Estação", "Leitura", "1 h", "24 h", "72 h"].forEach(function (x) { th.appendChild(el("th", "", x)); });
-      tb.appendChild(th);
-      vivas.forEach(function (e) {
-        var tr = el("tr");
-        tr.appendChild(el("td", "", (e.ibge === 3509205 ? "★ " : "") + nome(e.cidade) + " · " + e.nome));
-        tr.appendChild(el("td", "", e.leitura.slice(9) + " (−" + atraso(e.minutosAntes) + ")"));
-        tr.appendChild(celulaChuva(e.acc.h1));
-        tr.appendChild(celulaChuva(e.acc.h24));
-        tr.appendChild(celulaChuva(e.acc.h72));
-        tb.appendChild(tr);
-      });
-      tw.appendChild(tb); B.appendChild(tw);
-      B.appendChild(el("p", "mut", "“sem dado” significa que o CEMADEN não informou o valor (não é zero). Este quadro apenas repassa os números: não classifica risco. " + paradas + " estação(ões) sem leitura recente foram omitidas."));
+      function tabela(lista) {
+        var tw = el("div", "tw"), tb = el("table"), th = el("tr");
+        ["Estação", "Leitura", "1 h", "24 h", "72 h"].forEach(function (x) { th.appendChild(el("th", "", x)); });
+        tb.appendChild(th);
+        lista.forEach(function (e) {
+          var tr = el("tr");
+          tr.appendChild(el("td", "", (e.ibge === 3509205 ? "★ " : "") + nome(e.cidade) + " · " + e.nome));
+          tr.appendChild(el("td", "", e.leitura.slice(9) + " (−" + atraso(e.minutosAntes) + ")"));
+          tr.appendChild(celulaChuva(e.acc.h1));
+          tr.appendChild(celulaChuva(e.acc.h24));
+          tr.appendChild(celulaChuva(e.acc.h72));
+          tb.appendChild(tr);
+        });
+        tw.appendChild(tb); return tw;
+      }
+      // Cajamar à vista; as demais estações da região só ao clicar.
+      var outras = vivas.filter(function (e) { return e.ibge !== 3509205; });
+      if (cajVivas.length) {
+        B.appendChild(tabela(cajVivas));
+        if (outras.length) {
+          var det = el("details", "mais-acoes");
+          det.appendChild(el("summary", "", "Ver outras " + outras.length + " estações da região"));
+          det.appendChild(tabela(outras));
+          B.appendChild(det);
+        }
+      } else B.appendChild(tabela(vivas));
+      var nota = el("details", "mais-acoes");
+      nota.appendChild(el("summary", "", "Como ler esta tabela"));
+      nota.appendChild(el("p", "mut", "“sem dado” significa que o CEMADEN não informou o valor (não é zero). Este quadro apenas repassa os números: não classifica risco. " + paradas + " estação(ões) sem leitura recente foram omitidas."));
+      B.appendChild(nota);
     } catch (e) {
       var msg = "Chuva observada do CEMADEN indisponível agora. ";
       B.textContent = ""; B.className = "";

@@ -25,6 +25,30 @@
     var ativo = document.querySelector(".nav-bar a.ativo");
     if (ativo && ativo.scrollIntoView) { try { ativo.scrollIntoView({ inline: "center", block: "nearest" }); } catch (e) {} }
 
+    // ---------- textos explicativos: ficam atrás de um botão ⓘ ----------
+    document.querySelectorAll(".card > .card-sub").forEach(function (sub) {
+      var h = sub.parentNode.querySelector("h2"); if (!h) return;
+      sub.hidden = true;
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "info-btn"; b.textContent = "ⓘ";
+      b.setAttribute("aria-label", "Mais informações sobre esta seção"); b.setAttribute("aria-expanded", "false");
+      b.onclick = function () { sub.hidden = !sub.hidden; b.setAttribute("aria-expanded", String(!sub.hidden)); };
+      h.appendChild(b);
+    });
+
+    // ---------- blocos recolhidos: abrem sozinhos quando o atalho aponta para eles ----------
+    function abrirAlvo() {
+      var id = decodeURIComponent(location.hash.slice(1)), alvo = id && document.getElementById(id);
+      for (var n = alvo; n; n = n.parentElement) if (n.tagName === "DETAILS") n.open = true;
+    }
+    window.addEventListener("hashchange", abrirAlvo);
+    document.addEventListener("click", function (e) {
+      var a = e.target.closest && e.target.closest("a[href^='#']"); if (!a || a.getAttribute("href").length < 2) return;
+      var alvo = document.getElementById(a.getAttribute("href").slice(1));
+      for (var n = alvo; n; n = n.parentElement) if (n.tagName === "DETAILS") n.open = true;
+    });
+    abrirAlvo();
+
     // ---------- atalhos de seção: destaca a seção visível e mostra "voltar ao topo" ----------
     var links = document.querySelectorAll(".atalhos a[href^='#']");
     var btnTopo = document.getElementById("btnTopo");

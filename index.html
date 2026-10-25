@@ -47,7 +47,7 @@
       <a class="btn" href="#avisos">Ver avisos</a>
       <button id="btnAlertaSom" type="button" class="btn" title="Ativar aviso sonoro para emergências meteorológicas e focos de fogo">🔔 Alerta sonoro: desligado</button>
     </div>
-    <p class="hero-nota mut">Dados auxiliares: não substituem INMET, CEMADEN, INPE e CENSIPAM. Confirme na fonte oficial antes de decidir.</p>
+    <details class="hero-nota mut"><summary>ⓘ Sobre estes dados</summary><p>Dados auxiliares: não substituem INMET, CEMADEN, INPE e CENSIPAM. Confirme na fonte oficial antes de decidir.</p></details>
   </section>
 
   <nav class="atalhos" aria-label="Ir para uma seção desta página">
@@ -67,11 +67,12 @@
   <section class="card" id="chuva"><h2>Chuva observada</h2>
     <p class="card-sub">Pluviômetros do CEMADEN em Cajamar e região</p><div id="cemaden" class="mut carregando">Carregando…</div></section>
 
-  <section class="card" id="normal-sec">
-    <h2>Chuva recente × normal</h2>
-    <p class="card-sub">Comparação com a média de 30 anos (1991-2020) para Cajamar</p>
+  <details class="colapso" id="normal-sec">
+    <summary><span>Chuva recente × normal<small>Comparação com a média de 30 anos (1991-2020)</small></span></summary>
+    <div class="colapso-corpo">
     <div id="normal" class="mut carregando">Carregando…</div>
-  </section>
+    </div>
+  </details>
 
   <section class="card" id="deslizamentoCard">
     <div class="card-head"><h2>⛰️ Risco de deslizamento</h2></div>
@@ -89,6 +90,7 @@
       </div>
     <div id="deslizamentoPainel" class="mut carregando">Analisando volumes de chuva (1h, 24h e 168h) para risco de deslizamento…</div>
     <div id="statusRioPainel" style="margin-top:8px" hidden></div>
+    <details class="mais-acoes" id="simDeslizDet"><summary>🧮 Simulador / teste rápido de volume</summary>
     <div class="desliz-sim">
       <strong style="font-size:.86rem">🧮 Simulador / Teste Rápido de Volume de Água (mm/h · mm/24h · mm/168h)</strong>
       <p class="mut" style="margin:2px 0 6px;font-size:.78rem">Digite os volumes medidos em campo ou previstos nos boletins para verificar imediatamente o nível de alerta de deslizamento:</p>
@@ -108,6 +110,7 @@
         </div>
       </div>
     </div>
+    </details>
     <details style="margin-top:10px">
       <summary class="mut" style="cursor:pointer;font-weight:600">📋 Ver Tabela Oficial de Critérios de Risco de Deslizamento (Pinheiro et al., 2005; AlertaRio, 2013)</summary>
       <div class="tw" style="margin-top:8px">
@@ -154,20 +157,29 @@
 
   <section class="card" id="previsao"><h2>Previsão oficial do INMET</h2><div id="prevInmet" class="mut carregando">Carregando…</div></section>
 
-  <section class="card"><h2>Chuva prevista nas próximas 24 h</h2>
-    <p class="card-sub">Milímetros por hora, segundo o modelo Open-Meteo (não é medição)</p><div id="horas" class="mut carregando">Carregando…</div><p id="tot24" class="mut" style="margin:8px 0 0"></p></section>
+  <details class="colapso" id="horas-sec">
+    <summary><span>Chuva prevista nas próximas 24 h<small>Milímetros por hora, modelo Open-Meteo (não é medição)</small></span></summary>
+    <div class="colapso-corpo">
+    <div id="horas" class="mut carregando">Carregando…</div><p id="tot24" class="mut" style="margin:8px 0 0"></p>
+    </div>
+  </details>
 
-  <section class="card" id="modelos-sec">
-    <h2>Incerteza da previsão de chuva</h2>
-    <p class="card-sub">Os principais modelos meteorológicos comparados para Cajamar</p>
+  <details class="colapso" id="modelos-sec">
+    <summary><span>Incerteza da previsão de chuva<small>Os principais modelos comparados para Cajamar</small></span></summary>
+    <div class="colapso-corpo">
     <div id="modelos" class="mut carregando">Carregando…</div>
-  </section>
+    </div>
+  </details>
 
-  <section class="card"><h2>Próximos 7 dias</h2><div class="tw" id="dias" class="mut carregando">Carregando…</div></section>
+  <details class="colapso" id="dias-sec">
+    <summary><span>Próximos 7 dias<small>Mínima, máxima e chuva prevista por dia</small></span></summary>
+    <div class="colapso-corpo"><div class="tw mut carregando" id="dias">Carregando…</div></div>
+  </details>
 
   <section class="card" id="fogoCard">
     <div class="card-head"><h2>🔥 Fogo e queimadas</h2></div>
     <p class="card-sub">Focos de calor por satélite (INPE, NASA, CENSIPAM) e condição do tempo para fogo</p>
+    <details class="mais-acoes"><summary>⚙ Filtros: satélite e raio</summary>
     <div class="filtro-periodo">
         <label for="fSatelite">Satélite:</label>
         <select id="fSatelite" aria-label="Filtrar focos por satélite">
@@ -189,6 +201,7 @@
           <option value="300">Estado de SP (até 300 km)</option>
         </select>
       </div>
+    </details>
     <div id="riscoFogoBox" class="mut" style="margin-bottom:10px">Calculando condição meteorológica de fogo…</div>
     <div id="fogo" class="mut carregando">Consultando satélites de queimadas (INPE BDQueimadas)…</div>
   </section>
@@ -211,7 +224,7 @@
   </div>
   </details>
 
-  <section class="card links" id="links"><h2>Fontes oficiais para conferir</h2>
+  <details class="colapso links" id="links"><summary><span>Fontes oficiais para conferir<small>INMET, SAISP, RainViewer, INPE, CENSIPAM e outras</small></span></summary><div class="colapso-corpo">
     <div class="links-grupo">
       <strong>🌧️ Clima, Chuva e Radar:</strong>
       <a href="https://previsao.inmet.gov.br/3509205" target="_blank" rel="noopener">INMET Cajamar</a>
@@ -228,9 +241,10 @@
       <a href="https://alarmes.lasa.ufrj.br/area-queimada/" target="_blank" rel="noopener">ALARMES Área Queimada (LASA/UFRJ)</a>
       <a href="https://www.earthdata.nasa.gov/data/catalog/lpcloud-mcd64a1-061" target="_blank" rel="noopener">NASA Burned Area (MCD64A1)</a>
     </div>
-  </section>
+    </div>
+  </details>
 
-  <p class="mut" style="font-size:.8rem">Previsão: Open-Meteo (modelo, não é medição). Avisos: API oficial do INMET (reserva: radarmeteorologico.com.br, terceiro, só se a oficial falhar). Radar: RainViewer. Satélites e Focos de Calor: INPE BDQueimadas (GOES-19, NPP-375 Manhã/Tarde, NOAA-20, NOAA-21, METOP-B/C, MSG-03, AQUA/TERRA) e camadas NASA GIBS (GOES-East / VIIRS / MODIS). Veja o README para créditos e licenças.</p>
+  <details class="mut creditos"><summary>Créditos e fontes de dados</summary><p style="font-size:.8rem">Previsão: Open-Meteo (modelo, não é medição). Avisos: API oficial do INMET (reserva: radarmeteorologico.com.br, terceiro, só se a oficial falhar). Radar: RainViewer. Satélites e Focos de Calor: INPE BDQueimadas (GOES-19, NPP-375 Manhã/Tarde, NOAA-20, NOAA-21, METOP-B/C, MSG-03, AQUA/TERRA) e camadas NASA GIBS (GOES-East / VIIRS / MODIS). Veja o README para créditos e licenças.</p></details>
 </main>
 <button id="btnTopo" type="button" class="btn-topo" aria-label="Voltar ao topo" hidden>↑</button>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
