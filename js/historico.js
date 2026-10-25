@@ -316,9 +316,7 @@
         });
         if (avUlt) {
           var ban = el("div", "desliz-banner");
-          ban.style.background = avUlt.corFundo;
-          ban.style.borderLeftColor = avUlt.corBorda;
-          ban.style.color = avUlt.corTexto;
+          ban.dataset.nivel = String(avUlt.nivel);
           ban.appendChild(el("strong", "", avUlt.icone + " Último dia registrado (" + fdataLonga(ultDia) + "): " + avUlt.estado.toUpperCase()));
           ban.appendChild(el("span", "", "Volumes: 1h = " + f1(avUlt.mm1h) + " mm/h (" + avUlt.estado1h + ") · 24h = " + f1(avUlt.mm24h) + " mm/24h (" + avUlt.estado24h + ") · 168h (7d) = " + f1(avUlt.mm168h) + " mm/168h (" + avUlt.estado168h + ")"));
           ban.appendChild(el("small", "", avUlt.acaoDefesaCivil));
@@ -355,9 +353,7 @@
           var dUltRio = dias[ultDiaRio];
           var avRioUlt = Estacao.avaliarNivelRio(dUltRio.nvMax, dUltRio.nvDelta, cotasAtuais);
           var banRio = el("div", "desliz-banner");
-          banRio.style.background = avRioUlt.corFundo;
-          banRio.style.borderLeftColor = avRioUlt.corBorda || "#0b6e8f";
-          banRio.style.color = avRioUlt.corTexto;
+          banRio.dataset.rio = avRioUlt.id || "normal";
           banRio.appendChild(el("strong", "", avRioUlt.icone + " Último dia na Régua (" + fdataLonga(ultDiaRio) + "): " + avRioUlt.estado.toUpperCase()));
           banRio.appendChild(el("span", "", "Nível Máx: " + f2(dUltRio.nvMax) + " m · Mín: " + f2(dUltRio.nvMin) + " m · Subida (Δ): +" + Math.round((dUltRio.nvDelta || 0) * 100) + " cm"));
           banRio.appendChild(el("small", "", avRioUlt.motivo));
@@ -394,8 +390,7 @@
       var tdRisco = el("td");
       if (avDia) {
         var bdg = el("span", "desliz-badge", avDia.icone + " " + avDia.estado);
-        bdg.style.background = avDia.corFundo;
-        bdg.style.color = avDia.corTexto;
+        bdg.dataset.nivel = String(avDia.nivel);
         tdRisco.appendChild(bdg);
       } else {
         tdRisco.textContent = "—";
@@ -485,12 +480,16 @@
   }
   if ($("btnSalvarCotasRio") && Estacao.salvarCotasRio) {
     $("btnSalvarCotasRio").onclick = function () {
+      var b = this;
+      if (!b.dataset.originalHtml) b.dataset.originalHtml = b.innerHTML;
       var cAt = parseFloat($("cotaAtencaoM").value) || 1.80;
       var cAl = parseFloat($("cotaAlertaM").value) || 2.30;
       var cTr = parseFloat($("cotaTransbordoM").value) || 2.80;
       Estacao.salvarCotasRio({ atencaoM: cAt, alertaM: cAl, transbordoM: cTr });
       desenhar(true);
       aviso("Cotas de alerta da régua de nível atualizadas (Atenção: " + f2(cAt) + " m · Alerta: " + f2(cAl) + " m · Transbordamento: " + f2(cTr) + " m).", false);
+      b.disabled = true; b.innerHTML = "✅ Cotas salvas!";
+      setTimeout(function () { b.innerHTML = b.dataset.originalHtml; b.disabled = false; }, 2000);
     };
   }
   if ($("btnExportarTudoHist") && Estacao.gerarBackupCompleto) {

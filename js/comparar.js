@@ -329,7 +329,9 @@
     }
 
     aviso("Consultando boletins/modelos históricos no Open-Meteo (Previsão D-1 e Multimodelo)…");
-    $("rodar").disabled = true;
+    var btnRodar = $("rodar");
+    if (btnRodar && !btnRodar.dataset.originalHtml) btnRodar.dataset.originalHtml = btnRodar.innerHTML;
+    if (btnRodar) { btnRodar.disabled = true; btnRodar.innerHTML = "⏳ Consultando modelos…"; }
     try {
       var dIni = chaves[0], dFim = chaves[chaves.length - 1];
       var urlPrevRuns = "https://previous-runs-api.open-meteo.com/v1/forecast?latitude=" + LAT + "&longitude=" + LON +
@@ -498,15 +500,24 @@
         var txtMod = (x.ecmwf !== null ? f1(x.ecmwf) : "—") + " / " + (x.gfs !== null ? f1(x.gfs) : "—");
         tr.appendChild(el("td", "", txtMod));
         tr.appendChild(el("td", "", (d > 0 ? "+" : "") + f1(d) + " mm"));
-        tr.appendChild(el("td", "", x.ok ? "Sim" : (x.prev >= LIMITE ? "Falso alarme" : "Chuva não prev.")));
+        var tdAc = el("td");
+        var bdgAc = el("span", "desliz-badge", x.ok ? "✓ Sim" : (x.prev >= LIMITE ? "Falso alarme" : "Chuva não prev."));
+        bdgAc.dataset.nivel = x.ok ? "0" : (x.prev >= LIMITE ? "1" : "2");
+        tdAc.appendChild(bdgAc);
+        tr.appendChild(tdAc);
         tb.appendChild(tr);
       });
       $("dadosComp").hidden = false;
-      aviso("Comparação concluída com sucesso.");
+      aviso("Comparação concluída com sucesso.", false);
+      $("aviso").className = "warn ok";
+      $("dadosComp").scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (e) {
       aviso("Não foi possível obter as previsões antigas agora (" + (e && e.message ? e.message : "falha") + "). Tente de novo mais tarde.", true);
     } finally {
-      $("rodar").disabled = false;
+      if (btnRodar) {
+        btnRodar.disabled = false;
+        if (btnRodar.dataset.originalHtml) btnRodar.innerHTML = btnRodar.dataset.originalHtml;
+      }
     }
   }
 

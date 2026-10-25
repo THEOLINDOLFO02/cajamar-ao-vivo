@@ -36,6 +36,35 @@
     return false;
   }
 
+  var LOCAIS_PADRAO = [
+    "Pluviômetro Base Defesa Civil",
+    "Jordanésia (Encostas)",
+    "Polvilho",
+    "Cajamar Centro",
+    "Ponunduva / KM 43",
+    "Guaturinho / Vila Nova"
+  ];
+
+  function atualizarLocaisSugeridos() {
+    var dl = $("locaisSugeridos");
+    if (!dl) return;
+    dl.textContent = "";
+    var vistos = {};
+    rows.forEach(function (r) {
+      var l = String(r.local || "").trim();
+      if (l && !vistos[l.toLowerCase()]) {
+        vistos[l.toLowerCase()] = true;
+        var o = document.createElement("option"); o.value = l; dl.appendChild(o);
+      }
+    });
+    LOCAIS_PADRAO.forEach(function (l) {
+      if (!vistos[l.toLowerCase()]) {
+        vistos[l.toLowerCase()] = true;
+        var o = document.createElement("option"); o.value = l; dl.appendChild(o);
+      }
+    });
+  }
+
   // ---------- formulário ----------
   function abrirForm(r) {
     $("form").hidden = false; $("err").hidden = true;
@@ -53,8 +82,11 @@
     $("ventoEscala").value = r ? r.ventoEscala || "" : "";
     $("instrumento").value = r && r.instrumento ? r.instrumento : "Pluviômetro manual";
     $("obs").value = r ? r.obs || "" : "";
-    $("form").scrollIntoView({ block: "start" });
-    $("local").focus();
+    if ($("detVentoObs")) {
+      $("detVentoObs").open = !!(r && (r.ventoKmh !== null || r.ventoDir || r.ventoEscala || (r.instrumento && r.instrumento !== "Pluviômetro manual")));
+    }
+    $("form").scrollIntoView({ behavior: "smooth", block: "start" });
+    $("local").focus({ preventScroll: true });
   }
   function fecharForm() { $("form").hidden = true; $("err").hidden = true; editandoId = null; }
   function erro(t) { var e = $("err"); e.hidden = !t; e.textContent = t || ""; }
@@ -74,6 +106,7 @@
     }
     if (pareceDadoPessoal($("local").value + " " + $("obs").value) &&
         !confirm("O texto parece conter telefone ou CPF. Não registre dados pessoais de moradores. Salvar mesmo assim?")) return;
+    var eraEdicao = !!editandoId;
     var reg = {
       id: editandoId || novoId(), quando: d.toISOString(), local: $("local").value.trim().slice(0, 120),
       chuvaMm: chuva, janela: chuva !== null ? $("janela").value : "", intensidade: $("intensidade").value,
@@ -85,7 +118,8 @@
       rows = rows.map(function (r) { return r.id === editandoId ? Object.assign({}, reg, { criadoEm: r.criadoEm || reg.criadoEm, atualizadoEm: new Date().toISOString() }) : r; });
     } else rows.unshift(reg);
     rows.sort(function (a, b) { return new Date(b.quando) - new Date(a.quando); });
-    aviso(""); salvar(); fecharForm(); render();
+    salvar(); fecharForm(); render();
+    aviso(eraEdicao ? "Observação atualizada com sucesso." : "Observação registrada com sucesso.", "ok");
   };
 
   function apagar(id) {
@@ -183,7 +217,49 @@
     });
   }
 
+  function gerarRelatorioObs() {
+    var vis = filtradas();
+    if (!vis.length) {
+      aviso("Nenhuma observação encontrada com os filtros atuais para copiar.", "ruim");
+      return;
+    }
+    var agora = new Date();
+    var agoraStr = agora.toLocaleDateString("pt-BR") + " às " + agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    var texto = "🌧️ *DEFESA CIVIL DE CAJAMAR — OBSERVAÇÕES MANUAIS DE CAMPO*\n";
+    texto += "📅 *Emissão:* " + agoraStr + " (" + vis.length + " leitura" + (vis.length > 1 ? "s" : "") + ")\n\n";
+    vis.slice(0, 20).forEach(function (r, idx) {
+      texto += (idx + 1) + ". 📍 *" + r.local + "* (" + fmt(r.quando) + ")\n";
+      var partes = [];
+      if (r.chuvaMm !== null) partes.push("Chuva: *" + f1(r.chuvaMm) + " mm* (" + (r.janela || "—") + ")");
+      if (r.intensidade) partes.push("Intensidade: " + r.intensidade);
+      if (r.ventoKmh !== null) partes.push("Vento: *" + Math.round(r.ventoKmh) + " km/h*" + (r.ventoDir ? " (" + r.ventoDir + ")" : ""));
+      if (r.ventoEscala) partes.push("Vento: " + r.ventoEscala);
+      if (partes.length) texto += "   • " + partes.join(" | ") + "\n";
+      var av = avaliarDeslizamentoObservacao(r);
+      if (av) texto += "   • ⛰️ Deslizamento: " + av.icone + " *" + av.estado + "*\n";
+      if (r.obs) texto += "   • 📝 " + r.obs + "\n";
+    });
+    texto += "\n━━━━━━━━━━━━━━━━━━━━\nDefesa Civil de Cajamar (199)";
+
+    var btn = $("relatorioObs");
+    if (btn && !btn.dataset.originalHtml) btn.dataset.originalHtml = btn.innerHTML;
+    function okCopy() {
+      aviso("📋 Resumo das observações copiado! Cole no WhatsApp da equipe.", "ok");
+      if (!btn) return;
+      btn.disabled = true;
+      btn.innerHTML = "✅ Copiado!";
+      setTimeout(function () {
+        btn.innerHTML = btn.dataset.originalHtml;
+        btn.disabled = false;
+      }, 2000);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(texto).then(okCopy).catch(function () { okCopy(); });
+    } else okCopy();
+  }
+
   function render() {
+    atualizarLocaisSugeridos();
     var vis = filtradas();
     // resumo
     var rs = $("resumo"); rs.textContent = "";
@@ -208,7 +284,9 @@
     // lista
     var ul = $("lista"); ul.textContent = "";
     if (!vis.length) {
-      var li = el("li", "mut", rows.length ? "Nenhuma observação com esses filtros." : "Nenhuma observação registrada. Toque em “Nova observação” para começar.");
+      var li = el("li", "empty");
+      li.appendChild(el("b", "", rows.length ? "Nenhuma observação com esses filtros" : "Nenhuma observação registrada"));
+      li.appendChild(el("span", "", rows.length ? "Ajuste o período ou o termo de busca acima." : "Toque em “+ Nova observação” para anotar a primeira leitura."));
       ul.appendChild(li); return;
     }
     vis.forEach(function (r) {
@@ -225,19 +303,19 @@
       var avObs = avaliarDeslizamentoObservacao(r);
       if (avObs) {
         var bdg = el("span", "desliz-badge", "⛰️ " + avObs.icone + " " + avObs.estado);
-        bdg.style.background = avObs.corFundo;
-        bdg.style.color = avObs.corTexto;
+        bdg.dataset.nivel = String(avObs.nivel);
         v.appendChild(bdg);
       }
       li.appendChild(v);
       if (r.obs) li.appendChild(el("div", "texto", r.obs));
       var ac = el("div", "acoes");
       var be = el("button", "btn small", "Editar"); be.type = "button"; be.onclick = function () { abrirForm(r); }; ac.appendChild(be);
-      var ba = el("button", "btn small", "Apagar"); ba.type = "button"; ba.onclick = function () { apagar(r.id); }; ac.appendChild(ba);
+      var ba = el("button", "btn small perigo", "Apagar"); ba.type = "button"; ba.onclick = function () { apagar(r.id); }; ac.appendChild(ba);
       li.appendChild(ac); ul.appendChild(li);
     });
   }
   $("fperiodo").onchange = render; $("fbusca").oninput = render;
+  if ($("relatorioObs")) $("relatorioObs").onclick = gerarRelatorioObs;
 
   rows = carregar().sort(function (a, b) { return new Date(b.quando) - new Date(a.quando); });
   render();

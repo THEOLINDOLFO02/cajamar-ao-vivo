@@ -191,7 +191,8 @@
       B.textContent = ""; B.className = "";
       aviso(B, r);
       if (!chaves.length) { B.appendChild(el("span", "mut", "O INMET não trouxe previsão para Cajamar nesta consulta.")); return; }
-      chaves.forEach(function (dia) {
+      var VISIVEIS_PREV = 2, maisDias = null;
+      chaves.forEach(function (dia, idxDia) {
         var per = dias[dia] || {}, ref = per.manha || per.tarde || per.noite || per;
         var porPeriodo = !!(per.manha || per.tarde || per.noite);
         var d = el("div", "pdia");
@@ -210,9 +211,23 @@
           linha.appendChild(el("span", "", (x.resumo || "sem descrição") + (x.dir_vento ? " · vento " + x.dir_vento + (x.int_vento ? " (" + String(x.int_vento).toLowerCase() + ")" : "") : "")));
           d.appendChild(linha);
         });
-        B.appendChild(d);
+        if (idxDia < VISIVEIS_PREV) {
+          B.appendChild(d);
+        } else {
+          if (!maisDias) {
+            var rest = chaves.length - VISIVEIS_PREV;
+            maisDias = el("details", "mais-acoes");
+            maisDias.style.marginTop = "8px";
+            maisDias.appendChild(el("summary", "", "Ver próximos " + rest + (rest === 1 ? " dia" : " dias") + " da previsão INMET"));
+            B.appendChild(maisDias);
+          }
+          maisDias.appendChild(d);
+        }
       });
-      B.appendChild(el("p", "mut", "Fonte: previsão do INMET para o município (fonte oficial). Compare com a previsão de modelo do Open-Meteo abaixo."));
+      var pFonte = el("p", "mut", "Fonte: previsão do INMET para o município (fonte oficial). Compare com a previsão de modelo do Open-Meteo abaixo.");
+      pFonte.style.marginTop = "8px";
+      pFonte.style.fontSize = ".84rem";
+      B.appendChild(pFonte);
     } catch (e) {
       fail(B, "Não foi possível consultar a previsão do INMET agora. Veja previsao.inmet.gov.br/3509205.");
     }

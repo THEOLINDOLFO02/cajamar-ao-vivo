@@ -30,81 +30,90 @@
     </nav>
 <main id="conteudo">
   <div class="pagina-cab"><h1>Gerar publicação</h1><p class="sub">Imagens e legendas para Instagram e WhatsApp</p></div>
-    <div class="aux"><b>Panfletos e Publicações para Redes Sociais.</b> Gere panfletos visuais (<b>Diário</b> ou para <b>5 Dias</b>) com as informações que o morador de Cajamar precisa saber (temperaturas, manhã/tarde/noite, chance de chuva, vento, umidade, alertas e cuidados), prontos para postar no Instagram, WhatsApp ou Facebook nos formatos Stories (9:16) e Feed (1:1 ou 4:5).</div>
+  <div class="aux aux-curto">📱 Gere panfletos prontos para <b>Instagram, WhatsApp ou Facebook</b> nos formatos Stories (9:16), Retrato (4:5) e Quadrado (1:1).
+    <details><summary>Detalhes</summary>Escolha um panfleto abaixo (Diário, 5 Dias, Deslizamento, Risco de Fogo, Estações + Rio, Avisos ou Dicas). Os dados atuais de Cajamar preenchem a arte e a legenda sozinhos, e você pode personalizar qualquer texto antes de baixar ou compartilhar.</details>
+  </div>
 
-  <section class="card">
-    <h2>1. Escolha o Panfleto / Tipo e Formato</h2>
-    <div class="barra-modos-mapa" style="margin-bottom:12px">
-      <button type="button" class="btn small atalho-pub ativo-modo" data-tipo="flyer_dia">📰 Panfleto Diário (População)</button>
-      <button type="button" class="btn small atalho-pub" data-tipo="flyer_5dias">📅 Panfleto 5 Dias (População)</button>
-      <button type="button" class="btn small atalho-pub" data-tipo="flyer_deslizamento">⛰️ Alerta de Deslizamento</button>
-      <button type="button" class="btn small atalho-pub" data-tipo="flyer_fogo">🔥 Panfleto Risco de Fogo</button>
-      <button type="button" class="btn small atalho-pub" data-tipo="flyer_estacoes">🌧️🌊 Balanço Estações + Rio</button>
-      <button type="button" class="btn small atalho-pub" data-tipo="aviso">⚠️ Aviso INMET</button>
-      <button type="button" class="btn small atalho-pub" data-tipo="dica">🛟 Dicas de Prevenção</button>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
-      <label class="campo">Tipo de publicação
-        <select id="tipo">
-          <option value="flyer_dia">📰 Panfleto Diário do Clima (para a População)</option>
-          <option value="flyer_5dias">📅 Panfleto de 5 Dias (Previsão para a População)</option>
-          <option value="flyer_deslizamento">⛰️ Panfleto de Risco de Deslizamento (Critérios 1h / 24h / 168h)</option>
-          <option value="flyer_fogo">🔥 Panfleto de Risco de Fogo e Estiagem (Satélites + Clima)</option>
-          <option value="flyer_estacoes">🌧️🌊 Balanço das 3 Estações + Régua do Rio (CSV)</option>
-          <option value="aviso">⚠️ Aviso oficial do INMET</option>
-          <option value="prevdia">Previsão do dia (texto INMET)</option>
-          <option value="prevsemana">Previsão dos próximos dias (texto INMET)</option>
-          <option value="chuva">Chuva medida em Cajamar (1 estação)</option>
-          <option value="semana">Resumo semanal da chuva (estação)</option>
-          <option value="dica">Dica de prevenção</option>
-        </select>
+  <div class="pub-grade">
+    <section class="card" id="secEscolhaPub">
+      <h2>1. Escolha o panfleto e formato</h2>
+      <div class="barra-modos-mapa" style="margin-bottom:12px" role="group" aria-label="Modelos principais de panfleto">
+        <button type="button" class="btn small atalho-pub ativo-modo" data-tipo="flyer_dia">📰 Panfleto Diário</button>
+        <button type="button" class="btn small atalho-pub" data-tipo="flyer_5dias">📅 Panfleto 5 Dias</button>
+        <button type="button" class="btn small atalho-pub" data-tipo="flyer_deslizamento">⛰️ Risco Deslizamento</button>
+        <button type="button" class="btn small atalho-pub" data-tipo="flyer_fogo">🔥 Risco de Fogo</button>
+        <button type="button" class="btn small atalho-pub" data-tipo="flyer_estacoes">🌧️🌊 Estações + Rio</button>
+        <button type="button" class="btn small atalho-pub" data-tipo="aviso">⚠️ Aviso INMET</button>
+        <button type="button" class="btn small atalho-pub" data-tipo="dica">🛟 Dicas de Prevenção</button>
+      </div>
+      <div class="grade2">
+        <label class="campo">Formato da imagem
+          <select id="formato">
+            <option value="stories">Stories / Status WhatsApp (1080 × 1920 · 9:16)</option>
+            <option value="retrato">Feed Retrato Instagram (1080 × 1350 · 4:5)</option>
+            <option value="feed">Feed Quadrado (1080 × 1080 · 1:1)</option>
+          </select>
+        </label>
+        <label class="campo">Nível / Cor da faixa de status
+          <select id="nivelFaixa">
+            <option value="auto">🔄 Automático (conforme condição do tempo)</option>
+            <option value="normal">🟢 Normalidade (Verde)</option>
+            <option value="atencao">🟡 Observação (Amarelo)</option>
+            <option value="alerta">🟠 Atenção (Laranja)</option>
+            <option value="emergencia">🔴 Alerta (Vermelho)</option>
+            <option value="maximo">🟣 Alerta Máximo (Roxo)</option>
+          </select>
+        </label>
+      </div>
+      <label class="campo" id="boxEscolha">Dia / Opção
+        <select id="escolha"></select>
       </label>
-      <label class="campo">Formato da imagem
-        <select id="formato">
-          <option value="stories">Stories / Status WhatsApp (1080 × 1920 · 9:16)</option>
-          <option value="retrato">Feed Retrato Instagram (1080 × 1350 · 4:5)</option>
-          <option value="feed">Feed Quadrado (1080 × 1080 · 1:1)</option>
-        </select>
-      </label>
-      <label class="campo">Nível / Cor da faixa de status
-        <select id="nivelFaixa">
-          <option value="auto">🔄 Automático (conforme condição do tempo)</option>
-          <option value="normal">🟢 Normalidade (Verde)</option>
-          <option value="atencao">🟡 Observação (Amarelo)</option>
-          <option value="alerta">🟠 Atenção (Laranja)</option>
-          <option value="emergencia">🔴 Alerta (Vermelho)</option>
-          <option value="maximo">🟣 Alerta Máximo (Roxo)</option>
-        </select>
-      </label>
-    </div>
-    <label class="campo" id="boxEscolha">Dia / Opção
-      <select id="escolha"></select>
-    </label>
-    <p id="status" class="mut" style="margin:6px 0 0;font-size:.86rem" aria-live="polite"></p>
-  </section>
+      <details class="mais-acoes" id="detOutrosTiposPub">
+        <summary>Outros modelos (texto INMET, 1 estação, resumo semanal)</summary>
+        <label class="campo" style="margin:6px 0 0">Tipo completo de publicação
+          <select id="tipo">
+            <option value="flyer_dia">📰 Panfleto Diário do Clima (para a População)</option>
+            <option value="flyer_5dias">📅 Panfleto de 5 Dias (Previsão para a População)</option>
+            <option value="flyer_deslizamento">⛰️ Panfleto de Risco de Deslizamento (Critérios 1h / 24h / 168h)</option>
+            <option value="flyer_fogo">🔥 Panfleto de Risco de Fogo e Estiagem (Satélites + Clima)</option>
+            <option value="flyer_estacoes">🌧️🌊 Balanço das 3 Estações + Régua do Rio (CSV)</option>
+            <option value="aviso">⚠️ Aviso oficial do INMET</option>
+            <option value="prevdia">Previsão do dia (texto INMET)</option>
+            <option value="prevsemana">Previsão dos próximos dias (texto INMET)</option>
+            <option value="chuva">Chuva medida em Cajamar (1 estação)</option>
+            <option value="semana">Resumo semanal da chuva (estação)</option>
+            <option value="dica">Dica de prevenção</option>
+          </select>
+        </label>
+      </details>
+      <p id="status" class="mut" style="margin:6px 0 0;font-size:.86rem" aria-live="polite"></p>
+    </section>
 
-  <section class="card">
-    <h2>2. Conteúdo (editável)</h2>
-    <label class="campo">Texto da faixa superior de status<input id="textoFaixa" maxlength="80" placeholder="Ex.: 🟢 CONDIÇÃO NORMAL · TEMPO SEM ALERTAS SEVEROS"></label>
-    <label class="campo">Título<input id="titulo" maxlength="90"></label>
-    <label class="campo">Subtítulo<input id="subtitulo" maxlength="110"></label>
-    <label class="campo">Linhas / Orientações da imagem (uma por linha)<textarea id="linhas" rows="7"></textarea></label>
-    <label class="campo">Telefone/contato local da Defesa Civil (opcional, fica salvo neste aparelho)<input id="contato" maxlength="60" placeholder="Ex.: (11) 4446-0199"></label>
-    <label class="campo">Legenda para redes sociais (Instagram / WhatsApp / Facebook)<textarea id="legenda" rows="8"></textarea></label>
-  </section>
+    <section class="card pub-previa-card" id="secPreviaPub">
+      <h2>2. Prévia e compartilhamento</h2>
+      <div class="previa"><canvas id="tela" width="1080" height="1920" aria-label="Prévia da imagem para publicação"></canvas></div>
+      <div class="barra-acoes">
+        <button id="compartilhar" type="button" class="btn primary">📲 Compartilhar (Instagram / WhatsApp)</button>
+        <button id="copiarImg" type="button" class="btn">📋 Copiar imagem (Ctrl+V)</button>
+        <button id="baixar" type="button" class="btn small">💾 Baixar PNG</button>
+        <button id="copiar" type="button" class="btn small">📝 Copiar legenda</button>
+      </div>
+      <p id="msg" class="mut" style="margin:8px 0 0;font-size:.86rem" aria-live="polite"></p>
+    </section>
 
-  <section class="card">
-    <h2>3. Prévia</h2>
-    <div class="previa"><canvas id="tela" width="1080" height="1920" aria-label="Prévia da imagem para publicação"></canvas></div>
-    <div class="barra-acoes">
-      <button id="compartilhar" type="button" class="btn primary">📲 Compartilhar (Instagram / WhatsApp)</button>
-      <button id="copiarImg" type="button" class="btn">📋 Copiar imagem (Ctrl+V no WhatsApp)</button>
-      <button id="baixar" type="button">💾 Baixar imagem (PNG)</button>
-      <button id="copiar" type="button">📝 Copiar legenda</button>
-    </div>
-    <p id="msg" class="mut" style="margin:8px 0 0;font-size:.86rem" aria-live="polite"></p>
-  </section>
-  <p class="mut" style="font-size:.8rem">Os textos de “dicas de prevenção” são gerais: revise e ajuste conforme o protocolo da sua Defesa Civil. Para a imagem poder ser baixada ou compartilhada, abra a página por um endereço http(s), não direto do arquivo.</p>
+    <details class="colapso" id="detEditarPub">
+      <summary><span>3. Personalizar textos e legenda (opcional)<small>Edite título, faixa de status, orientações, telefone e legenda da rede social</small></span></summary>
+      <div class="colapso-corpo">
+        <label class="campo">Texto da faixa superior de status<input id="textoFaixa" maxlength="80" placeholder="Ex.: 🟢 CONDIÇÃO NORMAL · TEMPO SEM ALERTAS SEVEROS"></label>
+        <label class="campo">Título<input id="titulo" maxlength="90"></label>
+        <label class="campo">Subtítulo<input id="subtitulo" maxlength="110"></label>
+        <label class="campo">Linhas / Orientações da imagem (uma por linha)<textarea id="linhas" rows="6"></textarea></label>
+        <label class="campo">Telefone/contato local da Defesa Civil (opcional, fica salvo neste aparelho)<input id="contato" maxlength="60" placeholder="Ex.: (11) 4446-0199"></label>
+        <label class="campo" style="margin-bottom:0">Legenda para redes sociais (Instagram / WhatsApp / Facebook)<textarea id="legenda" rows="7"></textarea></label>
+      </div>
+    </details>
+  </div>
+  <details class="mut creditos"><summary>ⓘ Sobre as dicas e exportação de imagem</summary><p style="font-size:.8rem">Os textos de “dicas de prevenção” são gerais: revise e ajuste conforme o protocolo da sua Defesa Civil. Para a imagem poder ser baixada ou compartilhada, abra a página por um endereço http(s), não direto do arquivo.</p></details>
 </main>
 <script src="js/fontes.js"></script>
 <script src="js/inmet.js"></script>

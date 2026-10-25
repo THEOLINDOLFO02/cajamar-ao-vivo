@@ -30,25 +30,33 @@
     </nav>
 <main id="conteudo">
   <div class="pagina-cab"><h1>Observações manuais</h1><p class="sub">Leituras de chuva e vento feitas à mão</p></div>
-    <div class="aux">Para anotar leituras feitas à mão (pluviômetro manual, anemômetro ou estimativa visual) enquanto não há registro automático. Os registros ficam <b>só neste aparelho e navegador</b>. <b>Não anote nomes, telefones ou documentos de moradores.</b> Este modelo é um ponto de partida: combine com sua chefia o horário e o local fixos das leituras, para os dados ficarem comparáveis. Limpar os dados do navegador apaga tudo: use <b>Exportar</b> para backup.</div>
+  <div class="aux aux-curto">🔒 Os registros ficam <b>só neste aparelho e navegador</b>. Não anote nomes, telefones ou documentos de moradores.
+    <details><summary>Detalhes</summary>Para anotar leituras feitas à mão (pluviômetro manual, anemômetro ou estimativa visual) enquanto não há registro automático. Combine com sua chefia o horário e o local fixos das leituras, para os dados ficarem comparáveis. Limpar os dados do navegador apaga tudo: use <b>Backup e planilha</b> abaixo.</details>
+  </div>
 
   <div class="barra-acoes">
     <button id="novo" type="button" class="btn primary">+ Nova observação</button>
-    <button id="exportar" type="button">Exportar backup (.json)</button>
-    <button id="exportarCsv" type="button">Exportar planilha (.csv)</button>
-    <button id="importar" type="button">Importar backup</button>
-    <input id="arquivo" type="file" accept="application/json,.json" hidden>
+    <button id="relatorioObs" type="button" class="btn" title="Copiar resumo das leituras manuais para o WhatsApp da equipe">📋 Resumo para WhatsApp</button>
   </div>
+  <details class="mais-acoes">
+    <summary>Backup e planilha (.csv / .json)</summary>
+    <div class="barra-acoes">
+      <button id="exportar" type="button" class="btn small">💾 Exportar backup (.json)</button>
+      <button id="exportarCsv" type="button" class="btn small">📊 Exportar planilha (.csv)</button>
+      <button id="importar" type="button" class="btn small">📂 Importar backup</button>
+      <input id="arquivo" type="file" accept="application/json,.json" hidden>
+    </div>
+  </details>
   <div id="aviso" class="warn" hidden></div>
 
   <form id="form" class="card" hidden>
     <h2 id="tituloForm">Nova observação</h2>
     <div class="grade2">
       <label class="campo">Data e hora da leitura<input id="quando" type="datetime-local" required></label>
-      <label class="campo">Local / ponto da leitura<input id="local" maxlength="120" required placeholder="Ex.: pluviômetro do pátio da base"></label>
+      <label class="campo">Local / ponto da leitura<input id="local" list="locaisSugeridos" maxlength="120" required placeholder="Ex.: pluviômetro do pátio da base"><datalist id="locaisSugeridos"></datalist></label>
     </div>
     <fieldset class="grupo">
-      <legend>Chuva</legend>
+      <legend>🌧️ Chuva</legend>
       <div class="grade2">
         <label class="campo">Chuva acumulada (mm)<input id="chuva" type="number" min="0" max="500" step="0.1" inputmode="decimal" placeholder="Deixe em branco se não mediu"></label>
         <label class="campo">Acumulado em qual período?
@@ -73,41 +81,44 @@
         </select>
       </label>
     </fieldset>
-    <fieldset class="grupo">
-      <legend>Vento</legend>
+    <details class="mais-acoes" id="detVentoObs">
+      <summary>💨 Vento e instrumento de medição (opcional)</summary>
+      <fieldset class="grupo" style="margin-top:8px">
+        <legend>Vento</legend>
+        <div class="grade2">
+          <label class="campo">Velocidade (km/h)<input id="vento" type="number" min="0" max="300" step="1" inputmode="numeric" placeholder="Se tiver anemômetro"></label>
+          <label class="campo">Direção (de onde vem)
+            <select id="direcao">
+              <option value="">Não informada</option>
+              <option>N</option><option>NE</option><option>L</option><option>SE</option>
+              <option>S</option><option>SO</option><option>O</option><option>NO</option>
+              <option>Variável</option>
+            </select>
+          </label>
+        </div>
+        <label class="campo">Intensidade observada (estimativa visual)
+          <select id="ventoEscala">
+            <option value="">Não avaliada</option>
+            <option>Calmo</option>
+            <option>Fraco</option>
+            <option>Moderado</option>
+            <option>Forte</option>
+            <option>Muito forte / rajadas</option>
+          </select>
+        </label>
+      </fieldset>
       <div class="grade2">
-        <label class="campo">Velocidade (km/h)<input id="vento" type="number" min="0" max="300" step="1" inputmode="numeric" placeholder="Se tiver anemômetro"></label>
-        <label class="campo">Direção (de onde vem)
-          <select id="direcao">
-            <option value="">Não informada</option>
-            <option>N</option><option>NE</option><option>L</option><option>SE</option>
-            <option>S</option><option>SO</option><option>O</option><option>NO</option>
-            <option>Variável</option>
+        <label class="campo">Como foi medido?
+          <select id="instrumento">
+            <option>Pluviômetro manual</option>
+            <option>Anemômetro manual</option>
+            <option>Estação automática</option>
+            <option>Estimativa visual</option>
+            <option>Outro</option>
           </select>
         </label>
       </div>
-      <label class="campo">Intensidade observada (estimativa visual)
-        <select id="ventoEscala">
-          <option value="">Não avaliada</option>
-          <option>Calmo</option>
-          <option>Fraco</option>
-          <option>Moderado</option>
-          <option>Forte</option>
-          <option>Muito forte / rajadas</option>
-        </select>
-      </label>
-    </fieldset>
-    <div class="grade2">
-      <label class="campo">Como foi medido?
-        <select id="instrumento">
-          <option>Pluviômetro manual</option>
-          <option>Anemômetro manual</option>
-          <option>Estação automática</option>
-          <option>Estimativa visual</option>
-          <option>Outro</option>
-        </select>
-      </label>
-    </div>
+    </details>
     <label class="campo">Observações (sem dados pessoais)<textarea id="obs" rows="3" maxlength="300" placeholder="Ex.: chuva com vento forte, queda de galhos no entorno"></textarea></label>
     <div id="err" class="warn ruim" hidden></div>
     <div class="barra-acoes">

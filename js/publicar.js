@@ -1558,6 +1558,17 @@
   }
 
   // ---------- ações ----------
+  function feedbackBotao(btn, texto) {
+    if (!btn) return;
+    if (!btn.dataset.originalHtml) btn.dataset.originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = texto;
+    setTimeout(function () {
+      btn.innerHTML = btn.dataset.originalHtml;
+      btn.disabled = false;
+    }, 2000);
+  }
+
   $("compartilhar").onclick = function () {
     setMsg("");
     try {
@@ -1584,10 +1595,11 @@
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
         try { await navigator.clipboard.writeText($("legenda").value); } catch (e) {}
+        feedbackBotao($("compartilhar"), "✅ Baixado + Copiado!");
         setMsg("Panfleto baixado e legenda copiada! Cole no Instagram, WhatsApp ou Facebook.");
       }, "image/png");
     } catch (e) {
-      setMsg("Não foi possível compartilhar automaticamente. Use Baixar imagem e Copiar legenda.");
+      setMsg("Não foi possível compartilhar automaticamente. Use Baixar PNG e Copiar legenda.");
     }
   };
 
@@ -1600,14 +1612,15 @@
           if (navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem !== "undefined") {
             try {
               await navigator.clipboard.write([new ClipboardItem({ "image/png": b })]);
+              feedbackBotao($("copiarImg"), "✅ Imagem copiada!");
               setMsg("✅ Imagem copiada! Agora basta dar Ctrl+V direto na conversa do WhatsApp Web.");
               return;
             } catch (errClip) {}
           }
-          setMsg("Seu navegador bloqueou a cópia direta de imagem. Use o botão “Baixar imagem (PNG)”.");
+          setMsg("Seu navegador bloqueou a cópia direta de imagem. Use o botão “Baixar PNG”.");
         }, "image/png");
       } catch (e) {
-        setMsg("Não foi possível copiar a imagem. Use o botão “Baixar imagem (PNG)”.");
+        setMsg("Não foi possível copiar a imagem. Use o botão “Baixar PNG”.");
       }
     };
   }
@@ -1622,13 +1635,21 @@
         a.download = nomeArq;
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+        feedbackBotao($("baixar"), "✅ Baixado!");
         setMsg("Panfleto baixado em PNG. Revise antes de publicar.");
       }, "image/png");
     } catch (e) { setMsg("Não foi possível exportar a imagem. Abra a página por http(s) e tente de novo."); }
   };
   $("copiar").onclick = async function () {
-    try { await navigator.clipboard.writeText($("legenda").value); setMsg("Legenda copiada."); }
-    catch (e) { $("legenda").select(); setMsg("Não consegui copiar sozinho: o texto está selecionado, use copiar do aparelho."); }
+    try {
+      await navigator.clipboard.writeText($("legenda").value);
+      feedbackBotao($("copiar"), "✅ Legenda copiada!");
+      setMsg("Legenda copiada.");
+    } catch (e) {
+      if ($("detEditarPub")) $("detEditarPub").open = true;
+      $("legenda").select();
+      setMsg("Não consegui copiar sozinho: o texto está selecionado, use copiar do aparelho.");
+    }
   };
 
   var btsAtalho = document.querySelectorAll(".atalho-pub");
@@ -1637,6 +1658,10 @@
       $("tipo").value = this.getAttribute("data-tipo");
       atualizarEscolha();
     };
+  }
+
+  if ($("detEditarPub") && window.innerWidth >= 820) {
+    $("detEditarPub").open = true;
   }
 
   ["titulo", "subtitulo", "linhas", "textoFaixa"].forEach(function (i) { if ($(i)) $(i).oninput = desenhar; });

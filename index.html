@@ -77,20 +77,21 @@
   <section class="card" id="deslizamentoCard">
     <div class="card-head"><h2>⛰️ Risco de deslizamento</h2></div>
     <p class="card-sub">Critérios de chuva em 1 h, 24 h e 168 h (Pinheiro et al., 2005; AlertaRio, 2013)</p>
-    <div class="filtro-periodo">
-        <label for="fFonteDesliz">Fonte dos volumes:</label>
-        <select id="fFonteDesliz" aria-label="Escolher fonte de volume de chuva para análise de deslizamento">
-          <option value="auto">Automático (Maior volume: Estações CSV / Série 168h)</option>
-          <option value="serie">Série Horária Cajamar (1h / 24h / 168h ao vivo)</option>
-          <option value="estacoes">Estações Locais de Cajamar (último dia no CSV)</option>
-          <option value="simulador">Simulador / Leitura Manual de Pluviômetro</option>
-        </select>
-        <a href="publicar.html" class="btn small">📰 Gerar Panfleto de Alerta</a>
-        <button id="btnAbrirOcorrenciaDesliz" type="button" class="btn small" title="Abrir ficha de ocorrência ou vistoria preventiva de encosta já preenchida com os volumes atuais">🚨 Abrir Vistoria / Ocorrência</button>
-      </div>
     <div id="deslizamentoPainel" class="mut carregando">Analisando volumes de chuva (1h, 24h e 168h) para risco de deslizamento…</div>
     <div id="statusRioPainel" style="margin-top:8px" hidden></div>
-    <details class="mais-acoes" id="simDeslizDet"><summary>🧮 Simulador / teste rápido de volume</summary>
+    <div class="filtro-periodo" style="margin-top:12px;margin-bottom:0">
+        <button id="btnAbrirOcorrenciaDesliz" type="button" class="btn small" title="Abrir ficha de ocorrência ou vistoria preventiva de encosta já preenchida com os volumes atuais">🚨 Abrir Vistoria / Ocorrência</button>
+        <a href="publicar.html" class="btn small">📰 Gerar Panfleto de Alerta</a>
+        <label for="fFonteDesliz">Fonte dos volumes:
+          <select id="fFonteDesliz" aria-label="Escolher fonte de volume de chuva para análise de deslizamento">
+            <option value="auto">Automático (Maior volume: Estações CSV / Série 168h)</option>
+            <option value="serie">Série Horária Cajamar (1h / 24h / 168h ao vivo)</option>
+            <option value="estacoes">Estações Locais de Cajamar (último dia no CSV)</option>
+            <option value="simulador">Simulador / Leitura Manual de Pluviômetro</option>
+          </select>
+        </label>
+      </div>
+    <details class="mais-acoes" id="simDeslizDet" style="margin-top:8px"><summary>🧮 Simulador / teste rápido de volume</summary>
     <div class="desliz-sim">
       <strong style="font-size:.86rem">🧮 Simulador / Teste Rápido de Volume de Água (mm/h · mm/24h · mm/168h)</strong>
       <p class="mut" style="margin:2px 0 6px;font-size:.78rem">Digite os volumes medidos em campo ou previstos nos boletins para verificar imediatamente o nível de alerta de deslizamento:</p>
@@ -146,13 +147,16 @@
     </div>
     <div id="mapa"></div>
     <div class="rc" id="radarControles">
-      <button id="play" type="button">Pausar</button>
+      <button id="play" type="button" class="btn small" style="min-width:96px">Pausar</button>
       <input id="slider" type="range" min="0" max="0" value="0" aria-label="Quadro do radar">
       <span id="rt" class="mut"></span>
     </div>
     <p id="rmsg" class="mut" style="margin:6px 0 0;font-size:.82rem">Carregando radar…</p>
-    <p id="amsg" class="mut" style="margin:4px 0 0;font-size:.82rem"></p>
-    <p id="imsg" class="mut" style="margin:4px 0 0;font-size:.82rem"></p>
+    <details class="mais-acoes" style="margin:4px 0 0">
+      <summary>Legenda do limite municipal (IBGE) e áreas de aviso</summary>
+      <p id="amsg" class="mut" style="margin:4px 0 0;font-size:.82rem"></p>
+      <p id="imsg" class="mut" style="margin:4px 0 0;font-size:.82rem"></p>
+    </details>
   </section>
 
   <section class="card" id="previsao"><h2>Previsão oficial do INMET</h2><div id="prevInmet" class="mut carregando">Carregando…</div></section>

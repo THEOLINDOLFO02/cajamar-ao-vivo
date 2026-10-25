@@ -31,23 +31,30 @@
 <main class="wrap" id="conteudo">
   <div class="pagina-cab"><h1>Quadro de ocorrências</h1><p class="sub">Registro rápido da equipe, salvo só neste aparelho</p></div>
   
-  <div class="warn">Os registros ficam <b>só neste aparelho e navegador</b> (não vão para a internet). Não anote nomes, telefones ou documentos de moradores. Limpar os dados do navegador apaga tudo: use <b>Exportar</b> para fazer backup.</div>
+  <div class="warn aux-curto">🔒 Os registros ficam <b>só neste aparelho e navegador</b>. Não anote nomes, telefones ou documentos de moradores.
+    <details><summary>Detalhes</summary>Estes registros não vão para a internet. Limpar os dados do navegador apaga tudo: use <b>Backup (.json)</b> abaixo para guardar uma cópia de segurança.</details>
+  </div>
   <div class="counts" id="counts"></div>
   <div class="actions">
     <button class="btn primary" id="novo" type="button">+ Nova ocorrência</button>
     <button class="btn" id="relatorio" type="button" title="Copiar relatório formatado para o WhatsApp da equipe">📋 Resumo para WhatsApp</button>
-    <button class="btn" id="exportar" type="button">Exportar backup</button>
-    <button class="btn" id="importar" type="button">Importar backup</button>
-    <input id="arquivo" type="file" accept="application/json,.json" hidden>
   </div>
-  <form id="form" hidden>
+  <details class="mais-acoes">
+    <summary>Backup (.json)</summary>
+    <div class="barra-acoes">
+      <button class="btn small" id="exportar" type="button">💾 Exportar backup</button>
+      <button class="btn small" id="importar" type="button">📂 Importar backup</button>
+      <input id="arquivo" type="file" accept="application/json,.json" hidden>
+    </div>
+  </details>
+  <form id="form" class="card" hidden>
     <h2 id="formTitulo" style="margin:0;font-size:1.1rem">Nova ocorrência</h2>
     <div class="row2">
       <label>Categoria<select id="tipo" required></select></label>
       <label>Tipo<select id="subtipo" required></select></label>
     </div>
     <div class="row2">
-      <label>Bairro / local<input id="local" maxlength="120" required placeholder="Ex.: bairro ou ponto de referência"></label>
+      <label>Bairro / local<input id="local" list="bairrosCajamar" maxlength="120" required placeholder="Ex.: bairro ou ponto de referência"><datalist id="bairrosCajamar"></datalist></label>
       <label>Data e hora<input id="quando" type="datetime-local" required></label>
     </div>
     <div class="row2" id="boxStatus" hidden>

@@ -88,8 +88,50 @@
     $("local").focus();
   }
 
+  var BAIRROS_PADRAO = [
+    "Jordanésia",
+    "Polvilho",
+    "Cajamar Centro",
+    "Ponunduva",
+    "KM 43 (Anhanguera)",
+    "Guaturinho",
+    "Vila Nova",
+    "Portal dos Ipês",
+    "Parque São Roberto",
+    "Paraíso"
+  ];
+
+  function atualizarBairrosSugeridos() {
+    var dl = $("bairrosCajamar");
+    if (!dl) return;
+    dl.textContent = "";
+    var vistos = {};
+    rows.forEach(function (r) {
+      var l = String(r.local || "").trim();
+      if (l && !vistos[l.toLowerCase()]) {
+        vistos[l.toLowerCase()] = true;
+        var o = document.createElement("option"); o.value = l; dl.appendChild(o);
+      }
+    });
+    BAIRROS_PADRAO.forEach(function (l) {
+      if (!vistos[l.toLowerCase()]) {
+        vistos[l.toLowerCase()] = true;
+        var o = document.createElement("option"); o.value = l; dl.appendChild(o);
+      }
+    });
+  }
+
+  function pareceDadoPessoal(texto) {
+    var t = String(texto);
+    if (/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/.test(t)) return true;
+    if (/(\(?\b\d{2}\)?[\s.-]?)?9?\d{4}[\s.-]?\d{4}\b/.test(t) && /\d{8,}/.test(t.replace(/\D/g, ""))) return true;
+    return false;
+  }
+
   $("form").onsubmit = function (e) {
     e.preventDefault();
+    if (pareceDadoPessoal($("local").value + " " + $("desc").value) &&
+        !confirm("O texto parece conter telefone ou CPF. Não registre dados pessoais de moradores. Salvar mesmo assim?")) return;
     var d = new Date($("quando").value);
     var dataIso = isNaN(d) ? new Date().toISOString() : d.toISOString();
     if (editandoId) {
@@ -290,6 +332,7 @@
   };
 
   function render() {
+    atualizarBairrosSugeridos();
     var fs = $("fstatus").value, ft = $("ftipo").value, fb = $("fbusca").value.trim().toLowerCase();
     var c = { aberta: 0, atendimento: 0, concluida: 0 };
     rows.forEach(function (r) { c[r.status]++; });
@@ -336,7 +379,7 @@
         var bt = document.createElement("button"); bt.className = "btn small"; bt.type = "button"; bt.textContent = "→ " + ST[k];
         bt.onclick = function () { setStatus(r.id, k); }; a.appendChild(bt);
       });
-      var ap = document.createElement("button"); ap.className = "btn small"; ap.type = "button"; ap.textContent = "Apagar";
+      var ap = document.createElement("button"); ap.className = "btn small perigo"; ap.type = "button"; ap.textContent = "Apagar";
       ap.onclick = function () { apagar(r.id); }; a.appendChild(ap);
       li.appendChild(a); ul.appendChild(li);
     });

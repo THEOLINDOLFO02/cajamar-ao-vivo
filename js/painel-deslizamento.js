@@ -12,8 +12,7 @@
     tbody.textContent = "";
     Deslizamento.ESTADOS.forEach(function (st) {
       var tr = el("tr", st.nivel === nivelAtivo ? "ativo-criterio" : "");
-      tr.style.background = st.corFundo;
-      tr.style.color = st.corTexto;
+      tr.dataset.nivel = String(st.nivel);
       var tdEst = el("td");
       tdEst.appendChild(el("strong", "", st.icone + " " + st.estado + (st.nivel === nivelAtivo ? " (ATUAL)" : "")));
       var tdDesc = el("td", "", st.descricao);
@@ -117,9 +116,7 @@
 
     // Faixa Principal de Estado (Normalidade, Observação, Atenção, Alerta, Alerta Máximo)
     var banner = el("div", "desliz-banner");
-    banner.style.background = avEscolhida.corFundo;
-    banner.style.borderLeftColor = avEscolhida.corBorda;
-    banner.style.color = avEscolhida.corTexto;
+    banner.dataset.nivel = String(avEscolhida.nivel);
     banner.appendChild(el("strong", "", avEscolhida.icone + " ESTADO ATUAL: " + avEscolhida.estado.toUpperCase() + " — " + avEscolhida.fonte));
     banner.appendChild(el("span", "", "Critério da faixa: " + avEscolhida.descricaoCriterio));
     banner.appendChild(el("small", "", "Gatilho(s): " + avEscolhida.gatilhos.join(" · ")));
@@ -132,41 +129,33 @@
         titulo: "🌧️ Volume em 1 hora (mm/h)",
         valor: avEscolhida.mm1h.toFixed(1).replace(".", ",") + " mm/h",
         estado: avEscolhida.estado1h,
-        cor: avEscolhida.cor1h,
-        corTxt: avEscolhida.nivel1h >= 3 ? "#fff" : "#111",
+        nivel: avEscolhida.nivel1h,
         ref: "Obs ≥ 10 · Atenção ≥ 20 · Alerta ≥ 30 · Máx > 50 mm/h"
       },
       {
         titulo: "🌧️ Volume em 24 horas (mm/24h)",
         valor: avEscolhida.mm24h.toFixed(1).replace(".", ",") + " mm/24h",
         estado: avEscolhida.estado24h,
-        cor: avEscolhida.cor24h,
-        corTxt: avEscolhida.nivel24h >= 3 ? "#fff" : "#111",
+        nivel: avEscolhida.nivel24h,
         ref: "Obs ≥ 25 · Atenção ≥ 50 · Alerta ≥ 100 · Máx > 150 mm/24h"
       },
       {
         titulo: "🌧️ Volume em 7 dias / 168h (mm/168h)",
         valor: avEscolhida.mm168h.toFixed(1).replace(".", ",") + " mm/168h",
         estado: avEscolhida.estado168h,
-        cor: avEscolhida.cor168h,
-        corTxt: avEscolhida.nivel168h >= 3 ? "#fff" : "#111",
+        nivel: avEscolhida.nivel168h,
         ref: "Obs ≥ 50 · Atenção ≥ 100 · Alerta ≥ 150 · Máx > 210 mm/168h"
       }
     ];
 
     cartoes.forEach(function (c) {
       var cx = el("div", "desliz-cx");
-      cx.style.borderTopColor = c.cor;
+      cx.dataset.nivel = String(c.nivel);
       cx.appendChild(el("span", "", c.titulo));
-      var linhaVal = el("div", "");
-      linhaVal.style.display = "flex";
-      linhaVal.style.justifyContent = "space-between";
-      linhaVal.style.alignItems = "center";
-      linhaVal.style.gap = "8px";
+      var linhaVal = el("div", "desliz-cx-val");
       linhaVal.appendChild(el("strong", "", c.valor));
       var bdg = el("span", "desliz-badge", c.estado);
-      bdg.style.background = c.cor;
-      bdg.style.color = c.corTxt;
+      bdg.dataset.nivel = String(c.nivel);
       linhaVal.appendChild(bdg);
       cx.appendChild(linhaVal);
       cx.appendChild(el("small", "mut", c.ref));
@@ -225,9 +214,7 @@
       boxRio.hidden = false;
       boxRio.textContent = "";
       var ban = el("div", "desliz-banner");
-      ban.style.background = avRio.corFundo;
-      ban.style.borderLeftColor = avRio.corBorda || "#0b6e8f";
-      ban.style.color = avRio.corTexto;
+      ban.dataset.rio = avRio.id || "normal";
       ban.style.marginBottom = "0";
       ban.appendChild(el("strong", "", "🌊 " + (slReg.estacao || "Régua de Nível do Rio") + " [" + ultD.slice(8, 10) + "/" + ultD.slice(5, 7) + "]: " + avRio.icone + " " + avRio.estado.toUpperCase()));
       ban.appendChild(el("span", "", "Nível Máx: " + dRio.nvMax.toFixed(2).replace(".", ",") + " m · Mín: " + (dRio.nvMin !== null ? dRio.nvMin.toFixed(2).replace(".", ",") : "—") + " m · Subida (Δ): +" + Math.round((dRio.nvDelta || 0) * 100) + " cm"));

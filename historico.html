@@ -102,21 +102,23 @@
       <div id="boxStatusRioHist" style="margin-bottom:8px"></div>
       <div id="gNivel"></div>
       <p class="mut" style="margin:6px 0 8px;font-size:.82rem"><span class="leg max"></span> nível máximo diário (m) · <span class="leg min"></span> nível mínimo diário (m) · Linhas tracejadas indicam as cotas de Atenção, Alerta e Transbordamento.</p>
-      <div class="desliz-sim" style="margin-top:6px">
-        <strong style="font-size:.84rem">⚙️ Configurar Cotas de Alerta da Régua do Rio (metros)</strong>
-        <div class="desliz-sim-campos" style="margin-top:6px">
-          <label>🟡 Cota de Atenção (m)
-            <input id="cotaAtencaoM" type="number" min="0.1" max="20" step="0.05" value="1.80">
-          </label>
-          <label>🟠 Cota de Alerta (m)
-            <input id="cotaAlertaM" type="number" min="0.1" max="20" step="0.05" value="2.30">
-          </label>
-          <label>🔴 Transbordamento (m)
-            <input id="cotaTransbordoM" type="number" min="0.1" max="20" step="0.05" value="2.80">
-          </label>
-          <button id="btnSalvarCotasRio" type="button" class="btn primary small">Salvar cotas</button>
+      <details class="mais-acoes" style="margin-top:6px">
+        <summary>⚙️ Configurar cotas de alerta da régua do rio (metros)</summary>
+        <div class="desliz-sim" style="margin-top:6px">
+          <div class="desliz-sim-campos">
+            <label>🟡 Cota de Atenção (m)
+              <input id="cotaAtencaoM" type="number" min="0.1" max="20" step="0.05" value="1.80">
+            </label>
+            <label>🟠 Cota de Alerta (m)
+              <input id="cotaAlertaM" type="number" min="0.1" max="20" step="0.05" value="2.30">
+            </label>
+            <label>🔴 Transbordamento (m)
+              <input id="cotaTransbordoM" type="number" min="0.1" max="20" step="0.05" value="2.80">
+            </label>
+            <button id="btnSalvarCotasRio" type="button" class="btn primary small">Salvar cotas</button>
+          </div>
         </div>
-      </div>
+      </details>
     </section>
     <section class="card" id="cardChuva"><h2>Chuva por dia (mm)</h2><div id="gChuva"></div><p id="notaParcial" class="mut" style="margin:6px 0 0;font-size:.82rem"></p></section>
     <section class="card" id="cardTemp"><h2>Temperatura mínima e máxima (°C)</h2><div id="gTemp"></div><p class="mut" style="margin:6px 0 0;font-size:.82rem"><span class="leg max"></span> máxima · <span class="leg min"></span> mínima</p></section>
