@@ -25,6 +25,29 @@
     var ativo = document.querySelector(".nav-bar a.ativo");
     if (ativo && ativo.scrollIntoView) { try { ativo.scrollIntoView({ inline: "center", block: "nearest" }); } catch (e) {} }
 
+    // ---------- atalhos de seção: destaca a seção visível e mostra "voltar ao topo" ----------
+    var links = document.querySelectorAll(".atalhos a[href^='#']");
+    var btnTopo = document.getElementById("btnTopo");
+    if (links.length && "IntersectionObserver" in window) {
+      var porId = {};
+      links.forEach(function (a) { var s = document.getElementById(a.getAttribute("href").slice(1)); if (s) porId[s.id] = a; });
+      var atual = null;
+      var io = new IntersectionObserver(function (itens) {
+        itens.forEach(function (i) {
+          if (!i.isIntersecting) return;
+          var a = porId[i.target.id]; if (!a || a === atual) return;
+          if (atual) { atual.classList.remove("na-secao"); atual.removeAttribute("aria-current"); }
+          atual = a; a.classList.add("na-secao"); a.setAttribute("aria-current", "true");
+          try { a.scrollIntoView({ inline: "center", block: "nearest" }); } catch (e) {}
+        });
+      }, { rootMargin: "-120px 0px -65% 0px" });
+      Object.keys(porId).forEach(function (id) { io.observe(document.getElementById(id)); });
+    }
+    if (btnTopo) {
+      btnTopo.onclick = function () { window.scrollTo({ top: 0, behavior: "smooth" }); };
+      window.addEventListener("scroll", function () { btnTopo.hidden = window.scrollY < 900; }, { passive: true });
+    }
+
     // ---------- esqueleto de carregamento: some assim que chega conteúdo ----------
     document.querySelectorAll(".carregando").forEach(function (el) {
       var ini = el.textContent;

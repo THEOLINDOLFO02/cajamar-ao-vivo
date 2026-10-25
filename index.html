@@ -40,13 +40,14 @@
       <h2 class="hero-titulo" id="heroTitulo" aria-live="polite">Consultando as fontes oficiais…</h2>
       <p class="hero-sub" id="heroSub"></p>
     </div>
+    <div class="hero-metricas" id="heroMetricas" aria-label="Condições agora"></div>
     <div class="hero-chips" id="heroChips"></div>
     <div class="hero-acoes">
-      <button id="reload" type="button" class="btn primary">↻ Atualizar agora</button>
+      <button id="reload" type="button" class="btn primary"><span class="giro" aria-hidden="true">↻</span> <span id="reloadTxt">Atualizar agora</span></button>
       <a class="btn" href="#avisos">Ver avisos</a>
       <button id="btnAlertaSom" type="button" class="btn" title="Ativar aviso sonoro para emergências meteorológicas e focos de fogo">🔔 Alerta sonoro: desligado</button>
     </div>
-    <p class="hero-nota mut" style="font-size:.86rem">Dados auxiliares: não substituem INMET, CEMADEN, INPE e CENSIPAM. Confirme na fonte oficial antes de decidir.</p>
+    <p class="hero-nota mut">Dados auxiliares: não substituem INMET, CEMADEN, INPE e CENSIPAM. Confirme na fonte oficial antes de decidir.</p>
   </section>
 
   <nav class="atalhos" aria-label="Ir para uma seção desta página">
@@ -231,6 +232,7 @@
 
   <p class="mut" style="font-size:.8rem">Previsão: Open-Meteo (modelo, não é medição). Avisos: API oficial do INMET (reserva: radarmeteorologico.com.br, terceiro, só se a oficial falhar). Radar: RainViewer. Satélites e Focos de Calor: INPE BDQueimadas (GOES-19, NPP-375 Manhã/Tarde, NOAA-20, NOAA-21, METOP-B/C, MSG-03, AQUA/TERRA) e camadas NASA GIBS (GOES-East / VIIRS / MODIS). Veja o README para créditos e licenças.</p>
 </main>
+<button id="btnTopo" type="button" class="btn-topo" aria-label="Voltar ao topo" hidden>↑</button>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="js/fontes.js"></script>
 <script src="js/geo.js"></script>

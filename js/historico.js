@@ -229,7 +229,7 @@
     var estacao = sl.estacao || sl.rotulo;
     var chavesTodas = Object.keys(dias).sort();
     var vazio = !chavesTodas.length;
-    $("vazio").hidden = !vazio; $("conteudo").hidden = vazio; $("limpar").disabled = vazio;
+    $("vazio").hidden = !vazio; $("dadosHist").hidden = vazio; $("limpar").disabled = vazio;
     if ($("imprimir")) $("imprimir").disabled = vazio;
     if (vazio) return;
 

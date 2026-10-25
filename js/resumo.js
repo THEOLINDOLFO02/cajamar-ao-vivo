@@ -7,6 +7,10 @@
 
   function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x !== undefined) e.textContent = x; return e; }
   function hm(ts) { return new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); }
+  function haQuanto(ts) { // "agora", "há 3 min", ou a hora quando passa de 1 h
+    var min = Math.round((Date.now() - ts) / 60000);
+    return min < 1 ? "agora" : min < 60 ? "há " + min + " min" : "às " + hm(ts);
+  }
   function quando(s) { // "2026-10-22 23:59" -> "22/10 às 23:59"
     var m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(String(s));
     return m ? m[3] + "/" + m[2] + " às " + m[4] + ":" + m[5] : String(s || "");
@@ -53,11 +57,23 @@
       sub.textContent = "Isso não garante ausência de risco: acompanhe a chuva, o mapa e os canais oficiais." + (avisos.antigo ? " (consulta antiga)" : "");
     }
 
+    var met = $("heroMetricas");
+    if (met) {
+      met.textContent = "";
+      if (agora) {
+        var linhas = [];
+        if (typeof agora.temp === "number") linhas.push(["temp", Math.round(agora.temp) + "°", "Temperatura", false]);
+        if (typeof agora.chuva === "number") linhas.push(["chuva", String(agora.chuva).replace(".", ","), "mm de chuva na hora", agora.chuva >= 5]);
+        if (typeof agora.vento === "number") linhas.push(["vento", String(Math.round(agora.vento)), "km/h de vento", false]);
+        linhas.forEach(function (l) {
+          var d = el("div", "metrica" + (l[3] ? " forte" : "") + (l[0] === "temp" ? " destaque" : ""));
+          d.appendChild(el("b", "", l[1])); d.appendChild(el("span", "", l[2]));
+          met.appendChild(d);
+        });
+      }
+    }
     chips.textContent = "";
     if (agora) {
-      if (typeof agora.temp === "number") chips.appendChild(chip("🌡 " + Math.round(agora.temp) + "°C"));
-      if (typeof agora.chuva === "number") chips.appendChild(chip("🌧 " + String(agora.chuva).replace(".", ",") + " mm na hora", agora.chuva >= 5));
-      if (typeof agora.vento === "number") chips.appendChild(chip("💨 " + Math.round(agora.vento) + " km/h"));
       if (typeof agora.rajada === "number" && agora.rajada >= 40) chips.appendChild(chip("Rajadas de " + Math.round(agora.rajada) + " km/h", true));
     }
     if (ar) {
@@ -72,8 +88,8 @@
         b.type = "button";
         b.onclick = function () { var d = $("fontes-det"); if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth", block: "center" }); } };
         chips.appendChild(b);
-        if (f.ultimo) chips.appendChild(chip("Atualizado às " + hm(f.ultimo)));
-      } else if (f.ultimo) chips.appendChild(chip((f.ok === f.total ? "✓ " : "") + "Atualizado às " + hm(f.ultimo)));
+        if (f.ultimo) chips.appendChild(chip("Atualizado " + haQuanto(f.ultimo)));
+      } else if (f.ultimo) chips.appendChild(chip((f.ok === f.total ? "✓ " : "") + "Atualizado " + haQuanto(f.ultimo)));
     }
     var r = $("fontesResumo");
     if (r && f.total) r.textContent = f.ok + " de " + f.total + " fontes atualizadas" + (f.ruins ? " · " + f.ruins + " com problema" : "");

@@ -58,7 +58,8 @@
     subs();
     $("quando").value = nowLocal();
     $("form").hidden = false;
-    $("local").focus();
+    $("form").scrollIntoView({ behavior: "smooth", block: "start" });
+    $("local").focus({ preventScroll: true });
   };
   $("cancelar").onclick = function () {
     editandoId = null;
@@ -294,7 +295,10 @@
     rows.forEach(function (r) { c[r.status]++; });
     var cn = $("counts"); cn.textContent = "";
     [["aberta", "Abertas"], ["atendimento", "Em atendimento"], ["concluida", "Concluídas"]].forEach(function (p) {
-      var d = document.createElement("div"); d.className = "count";
+      var d = document.createElement("button"); d.type = "button"; d.className = "count"; d.dataset.s = p[0];
+      d.setAttribute("aria-pressed", fs === p[0] ? "true" : "false");
+      d.title = fs === p[0] ? "Mostrar todos os status" : "Filtrar: " + p[1];
+      d.onclick = function () { $("fstatus").value = fs === p[0] ? "" : p[0]; render(); };
       var b = document.createElement("b"); b.textContent = c[p[0]];
       var s = document.createElement("span"); s.textContent = p[1];
       d.append(b, s); cn.appendChild(d);

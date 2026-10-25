@@ -393,3 +393,94 @@ tbody tr:hover td{background:var(--acc-soft)}
 .norm-legenda{font-size:.84rem;margin-top:4px}
 .norm-conf{margin-top:12px;padding:10px 14px;border-radius:var(--r);background:var(--acc-soft);font-size:.92rem}
 .norm-fonte{margin-top:12px;font-size:.84rem}
+
+/* ---------- 8. Refino de UI/UX do painel ao vivo ---------- */
+/* Situação agora: o dado principal (temperatura, chuva, vento) vira número grande */
+.hero[data-nivel="normal"]{border-left-color:var(--ok)}
+.hero-metricas{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:10px}
+.hero-metricas:empty{display:none}
+.metrica{display:grid;gap:2px;align-content:center;padding:12px 14px;border-radius:var(--r);background:color-mix(in srgb,var(--card) 70%,transparent);border:1px solid color-mix(in srgb,var(--fg) 8%,transparent);min-width:0}
+.metrica b{font-size:1.9rem;line-height:1;font-weight:760;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.metrica.destaque b{font-size:2.6rem}
+.metrica span{font-size:.78rem;font-weight:650;color:var(--mut);line-height:1.25}
+.metrica.forte{border-color:var(--org);background:var(--org-soft)}
+.metrica.forte b{color:var(--org)}
+.hero-nota{font-size:.84rem}
+@media (min-width:760px){
+  .hero{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);column-gap:24px;align-items:start}
+  .hero>div:first-child{grid-column:1}
+  .hero-metricas{grid-column:2;grid-row:1 / span 2}
+  .hero-chips{grid-column:1}
+  .hero-acoes,.hero-nota{grid-column:1 / -1}
+}
+@media (max-width:420px){.metrica b{font-size:1.5rem}.metrica.destaque b{font-size:2.1rem}.metrica{padding:10px}}
+
+/* Botão de atualizar com retorno visível */
+.giro{display:inline-block}
+.btn.girando{opacity:1}
+.btn.girando .giro{animation:giro 1s linear infinite}
+@keyframes giro{to{transform:rotate(360deg)}}
+.btn.primary:disabled{opacity:.85}
+
+/* Avisos: selo de gravidade, cabeçalho compacto e extras recolhidos */
+.alert-cab{display:flex;justify-content:space-between;align-items:center;gap:6px 10px;flex-wrap:wrap}
+.selo-sev{display:inline-flex;padding:2px 10px;border-radius:999px;font-size:.74rem;font-weight:750;letter-spacing:.03em;text-transform:uppercase;background:color-mix(in srgb,var(--yel) 22%,transparent);color:var(--yel)}
+.alert.l .selo-sev{background:color-mix(in srgb,var(--org) 22%,transparent);color:var(--org)}
+.alert.v .selo-sev{background:color-mix(in srgb,var(--red) 22%,transparent);color:var(--red)}
+.alert-mais{margin-top:10px}
+.alert-mais>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--line-strong);border-radius:var(--r);font-weight:650;color:var(--acc);list-style:none}
+.alert-mais>summary::-webkit-details-marker{display:none}
+.alert-mais>summary:hover{background:var(--acc-soft)}
+.alert-mais[open]>summary{margin-bottom:0}
+
+/* Navegação por seções: fixa ao rolar, com a seção atual destacada */
+.atalhos{position:sticky;top:0;z-index:25;margin:-4px 0 0;padding:8px 0;background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 1px 0 var(--line)}
+.atalhos a.na-secao{background:var(--acc);color:var(--on-acc)}
+@media (max-width:759px){body:has(.atalhos) .nav-bar{position:static}}
+@media (min-width:760px){.atalhos{top:57px}}
+section[id],details[id]{scroll-margin-top:76px}
+@media (min-width:760px){section[id],details[id]{scroll-margin-top:124px}}
+
+/* Voltar ao topo */
+.btn-topo{position:fixed;right:16px;bottom:16px;z-index:40;width:48px;min-height:48px;padding:0;border-radius:50%;font-size:1.3rem;font-weight:700;background:var(--acc);color:var(--on-acc);border-color:var(--acc);box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.btn-topo:hover{background:var(--acc);filter:brightness(1.1)}
+.btn-topo[hidden]{display:none}
+
+/* Cartões: sem salto de layout e leitura mais calma */
+.card>h2:first-child{display:flex;align-items:center;gap:8px}
+.now b{font-size:3.2rem}
+.k>div{border:1px solid var(--line)}
+
+/* ---------- 9. Refino das demais páginas ---------- */
+/* o atributo hidden precisa vencer display:grid/flex dos componentes */
+[hidden]{display:none!important}
+
+/* Avisos de contexto: uma linha + detalhes sob demanda */
+.aux-curto{font-size:.9rem}
+.aux-curto details{margin-top:4px}
+.aux-curto summary{cursor:pointer;color:var(--acc);font-weight:650;min-height:32px;display:flex;align-items:center}
+
+/* Barra de ferramentas do histórico: ação principal à vista, resto agrupado */
+.barra-ferramentas{display:grid;gap:12px}
+.barra-ferramentas .rotulo-inline{flex:none}
+.mais-acoes>summary{cursor:pointer;min-height:40px;display:flex;align-items:center;font-weight:650;color:var(--acc)}
+.mais-acoes .barra-acoes{margin-top:8px}
+.zona-perigo{padding-top:10px;border-top:1px dashed var(--line-strong)}
+.btn.perigo{color:var(--red);border-color:color-mix(in srgb,var(--red) 45%,var(--line-strong))}
+.btn.perigo:hover:not(:disabled){background:var(--red-soft);border-color:var(--red)}
+
+/* Equipamentos: dois por linha no celular em vez de uma lista comprida */
+.slots-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+@media (max-width:420px){.slot-card{padding:10px}.slot-nome{font-size:.86rem}}
+
+/* Quadro: contadores clicáveis como filtro, com a cor do status */
+button.count{font:inherit;color:var(--fg);text-align:left;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:0;width:100%;min-height:0;border-top:4px solid var(--line-strong)}
+button.count[data-s="aberta"]{border-top-color:var(--red)}
+button.count[data-s="atendimento"]{border-top-color:var(--yel)}
+button.count[data-s="concluida"]{border-top-color:var(--ok)}
+button.count[aria-pressed="true"]{background:var(--acc-soft);border-color:var(--acc);box-shadow:0 0 0 2px var(--acc)}
+@media (max-width:560px){.actions .btn.primary{flex:1 1 100%}}
+
+@media print{.barra-ferramentas,.aux-curto{display:none!important}}
+.slot-topo{flex-wrap:wrap}
+.slot-topo .slot-badge{white-space:nowrap}

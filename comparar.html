@@ -30,7 +30,9 @@
     </nav>
 <main id="conteudo">
   <div class="pagina-cab"><h1>Previsão × medido</h1><p class="sub">Compare a chuva medida com o que foi previsto</p></div>
-    <div class="aux">Envie aqui de <b>1 a 4 arquivos CSV</b> (as <b>3 estações meteorológicas</b> e a <b>régua de nível do rio</b> de Cajamar), ou escolha apenas <b>1 estação + a régua de nível</b> para cruzar a chuva medida e a resposta do rio com as previsões dos boletins/modelos meteorológicos (<b>Open-Meteo D-1</b>, <b>ECMWF</b> e <b>GFS</b>). Os arquivos CSV são lidos apenas no seu navegador.</div>
+  <div class="aux aux-curto">🔒 Envie de <b>1 a 4 CSV</b> (estações e régua do rio) para cruzar a chuva medida com as previsões. Os arquivos são lidos só no seu navegador.
+    <details><summary>Detalhes</summary>Você também pode escolher apenas <b>1 estação + a régua de nível</b> para cruzar a chuva medida e a resposta do rio com as previsões dos boletins/modelos meteorológicos (<b>Open-Meteo D-1</b>, <b>ECMWF</b> e <b>GFS</b>).</details>
+  </div>
 
   <section class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
@@ -97,7 +99,7 @@
   </section>
 
   <div id="aviso" class="warn" hidden></div>
-  <div id="conteudo" hidden>
+  <div id="dadosComp" hidden>
     <section class="card"><h2>Resumo da comparação</h2><div id="resumo" class="resumo"></div><p id="nota" class="mut" style="margin:8px 0 0;font-size:.82rem"></p></section>
     <section class="card" id="cardGrafComp">
       <h2>Gráfico: Chuva Medida (mm) × Previsto Boletim (mm) × Nível do Rio (m)</h2>

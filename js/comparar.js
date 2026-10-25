@@ -324,7 +324,7 @@
 
     if (!chaves.length) {
       aviso("Sem dias suficientes para comparar: envie o CSV de pelo menos 1 estação acima (ou mude “Dias no CSV” para “Todos os dias importados”).", true);
-      $("conteudo").hidden = true;
+      $("dadosComp").hidden = true;
       return;
     }
 
@@ -501,7 +501,7 @@
         tr.appendChild(el("td", "", x.ok ? "Sim" : (x.prev >= LIMITE ? "Falso alarme" : "Chuva não prev.")));
         tb.appendChild(tr);
       });
-      $("conteudo").hidden = false;
+      $("dadosComp").hidden = false;
       aviso("Comparação concluída com sucesso.");
     } catch (e) {
       aviso("Não foi possível obter as previsões antigas agora (" + (e && e.message ? e.message : "falha") + "). Tente de novo mais tarde.", true);

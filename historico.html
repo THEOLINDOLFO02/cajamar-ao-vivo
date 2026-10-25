@@ -30,9 +30,14 @@
     </nav>
 <main id="conteudo">
   <div class="pagina-cab"><h1>Histórico da estação</h1><p class="sub">Chuva, temperatura e vento a partir do CSV importado</p></div>
-    <div class="aux">Os arquivos CSV são lidos <b>aqui no seu navegador</b>: nada é enviado para servidor. Você pode importar de <b>1 a 4 arquivos CSV</b> (as <b>3 estações meteorológicas</b> e a <b>régua de nível do rio</b> de Cajamar). Este histórico é <b>auxiliar</b> e não substitui os dados oficiais do INMET e do CEMADEN.</div>
-  <div class="barra-acoes">
-    <button id="escolher" type="button" class="btn primary">📂 Importar CSV(s) (1 a 4 arquivos)</button>
+  <div class="aux aux-curto">🔒 Os CSV são lidos <b>só no seu navegador</b>; nada vai para servidor. Dados auxiliares: não substituem INMET e CEMADEN.
+    <details><summary>Detalhes</summary>Você pode importar de <b>1 a 4 arquivos CSV</b> (as <b>3 estações meteorológicas</b> e a <b>régua de nível do rio</b> de Cajamar).</details>
+  </div>
+  <section class="card barra-ferramentas" aria-label="Importar e exportar dados">
+    <div class="barra-acoes">
+      <button id="escolher" type="button" class="btn primary">📂 Importar CSV(s) (1 a 4 arquivos)</button>
+      <button id="imprimir" type="button" class="btn" disabled>🖨️ Gerar Boletim (PDF / Imprimir)</button>
+    </div>
     <label for="slotDestino" class="rotulo-inline">
       Destino ao importar:
       <select id="slotDestino" class="sel-inline">
@@ -43,21 +48,27 @@
         <option value="regua">🌊 Régua de Nível do Rio</option>
       </select>
     </label>
-    <button id="imprimir" type="button" disabled>🖨️ Gerar Boletim (PDF / Imprimir)</button>
-    <button id="btnExportarTudoHist" type="button" class="btn small">💾 Exportar Backup Completo</button>
-    <button id="btnImportarTudoHist" type="button" class="btn small">📂 Restaurar Backup</button>
+    <details class="mais-acoes">
+      <summary>Backup e limpeza</summary>
+      <div class="barra-acoes">
+        <button id="btnExportarTudoHist" type="button" class="btn small">💾 Exportar Backup Completo</button>
+        <button id="btnImportarTudoHist" type="button" class="btn small">📂 Restaurar Backup</button>
+      </div>
+      <div class="barra-acoes zona-perigo">
+        <button id="limpar" type="button" class="btn small perigo">Apagar estação atual</button>
+        <button id="limparTudo" type="button" class="btn small perigo">Apagar todas</button>
+      </div>
+    </details>
     <input id="arqBackupTudoHist" type="file" accept="application/json,.json" hidden>
-    <button id="limpar" type="button">Apagar estação atual</button>
-    <button id="limparTudo" type="button">Apagar todas</button>
     <input id="arquivo" type="file" accept=".csv,text/csv" multiple hidden>
-  </div>
+  </section>
   <section class="card">
     <h2>Equipamentos em Cajamar (3 Estações Meteorológicas + 1 Régua de Nível)</h2>
     <div id="gradeSlots" class="slots-grid"></div>
   </section>
   <div id="aviso" class="warn" hidden></div>
   <section class="card" id="vazio"><h2>Sem dados neste equipamento ainda</h2><p class="mut" style="margin:0">Toque em “Importar CSV(s)” acima (você pode selecionar de 1 até os 4 arquivos CSV de uma vez) ou clique em “Enviar CSV” dentro do cartão da estação ou da régua de nível desejada.</p></section>
-  <div id="conteudo" hidden>
+  <div id="dadosHist" hidden>
     <div class="cabecalho-boletim" hidden>
       <div class="boletim-topo">
         <img src="assets/logo-dc-cajamar.jpg" alt="Defesa Civil Cajamar" class="boletim-logo">

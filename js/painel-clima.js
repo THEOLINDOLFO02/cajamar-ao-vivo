@@ -151,21 +151,33 @@
       A.appendChild(el("span", "mut", "Nenhum aviso listado para Cajamar nesta fonte" + (r.antigo ? " (na consulta de " + dh(r.de) + ")" : " agora") + ". Isso não garante ausência de risco: confira o INMET e o CEMADEN."));
       return;
     }
-    lista.forEach(function (a) {
+    function peso(a) { var s = String(a.severidade || "").toLowerCase(); return s.indexOf("grande") > -1 ? 3 : s.indexOf("potencial") > -1 ? 1 : 2; }
+    var ordenada = lista.slice().sort(function (x, y) { return peso(y) - peso(x); });
+    var VISIVEIS = 2, extras = null;
+    ordenada.forEach(function (a, idx) {
       var s = String(a.severidade || "").toLowerCase();
       if (s.indexOf("perigo") > -1 && s.indexOf("potencial") < 0) {
         notificarRisco("⚠️ Alerta INMET para Cajamar", (a.evento || "Aviso") + " — " + a.severidade);
       }
       var d = el("div", "alert" + (s.indexOf("grande") > -1 ? " v" : s.indexOf("perigo potencial") > -1 ? "" : " l"));
-      d.appendChild(el("strong", "", (a.evento || "Aviso") + " — " + (a.severidade || "")));
-      d.appendChild(el("small", "", fhora(a.inicio || "") + " até " + fhora(a.fim || "")));
+      var cab = el("div", "alert-cab");
+      cab.appendChild(el("strong", "", a.evento || "Aviso"));
+      cab.appendChild(el("span", "selo-sev", a.severidade || ""));
+      d.appendChild(cab);
+      d.appendChild(el("small", "", "🕒 " + fhora(a.inicio || "") + " até " + fhora(a.fim || "")));
       if (a.risco) d.appendChild(el("span", "", a.risco));
       if (a.instrucoes.length) {
         var det = el("details"); det.appendChild(el("summary", "mut", "Instruções do INMET"));
         a.instrucoes.forEach(function (t) { det.appendChild(el("p", "", String(t))); });
         d.appendChild(det);
       }
-      A.appendChild(d);
+      if (idx < VISIVEIS) { A.appendChild(d); return; }
+      if (!extras) {
+        extras = el("details", "alert-mais");
+        extras.appendChild(el("summary", "", "Mostrar mais " + (ordenada.length - VISIVEIS) + (ordenada.length - VISIVEIS === 1 ? " aviso" : " avisos")));
+        A.appendChild(extras);
+      }
+      extras.appendChild(d);
     });
   }
 

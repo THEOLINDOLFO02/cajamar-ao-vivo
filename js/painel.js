@@ -46,8 +46,8 @@
   function go() {
     if (atualizando) return;
     atualizando = true;
-    $("reload").disabled = true;
-    Promise.all([P.clima.carregarClima(), P.clima.carregarAlertas(), P.clima.carregarPrevisaoInmet(), Cemaden.carregar(), P.fogo.carregar(), P.mapa.carregarRadar(), Ar.carregar(), Modelos.carregar(), Clim.carregar(), Municipio.carregar()].map(function (p) { return p.then(P.desenharFontes); })).then(function () { atualizando = false; $("reload").disabled = false; P.desenharFontes(); });
+    $("reload").disabled = true; $("reload").classList.add("girando"); $("reloadTxt").textContent = "Atualizando…";
+    Promise.all([P.clima.carregarClima(), P.clima.carregarAlertas(), P.clima.carregarPrevisaoInmet(), Cemaden.carregar(), P.fogo.carregar(), P.mapa.carregarRadar(), Ar.carregar(), Modelos.carregar(), Clim.carregar(), Municipio.carregar()].map(function (p) { return p.then(P.desenharFontes); })).then(function () { atualizando = false; $("reload").disabled = false; $("reload").classList.remove("girando"); $("reloadTxt").textContent = "Atualizar agora"; P.desenharFontes(); });
     P.desenharFontes();
   }
   var atualizando = false;
