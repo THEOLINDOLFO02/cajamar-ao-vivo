@@ -21,6 +21,7 @@ var RECURSOS_BASE = [
   "./js/municipio.js",
   "./js/ar.js",
   "./js/modelos.js",
+  "./js/windy.js",
   "./js/climatologia.js",
   "./js/cemaden.js",
   "./js/queimadas.js",

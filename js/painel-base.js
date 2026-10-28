@@ -25,6 +25,7 @@
     radar: "Radar e Satélite (RainViewer / NASA GIBS)",
     ar: "Qualidade do ar e UV (Open-Meteo / CAMS)",
     modelos: "Chuva prevista por vários modelos (Open-Meteo)",
+    windy: "Previsão pontual Windy (GFS)",
     climatologia: "Chuva normal de 30 anos (Open-Meteo / ERA5)",
     ibge_limite: "Limite do município e Censo (IBGE)"
   };

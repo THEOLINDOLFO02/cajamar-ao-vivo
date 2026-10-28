@@ -18,3 +18,16 @@ O endereço do Worker não é segredo (é público por natureza), mas só os sit
 ## Se o Worker cair
 
 O painel volta sozinho para o arquivo do robô do GitHub (`data/cemaden.json`) e mostra a hora da coleta.
+
+## Previsão pontual da Windy (rota /windy, opcional)
+
+O mesmo Worker entrega a previsão pontual da Windy (modelo GFS) para Cajamar em `SEU-WORKER.workers.dev/windy`. A chave da Windy **nunca vai para o repositório nem para o site**: ela fica só como *secret* do Worker.
+
+1. Em https://api.windy.com/keys, crie ou copie a chave de **Previsão pontual (Point Forecast)**. As chaves de mapa e de plugins não funcionam aqui.
+2. No painel da Cloudflare: **Workers & Pages → seu Worker → Settings → Variables and Secrets → Add**. Tipo **Secret**, nome `WINDY_POINT_KEY`, valor = a chave. Clique em **Deploy**.
+3. Cole o código novo de `cemaden-proxy.js` no Worker (**Edit code → Deploy**), pois a rota `/windy` é nova.
+4. Teste `https://SEU-WORKER.workers.dev/windy`: deve aparecer um JSON com `"pontos"`. Sem o secret, responde 503 `Windy não configurado`; o painel mostra o cartão como indisponível e o resto continua normal.
+
+Pelo terminal, o equivalente é `npx wrangler secret put WINDY_POINT_KEY` (cola a chave quando pedir).
+
+A resposta fica 30 min no cache da Cloudflare, então o painel não gasta o limite da chave a cada visita. Se a chave vazar (por exemplo, colada em conversa ou commit), gere outra em api.windy.com/keys e troque o secret.
