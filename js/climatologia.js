@@ -83,7 +83,8 @@
     var fim = diaDeISO(fimISO), modelo = 0, estacao = 0, n = 0;
     for (var d = fim - ultimosDias + 1; d <= fim; d++) {
       var e = diasEstacao && diasEstacao[isoDeDia(d)], m = valorDia(s, d);
-      if (e && ok(e.n) && e.n >= 1296 && ok(e.chuva) && m !== null) { modelo += m; estacao += e.chuva; n++; }
+      var completo = e && (typeof Estacao !== "undefined" && Estacao.diaCompleto ? Estacao.diaCompleto(e) === true : (ok(e.n) && e.n >= 1296));
+      if (completo && ok(e.chuva) && m !== null) { modelo += m; estacao += e.chuva; n++; }
     }
     if (n < 7) return null;
     return { dias: n, modelo: Math.round(modelo * 10) / 10, estacao: Math.round(estacao * 10) / 10, difPct: estacao > 0 ? Math.round((modelo - estacao) / estacao * 100) : null };
@@ -105,7 +106,8 @@
     var el = function (t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x !== undefined) e.textContent = x; return e; };
     var f0 = function (v) { return v.toFixed(v < 10 ? 1 : 0).replace(".", ","); };
     var dm = function (iso) { return iso.slice(8, 10) + "/" + iso.slice(5, 7); };
-    var hojeLocal = function () { var d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+    // Dia de hoje em Cajamar (America/Sao_Paulo), não no fuso do aparelho. "en-CA" formata como AAAA-MM-DD.
+    var hojeLocal = function () { return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }); };
     var ontem = function () { return isoDeDia(diaDeISO(hojeLocal()) - 1); };
 
     function guardar(fim, s) { try { localStorage.setItem(CHAVE, JSON.stringify({ fim: fim, ini: s.ini, v: s.v })); } catch (e) {} }

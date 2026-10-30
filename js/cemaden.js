@@ -4,7 +4,7 @@
   var LIMITE_MIN = 360; // estações com leitura mais velha que isso (em relação à rede) não entram na lista
   function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x !== undefined) e.textContent = x; return e; }
   function mm(v) { return v === null || v === undefined ? "sem dado" : String(v).replace(".", ",") + " mm"; }
-  function dh(ts) { return new Date(ts).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); }
+  function dh(ts) { return new Date(ts).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); }
   function atraso(min) {
     if (min === null) return "—";
     if (min < 60) return min + " min";
@@ -28,6 +28,8 @@
       if (r.antigo) B.appendChild(el("p", "stale", "Não foi possível atualizar agora. Mostrando dados antigos, coletados em " + dh(r.de) + "."));
       var idadeColeta = Math.round((Date.now() - new Date(j.coletadoEm).getTime()) / 60000);
       B.appendChild(el("p", "mut", "Coletado do CEMADEN em " + dh(j.coletadoEm) + " (há " + atraso(idadeColeta) + "). Leitura mais recente da rede: " + j.referenciaRede + " (horário informado pelo CEMADEN)."));
+      if (j.fusoConfirmado === false) B.appendChild(el("p", "stale", "Os horários do CEMADEN não trazem fuso e não foi possível confirmar que estão em UTC: a idade das leituras pode estar imprecisa."));
+      if (j.leiturasFuturas > 0) B.appendChild(el("p", "mut", j.leiturasFuturas + " estação(ões) da rede informam leitura à frente do horário da coleta (relógio da estação). Essas leituras não definem a “leitura mais recente da rede”."));
       if (idadeColeta > 180) B.appendChild(el("p", "stale", "Coleta com mais de 3 h: a coleta automática do GitHub às vezes atrasa por horas. Para dado em tempo real, confira o site do CEMADEN."));
 
       var vivas = j.estacoes.filter(function (e) { return e.minutosAntes !== null && e.minutosAntes <= LIMITE_MIN; });
@@ -57,7 +59,7 @@
         lista.forEach(function (e) {
           var tr = el("tr");
           tr.appendChild(el("td", "", (e.ibge === 3509205 ? "★ " : "") + nome(e.cidade) + " · " + e.nome));
-          tr.appendChild(el("td", "", e.leitura.slice(9) + " (−" + atraso(e.minutosAntes) + ")"));
+          tr.appendChild(el("td", "", e.leitura.slice(9) + " (−" + atraso(e.minutosAntes) + ")" + (e.leituraFutura ? " ⚠ horário à frente da coleta" : "")));
           tr.appendChild(celulaChuva(e.acc.h1));
           tr.appendChild(celulaChuva(e.acc.h24));
           tr.appendChild(celulaChuva(e.acc.h72));

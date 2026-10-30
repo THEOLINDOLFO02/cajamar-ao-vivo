@@ -679,19 +679,28 @@
       return res;
     }
     var lista = focosRes && Array.isArray(focosRes.focos) ? focosRes.focos : [];
-    res.estado = f.estado;
-    res.total = lista.length;
-    res.nCajamar = lista.filter(function (x) { return x.emCajamar; }).length;
-    res.nRaio50 = lista.filter(function (x) { return x.distanciaKm <= 50; }).length;
+    // Contagem só das últimas 24 h: os arquivos do INPE cobrem 2 dias UTC e um foco antigo não é a situação de agora.
+    var c24 = typeof Queimadas !== "undefined" && Queimadas.contarFocos ? Queimadas.contarFocos(lista, Date.now(), 24) : null;
     var quando = Publicacao.dataHoraSP(f.coletadoEm), area = Publicacao.AREA_FOCOS;
-    if (f.estado === "sem_focos") {
+    if (!c24 || (f.parcial && c24.total === 0)) {
+      res.sub = "Consulta incompleta";
+      res.legenda = "Consulta aos satélites INPE INCOMPLETA: não é possível afirmar que não há focos nas últimas 24 h.";
+      return res;
+    }
+    res.estado = c24.total ? "com_focos" : "sem_focos";
+    res.total = c24.total;
+    res.nCajamar = c24.nCajamar;
+    res.nRaio50 = c24.nRaio50;
+    res.janelaHoras = 24;
+    var semHor = c24.semHorario ? " (" + c24.semHorario + " foco(s) sem horário válido não foram contados)" : "";
+    if (!c24.total) {
       res.titulo = "0 focos";
-      res.sub = "Consulta válida · INPE " + quando;
-      res.legenda = "Consulta INPE válida em " + quando + " (SP): nenhum foco identificado — " + area + ".";
+      res.sub = "Consulta válida · últimas 24 h · INPE " + quando;
+      res.legenda = "Consulta INPE válida em " + quando + " (SP): nenhum foco identificado nas últimas 24 h — " + area + "." + semHor;
     } else {
       res.titulo = (res.nCajamar > 0 ? res.nCajamar + " foco(s) em Cajamar" : res.nRaio50 + " foco(s) (50 km)") + (f.parcial ? " ou mais" : "");
-      res.sub = "INPE · " + quando + (f.parcial ? " · consulta parcial" : "");
-      res.legenda = "Consulta INPE válida em " + quando + " (SP) — " + area + ": " + (res.nCajamar > 0 ? res.nCajamar + " foco(s) em Cajamar / " : "nenhum foco em Cajamar / ") + res.nRaio50 + " foco(s) num raio de 50 km" + (f.parcial ? " (consulta parcial: contagem mínima)" : "") + ".";
+      res.sub = "Últimas 24 h · INPE " + quando + (f.parcial ? " · consulta parcial" : "");
+      res.legenda = "Consulta INPE válida em " + quando + " (SP) — " + area + ", últimas 24 h (mais recente: " + Publicacao.dataHoraSP(c24.maisRecente) + "): " + (res.nCajamar > 0 ? res.nCajamar + " foco(s) em Cajamar / " : "nenhum foco em Cajamar / ") + res.nRaio50 + " foco(s) num raio de 50 km" + (f.parcial ? " (consulta parcial: contagem mínima)" : "") + "." + semHor;
     }
     return res;
   }

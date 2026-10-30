@@ -15,6 +15,11 @@
   var CHAVE_CONTATO = "cajamar:contato";
 
   var HORA_MS = 3600000;
+  // Limites FÍSICOS absolutos (impossíveis fora deles), usados só para recusar leitura corrompida — não são limiares de risco.
+  // Temperatura: recordes do planeta -89,2 a 56,7 °C; umidade relativa 0-100 %; pressão de estação 300-1100 hPa (cobre qualquer altitude
+  // habitada e o recorde ao nível do mar de ~1085 hPa); vento 0-500 km/h (recorde 408 km/h); radiação solar global 0-1500 W/m².
+  // Valor fora da faixa vira null (ausente) e é contado em foraFaixa; valores extremos DENTRO da faixa são mantidos.
+  var LIMITES_FISICOS = { t: [-90, 60], u: [0, 100], p: [300, 1100], v: [0, 500], rad: [0, 1500] };
   var BRT_MS = 3 * HORA_MS; // fuso fixo -03, como no arquivo exportado pela plataforma
   // Critério de QUALIDADE de dado (não é limiar hidrológico): lacuna = intervalo entre leituras válidas de chuva
   // maior que este fator vezes o intervalo típico (mediana) da série. Ajustável com a Defesa Civil.
@@ -87,6 +92,8 @@
       if (!diaReal(+m[3], +m[2], +m[1])) { out.descartadas.push({ linha: i + 1, motivo: "data inexistente" }); continue; }
       var dia = m[3] + "-" + m[2] + "-" + m[1];
       if (chaveDiaDe(ts) !== dia) { out.descartadas.push({ linha: i + 1, motivo: "timestamp_ms não corresponde à data de data_hora_brt" }); continue; }
+      var fx = 0;
+      var lim = function (v, faixa) { if (v === null) return null; if (v < faixa[0] || v > faixa[1]) { fx++; return null; } return v; };
       var brutoCh = idx.rain_interval_mm !== undefined ? c[idx.rain_interval_mm] : undefined;
       var ch = idx.rain_interval_mm !== undefined ? num(brutoCh) : null;
       var chInv = false;
@@ -94,18 +101,20 @@
       out.push({
         ts: ts,
         dia: dia,
-        t: idx.temperature_c !== undefined ? num(c[idx.temperature_c]) : null,
-        u: idx.humidity_percent !== undefined ? num(c[idx.humidity_percent]) : null,
-        p: idx.pressure_hpa !== undefined ? num(c[idx.pressure_hpa]) : null,
-        v: idx.wind_speed_kmh !== undefined ? num(c[idx.wind_speed_kmh]) : null,
+        t: idx.temperature_c !== undefined ? lim(num(c[idx.temperature_c]), LIMITES_FISICOS.t) : null,
+        u: idx.humidity_percent !== undefined ? lim(num(c[idx.humidity_percent]), LIMITES_FISICOS.u) : null,
+        p: idx.pressure_hpa !== undefined ? lim(num(c[idx.pressure_hpa]), LIMITES_FISICOS.p) : null,
+        v: idx.wind_speed_kmh !== undefined ? lim(num(c[idx.wind_speed_kmh]), LIMITES_FISICOS.v) : null,
         ch: ch,
         chInv: chInv,
         nv: idx.water_level_m !== undefined ? num(c[idx.water_level_m]) : null,
-        rad: idx.solar_radiation_wm2 !== undefined ? num(c[idx.solar_radiation_wm2]) : null,
+        rad: idx.solar_radiation_wm2 !== undefined ? lim(num(c[idx.solar_radiation_wm2]), LIMITES_FISICOS.rad) : null,
+        fx: 0,
         nome: idx.alias !== undefined && c[idx.alias] ? c[idx.alias].trim() : "",
         sn: idx.sn !== undefined && c[idx.sn] ? c[idx.sn].trim() : "",
         cat: idx.category !== undefined && c[idx.category] ? c[idx.category].trim().toLowerCase() : ""
       });
+      out[out.length - 1].fx = fx;
     }
     return out;
   }
@@ -137,7 +146,7 @@
     var D = {};
     rows.forEach(function (r) {
       var d = D[r.dia] || (D[r.dia] = {
-        n: 0, chuva: 0, nChuva: 0, inv: 0, tmin: null, tmax: null, uSoma: 0, uN: 0,
+        n: 0, chuva: 0, nChuva: 0, inv: 0, fx: 0, tmin: null, tmax: null, uSoma: 0, uN: 0,
         pmin: null, pmax: null, vmax: null, radmax: null, c10: 0, c60: 0,
         nvMin: null, nvMax: null, nvSoma: 0, nNivel: 0,
         hMm: vetor(24, null), hN: vetor(24, 0), hNv: vetor(24, 0), lacunas: [], lacunasTrunc: false, lacunaMaxMs: 0
@@ -145,6 +154,7 @@
       var h = horaDe(r.ts);
       d.n++;
       if (r.chInv) d.inv++;
+      if (r.fx) d.fx += r.fx;
       if (r.ch !== null && r.ch !== undefined) {
         d.chuva += r.ch; d.nChuva++;
         d.hMm[h] = (d.hMm[h] === null ? 0 : d.hMm[h]) + r.ch;
@@ -228,6 +238,7 @@
         lacunaMaxMin: Math.round(d.lacunaMaxMs / 600) / 100,
         dup: dup[k] || 0,
         inv: d.inv,
+        foraFaixa: d.fx,
         foraOrdem: foraOrdem[k] || 0,
         cobHoras: cobHoras,
         cobHorasNivel: cobHorasNivel,
@@ -778,7 +789,7 @@
     };
   }
 
-  var CAMPOS_DIA_NUM = ["n", "chuva", "nChuva", "tmin", "tmax", "umid", "pmin", "pmax", "vmax", "radmax", "c10", "c60", "nvMin", "nvMax", "nvMed", "nvDelta", "nNivel", "intMin", "lacunaMaxMin", "dup", "inv", "foraOrdem", "cobHoras", "cobHorasNivel", "v"];
+  var CAMPOS_DIA_NUM = ["n", "chuva", "nChuva", "tmin", "tmax", "umid", "pmin", "pmax", "vmax", "radmax", "c10", "c60", "nvMin", "nvMax", "nvMed", "nvDelta", "nNivel", "intMin", "lacunaMaxMin", "dup", "inv", "foraFaixa", "foraOrdem", "cobHoras", "cobHorasNivel", "v"];
   var MAX_DIAS_POR_SLOT = 3700;
 
   function ehNumOuNull(x) { return x === null || (typeof x === "number" && isFinite(x)); }
@@ -1002,6 +1013,7 @@
     COTAS_RIO_PADRAO: COTAS_RIO_PADRAO,
     LIMITES_IMPORTACAO: LIMITES_IMPORTACAO,
     FATOR_LACUNA: FATOR_LACUNA,
+    LIMITES_FISICOS: LIMITES_FISICOS,
     lerCsv: lerCsv,
     resumir: resumir,
     coberturaJanela: coberturaJanela,

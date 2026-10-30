@@ -5,9 +5,10 @@
   var IBGE = 3509205, UF = "SP", LAT = -23.3547, LON = -46.8764;
   var $ = function (i) { return document.getElementById(i); };
   function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x !== undefined) e.textContent = x; return e; }
-  function hm(ts) { return new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); }
-  function dh(ts) { return new Date(ts).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); }
-  function fdia(d) { return new Date(d + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }); }
+  // Horários sempre em America/Sao_Paulo (Cajamar), não no fuso do aparelho.
+  function hm(ts) { return new Date(ts).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }); }
+  function dh(ts) { return new Date(ts).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); }
+  function fdia(d) { return new Date(d + "T12:00:00Z").toLocaleDateString("pt-BR", { timeZone: "UTC", weekday: "short", day: "2-digit", month: "2-digit" }); }
   function fhora(s) { var d = new Date(String(s).replace(" ", "T")); return isNaN(d) ? String(s) : dh(d); }
   function num(v, casas) { return typeof v === "number" && isFinite(v) ? (casas === undefined ? String(v) : v.toFixed(casas)) : "—"; }
   function fail(box, msg) { box.textContent = ""; box.className = ""; box.appendChild(el("span", "err", msg)); }

@@ -33,7 +33,8 @@
       n.appendChild(el("span", "mut", "em Cajamar" + (descWmo ? " · " + descWmo : "") + " · dado do modelo das " + String(c.time).slice(11, 16)));
       a.appendChild(n);
       var k = el("div", "k"); a.appendChild(k);
-      var textoVento = num(c.wind_speed_10m, 0) + " km/h";
+      var intervaloMin = SerieOM.intervaloCurrentMin(c);
+      var textoVento = typeof c.wind_speed_10m === "number" ? num(c.wind_speed_10m, 0) + " km/h" : "—";
       if (typeof c.wind_gusts_10m === "number" && c.wind_gusts_10m > 0) {
         textoVento += " (rajadas " + num(c.wind_gusts_10m, 0) + " km/h)";
         if (c.wind_gusts_10m >= 50) {
@@ -43,7 +44,7 @@
       var itens = [
         ["Sensação", (typeof c.apparent_temperature === "number" ? Math.round(c.apparent_temperature) + "°C" : "—")],
         ["Umidade", num(c.relative_humidity_2m, 0) + "%"],
-        ["Chuva (hora atual)", num(c.precipitation) + " mm"],
+        [intervaloMin ? "Chuva (últimos " + intervaloMin + " min)" : "Chuva (intervalo não informado)", typeof c.precipitation === "number" ? num(c.precipitation) + " mm" : "—"],
         ["Vento e rajadas", textoVento]
       ];
       itens.forEach(function (p) {
@@ -51,35 +52,48 @@
       });
       document.dispatchEvent(new CustomEvent("cajamar:agora", { detail: {
         temp: c.temperature_2m, chuva: c.precipitation, vento: c.wind_speed_10m, rajada: c.wind_gusts_10m,
-        hora: String(c.time).slice(11, 16), antigo: !!r.antigo
+        hora: String(c.time).slice(11, 16), antigo: !!r.antigo, intervaloMin: intervaloMin
       } }));
 
-      var i0 = Math.max(0, j.hourly.time.indexOf(String(c.time).slice(0, 13) + ":00"));
-      var hs = j.hourly.time.slice(i0, i0 + 24);
-      var hv = j.hourly.precipitation.slice(i0, i0 + 24).map(function (x) { return typeof x === "number" ? x : 0; });
-      var mx = Math.max.apply(null, hv.concat([1]));
+      // O valor horário de precipitação é a soma da hora ANTERIOR ao instante (docs do Open-Meteo): as próximas 24 h são os 24
+      // valores DEPOIS da hora atual, e as últimas 24 h terminam nela. Hora atual ausente na série = sem janela (nunca o índice 0).
+      var i0 = SerieOM.indiceHora(j.hourly.time, c.time);
       var H = $("horas"); H.textContent = ""; H.className = "";
       aviso(H, r);
-      var barras = el("div", "hours"); H.appendChild(barras);
-      hs.forEach(function (t, i) {
-        var d = el("div"), b = el("i");
-        b.style.height = Math.max(1, hv[i] / mx * 60) + "px"; b.title = hv[i] + " mm";
-        d.appendChild(el("span", "", hv[i] > 0 ? String(hv[i]) : "")); d.appendChild(b); d.appendChild(el("span", "", t.slice(11, 13) + "h"));
-        barras.appendChild(d);
-      });
-      var soma24 = hv.reduce(function (s, x) { return s + x; }, 0);
-      $("tot24").textContent = "Total previsto em 24 h: " + soma24.toFixed(1) + " mm (modelo, não é medição)";
+      var chuva24hPassada = null;
+      if (i0 < 0) {
+        fail(H, "Hora atual (" + String(c.time).slice(11, 16) + ") não encontrada na série horária do Open-Meteo: previsão horária indisponível.");
+        $("tot24").textContent = "Total previsto em 24 h: indisponível (série horária sem a hora atual).";
+      } else {
+        var hs = j.hourly.time.slice(i0 + 1, i0 + 25);
+        var hv = j.hourly.precipitation.slice(i0 + 1, i0 + 25).map(function (x) { return typeof x === "number" && isFinite(x) ? x : null; });
+        var mx = Math.max.apply(null, hv.filter(function (x) { return x !== null; }).concat([1]));
+        var barras = el("div", "hours"); H.appendChild(barras);
+        hs.forEach(function (t, i) {
+          var d = el("div"), b = el("i");
+          b.style.height = hv[i] === null ? "1px" : Math.max(1, hv[i] / mx * 60) + "px";
+          b.title = hv[i] === null ? "sem dado" : hv[i] + " mm na hora que termina às " + t.slice(11, 13) + "h";
+          d.appendChild(el("span", "", hv[i] === null ? "—" : (hv[i] > 0 ? String(hv[i]) : ""))); d.appendChild(b); d.appendChild(el("span", "", t.slice(11, 13) + "h"));
+          barras.appendChild(d);
+        });
+        var prox = SerieOM.previstoDepois(j.hourly.precipitation, i0, 24);
+        $("tot24").textContent = prox.completo
+          ? "Total previsto nas próximas 24 h (até " + String(j.hourly.time[i0 + 24]).slice(11, 16) + " de amanhã): " + prox.valor.toFixed(1) + " mm (modelo, não é medição)"
+          : "Total previsto nas próximas 24 h: indisponível (" + (24 - prox.comDado) + " de 24 horas sem dado).";
+        chuva24hPassada = SerieOM.acumuladoAte(j.hourly.precipitation, i0, 24).valor;
+      }
 
       if (typeof Deslizamento !== "undefined" && Deslizamento.extrairDeSerieHoraria) {
         P.desliz.definirSerie(Deslizamento.extrairDeSerieHoraria(j.hourly, c.time));
       }
 
+      // chuva24h = acumulado das ÚLTIMAS 24 h (estimativa do modelo); sem as 24 horas completas o indicador de fogo não é calculado.
       P.fogo.definirClima({
         temp: c.temperature_2m,
         umid: c.relative_humidity_2m,
         vento: c.wind_speed_10m,
         rajada: c.wind_gusts_10m,
-        chuva24h: (typeof c.precipitation === "number" ? c.precipitation : 0) + soma24 * 0.25
+        chuva24h: chuva24hPassada
       });
 
       var D = $("dias"); D.textContent = ""; D.className = "tw";
@@ -88,7 +102,8 @@
       ["Dia", "Mín", "Máx", "Chance", "Chuva mm"].forEach(function (x) { th.appendChild(el("th", "", x)); });
       tb.appendChild(th);
       var hojeIso = String(c.time).slice(0, 10);
-      var idxDia0 = Math.max(0, j.daily.time.indexOf(hojeIso));
+      var idxDia0 = j.daily.time.indexOf(hojeIso);
+      if (idxDia0 < 0) { fail(D, "A data de hoje (" + hojeIso + ") não foi encontrada na série diária do Open-Meteo: previsão por dia indisponível."); return; }
       var diasTime = j.daily.time.slice(idxDia0, idxDia0 + 7);
       var ps = j.daily.precipitation_sum.slice(idxDia0, idxDia0 + 7);
       var dm = Math.max.apply(null, ps.filter(function (x) { return typeof x === "number"; }).concat([1]));
@@ -98,7 +113,7 @@
         tr.appendChild(el("td", "", fdia(d)));
         tr.appendChild(el("td", "", typeof j.daily.temperature_2m_min[i] === "number" ? Math.round(j.daily.temperature_2m_min[i]) + "°" : "—"));
         tr.appendChild(el("td", "", typeof j.daily.temperature_2m_max[i] === "number" ? Math.round(j.daily.temperature_2m_max[i]) + "°" : "—"));
-        tr.appendChild(el("td", "", num(j.daily.precipitation_probability_max[i]) + "%"));
+        tr.appendChild(el("td", "", typeof j.daily.precipitation_probability_max[i] === "number" ? num(j.daily.precipitation_probability_max[i]) + "%" : "—"));
         var c4 = el("td", "", num(j.daily.precipitation_sum[i], 1)), b = el("span", "bar");
         b.style.width = ((typeof j.daily.precipitation_sum[i] === "number" ? j.daily.precipitation_sum[i] : 0) / dm * 50) + "px"; c4.appendChild(b); tr.appendChild(c4); tb.appendChild(tr);
       });

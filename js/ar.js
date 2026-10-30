@@ -30,15 +30,16 @@
     return null;
   }
   function classificarAqi(v) { return achar(v, FAIXAS_AQI); }
-  function classificarUv(v) { return achar(v, FAIXAS_UV); }
+  // O índice UV é divulgado como número inteiro (arredondado) na escala da OMS; 2,6 vira 3 (Moderado), igual ao publicar.js.
+  function classificarUv(v) { return ok(v) ? achar(Math.round(v), FAIXAS_UV) : null; }
 
   // Resume a resposta da API: valores de agora, pior AQI nas próximas 24 h e UV máximo do dia.
   function resumir(j) {
     var h = j.hourly || {}, tempos = h.time || [], c = j.current || {};
-    var i0 = Math.max(0, tempos.indexOf(String(c.time || "").slice(0, 13) + ":00"));
+    var i0 = SerieOM.indiceHora(tempos, c.time); // -1 = hora atual ausente: sem "pior AQI das próximas 24 h"
     var dia = String(c.time || tempos[0] || "").slice(0, 10);
     var pior = null, uvDia = null;
-    for (var i = i0; i < Math.min(tempos.length, i0 + 24); i++) {
+    for (var i = Math.max(i0, 0); i0 >= 0 && i < Math.min(tempos.length, i0 + 24); i++) {
       var a = h.us_aqi && h.us_aqi[i];
       if (ok(a) && (!pior || a > pior.v)) pior = { v: a, hora: String(tempos[i]).slice(11, 13) + "h" };
     }

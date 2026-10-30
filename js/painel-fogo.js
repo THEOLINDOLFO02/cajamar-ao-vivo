@@ -21,6 +21,7 @@
     d.appendChild(el("strong", "", "🌡️ Condição Meteorológica para Fogo em Cajamar: " + rf.nivel));
     d.appendChild(el("small", "", "Temp: " + Math.round(rf.temp) + "°C · Umidade: " + Math.round(rf.umid) + "% · Vento/Rajada: " + rf.ventoMax + " km/h · Regra dos 30: " + rf.regra30 + "/3 fatores · Índice Angström: " + rf.angstrom));
     d.appendChild(el("span", "", rf.recomendacao));
+    d.appendChild(el("small", "mut", rf.aviso + " Índice de Angström clássico (sem ajustes): " + String(rf.angstromPuro).replace(".", ",") + "."));
     box.appendChild(d);
   }
 
@@ -35,6 +36,10 @@
     });
   }
 
+  function textoParcialFocos(d) {
+    return "Consulta ao INPE INCOMPLETA (" + d.arquivosLidos + " de " + d.arquivosTentados + " arquivos lidos): não é possível afirmar que não há focos. Os focos listados são só os dos arquivos lidos.";
+  }
+
   function renderizarPainelFogo(antigo, deTs) {
     var box = $("fogo");
     if (!box || !dadosQueimadasAtual) return;
@@ -43,6 +48,7 @@
       box.appendChild(el("p", "stale", "Não foi possível atualizar o INPE agora. Mostrando focos coletados em " + dh(deTs) + "."));
     }
 
+    if (dadosQueimadasAtual.parcial) box.appendChild(el("p", "stale", textoParcialFocos(dadosQueimadasAtual)));
     var todosFocos = dadosQueimadasAtual.focos || [];
     var emCajamar = todosFocos.filter(function (f) { return f.emCajamar; });
     var raio50 = todosFocos.filter(function (f) { return f.distanciaKm <= 50; });
@@ -50,7 +56,8 @@
 
     P.mapa.desenharFocos(filtrados);
 
-    if (emCajamar.length > 0) {
+    // Só notifica com consulta atual: focos de um cache antigo não são alerta novo.
+    if (!antigo && emCajamar.length > 0) {
       notificarRisco("🔥 Foco de Calor em Cajamar", emCajamar.length + " foco(s) detectado(s) por satélite (" + emCajamar[0].rotuloSat + "). Verifique o painel.");
     }
 
@@ -77,7 +84,7 @@
     box.appendChild(k);
 
     if (!filtrados.length) {
-      var sem = el("p", "mut", "Nenhum foco de calor detectado pelos satélites para o filtro selecionado nas últimas 24–48 h. Você pode ampliar o raio para 100 km ou 300 km (Estado de SP) acima.");
+      var sem = el("p", "mut", dadosQueimadasAtual.parcial ? textoParcialFocos(dadosQueimadasAtual) : "Nenhum foco de calor detectado pelos satélites para o filtro selecionado nas últimas 24–48 h. Você pode ampliar o raio para 100 km ou 300 km (Estado de SP) acima.");
       sem.style.margin = "6px 0";
       box.appendChild(sem);
     } else {

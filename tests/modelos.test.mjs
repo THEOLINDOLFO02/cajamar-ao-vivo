@@ -1,9 +1,9 @@
 // Testes da comparação entre modelos de chuva (js/modelos.js). Os dados abaixo são FICTÍCIOS, criados só para testar o código.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { carregarScript } from "./util.mjs";
+import { carregarScripts } from "./util.mjs";
 
-const { Modelos } = carregarScript("js/modelos.js");
+const { Modelos } = carregarScripts(["js/serie-om.js", "js/modelos.js"]);
 
 // 72 horas a partir de 2026-10-22T00:00; "agora" = 11:15 (índice 11).
 function resposta(porModelo) {
@@ -15,12 +15,13 @@ function resposta(porModelo) {
 }
 const nada = () => 0;
 
-test("totais: soma 24 h e 24-48 h a partir da hora atual (não do começo do dia)", () => {
-  // 1 mm só nas horas 11 a 34 (primeiras 24 h a partir de agora) e 2 mm nas horas 35 a 58 (24 a 48 h)
+test("totais: soma 24 h e 24-48 h DEPOIS da hora atual (cada valor horário é a soma da hora anterior; não do começo do dia)", () => {
+  // "agora" = 11:15, hora cheia 11:00 (índice 11). As próximas 24 h são os valores dos índices 12 a 35; de 24 a 48 h, 36 a 59.
+  // Com 1 mm nos índices 11 a 34 e 2 mm nos 35 a 58: próximas 24 h = 23 x 1 + 1 x 2 = 25; de 24 a 48 h = 23 x 2 + 1 x 0 = 46.
   const j = resposta({ best_match: (i) => (i >= 11 && i < 35 ? 1 : i >= 35 && i < 59 ? 2 : 0), ecmwf_ifs025: nada, gfs_seamless: nada, icon_seamless: nada, gem_seamless: nada, meteofrance_seamless: nada });
   const t = Modelos.totais(j);
-  assert.equal(t.referencia.h24, 24);
-  assert.equal(t.referencia.h48, 48);
+  assert.equal(t.referencia.h24, 25);
+  assert.equal(t.referencia.h48, 46);
   assert.equal(t.hora, "11:15");
   assert.equal(t.modelos.length, 5);
 });
@@ -29,8 +30,8 @@ test("totais: hora faltando deixa o total do modelo como null (nunca completa co
   const j = resposta({ best_match: nada, ecmwf_ifs025: (i) => (i === 20 ? null : 1), gfs_seamless: nada, icon_seamless: nada, gem_seamless: nada, meteofrance_seamless: nada });
   const t = Modelos.totais(j);
   const ecmwf = t.modelos.find((m) => m.id === "ecmwf_ifs025");
-  assert.equal(ecmwf.h24, null, "tem hora nula dentro das próximas 24 h");
-  assert.equal(ecmwf.h48, 24, "a janela de 24 a 48 h está completa");
+  assert.equal(ecmwf.h24, null, "tem hora nula dentro das próximas 24 h (índice 20)");
+  assert.equal(ecmwf.h48, 24, "a janela de 24 a 48 h (índices 36 a 59) está completa");
 });
 
 test("totais: modelo que não veio na resposta fica null", () => {

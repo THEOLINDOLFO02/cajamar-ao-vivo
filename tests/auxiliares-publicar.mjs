@@ -153,4 +153,5 @@ export async function abrirPublicar(opcoes = {}) {
 
 export const esperarTudo = (ms = 80) => new Promise((r) => setTimeout(r, ms));
 
-export const FOCOS_OK = (focos = []) => ({ coletadoEm: new Date(AGORA_MS - 60000).toISOString(), fonte: "INPE BDQueimadas (teste)", focos, arquivosLidos: 3, arquivosTentados: 3, parcial: false, falhas: [] });
+// focos sem "ts" recebem horário de 2 h antes de "agora" (dentro da janela de 24 h); passe ts explícito para testar focos antigos
+export const FOCOS_OK = (focos = []) => ({ coletadoEm: new Date(AGORA_MS - 60000).toISOString(), fonte: "INPE BDQueimadas (teste)", focos: focos.map((f) => ({ ts: AGORA_MS - 2 * 3600000, ...f })), arquivosLidos: 3, arquivosTentados: 3, parcial: false, falhas: [] });

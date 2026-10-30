@@ -161,9 +161,9 @@ test("9. consulta INPE indisponível: nunca aparece “0 focos”; a arte e a le
 test("10. consulta INPE válida sem focos é “0 focos” com fonte, horário e área; consulta parcial vazia não vale como zero", async () => {
   const amb = await abrirPublicar(tudoOk());
   await escolher(amb, "flyer_fogo", "0");
-  assert.match(amb.els.legenda.value, /Consulta INPE válida em 30\/10 14:04 \(SP\): nenhum foco identificado — município de Cajamar\/SP e raio de 50 km/);
+  assert.match(amb.els.legenda.value, /Consulta INPE válida em 30\/10 14:04 \(SP\): nenhum foco identificado nas últimas 24 h — município de Cajamar\/SP e raio de 50 km/);
   assert.ok(amb.textos().includes("0 focos"));
-  assert.ok(amb.textos().includes("Consulta válida · INPE 30/10 14:04"));
+  assert.ok(amb.textos().includes("Consulta válida · últimas 24 h · INPE 30/10 14:04"));
 
   const comFocos = await abrirPublicar(tudoOk({ focos: () => FOCOS_OK([{ emCajamar: true, distanciaKm: 2 }, { emCajamar: false, distanciaKm: 30 }]) }));
   await escolher(comFocos, "flyer_fogo", "0");

@@ -242,8 +242,11 @@
     var rajada = typeof dadosClima.rajada === "number" ? dadosClima.rajada : vento;
 
     var vRef = Math.max(vento, rajada * 0.75);
-    // Índice de Angström: I = (U / 20) + ((27 - T) / 10). Valores < 2.5 indicam condição favorável ao fogo.
-    var angstrom = (umid / 20) + ((27 - temp) / 10);
+    // Índice de Angström (fórmula clássica): I = (U / 20) + ((27 - T) / 10), com U em % e T em °C.
+    // ATENÇÃO: o valor "angstrom" abaixo recebe ajustes DESTE SISTEMA (chuva e vento), que não fazem parte do índice clássico e
+    // cujos pesos não têm fonte documentada; "angstromPuro" é o índice clássico, sem ajustes. As classes são regra local.
+    var angstromPuro = (umid / 20) + ((27 - temp) / 10);
+    var angstrom = angstromPuro;
     if (chuva24h >= 5) angstrom += 1.5;
     else if (chuva24h >= 1) angstrom += 0.6;
     if (vRef >= 30) angstrom -= 0.5;
@@ -278,11 +281,31 @@
       classe: classe,
       regra30: regra30,
       angstrom: Math.round(angstrom * 100) / 100,
+      angstromPuro: Math.round(angstromPuro * 100) / 100,
+      adaptado: true,
+      aviso: "Indicador calculado com regra local do sistema (Índice de Angström com ajustes de chuva e vento e Regra dos 30 usando a maior entre vento e rajada); não é classificação oficial.",
       temp: temp,
       umid: umid,
       ventoMax: Math.round(Math.max(vento, rajada)),
       recomendacao: recomendacao
     };
+  }
+
+  // Conta focos detectados nas últimas "horas" horas (por padrão 24 h, janela usual do BDQueimadas). Foco sem horário válido não é
+  // contado (vai em semHorario) e foco com horário mais de 10 min à frente de "agora" é ignorado (relógio errado).
+  function contarFocos(focos, agoraMs, horas) {
+    var janela = (typeof horas === "number" && horas > 0 ? horas : 24) * 3600000;
+    var r = { janelaHoras: janela / 3600000, total: 0, nCajamar: 0, nRaio50: 0, semHorario: 0, maisRecente: null, maisAntigo: null };
+    (Array.isArray(focos) ? focos : []).forEach(function (f) {
+      if (!f || typeof f.ts !== "number" || !isFinite(f.ts)) { r.semHorario++; return; }
+      if (f.ts > agoraMs + 600000 || f.ts < agoraMs - janela) return;
+      r.total++;
+      if (f.emCajamar) r.nCajamar++;
+      if (typeof f.distanciaKm === "number" && f.distanciaKm <= 50) r.nRaio50++;
+      if (r.maisRecente === null || f.ts > r.maisRecente) r.maisRecente = f.ts;
+      if (r.maisAntigo === null || f.ts < r.maisAntigo) r.maisAntigo = f.ts;
+    });
+    return r;
   }
 
   function datasRecentesUtc() {
@@ -393,6 +416,8 @@
     lerCsvFocos: lerCsvFocos,
     consolidarFocos: consolidarFocos,
     calcularRiscoFogoLocal: calcularRiscoFogoLocal,
+    contarFocos: contarFocos,
+    converterDataGmt: converterDataGmt,
     coletarInpeAoVivo: coletarInpeAoVivo
   };
 })(typeof window !== "undefined" ? window : globalThis);

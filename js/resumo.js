@@ -6,7 +6,7 @@
   var avisos = null, agora = null, ar = null;
 
   function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x !== undefined) e.textContent = x; return e; }
-  function hm(ts) { return new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); }
+  function hm(ts) { return new Date(ts).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }); }
   function haQuanto(ts) { // "agora", "há 3 min", ou a hora quando passa de 1 h
     var min = Math.round((Date.now() - ts) / 60000);
     return min < 1 ? "agora" : min < 60 ? "há " + min + " min" : "às " + hm(ts);
@@ -52,7 +52,7 @@
       sub.textContent = (maior.evento || "Aviso") + " — " + (maior.severidade || "") + (maior.fim ? ", válido até " + quando(maior.fim) : "") +
         (avisos.antigo ? " · DADO ANTIGO: não foi possível atualizar" : "") + (avisos.oficial ? "" : " · fonte de terceiros (reserva)");
     } else {
-      hero.dataset.nivel = "normal";
+      hero.dataset.nivel = avisos.antigo ? "incerto" : "normal";
       titulo.textContent = "Nenhum aviso do INMET listado para Cajamar";
       sub.textContent = "Isso não garante ausência de risco: acompanhe a chuva, o mapa e os canais oficiais." + (avisos.antigo ? " (consulta antiga)" : "");
     }
@@ -60,10 +60,12 @@
     var met = $("heroMetricas");
     if (met) {
       met.textContent = "";
-      if (agora) {
+      if (agora && agora.antigo) {
+        met.appendChild(el("p", "stale", "Tempo atual: dado antigo (não foi possível atualizar o Open-Meteo); medidas ocultas para não parecerem de agora."));
+      } else if (agora) {
         var linhas = [];
         if (typeof agora.temp === "number") linhas.push(["temp", Math.round(agora.temp) + "°", "Temperatura", false]);
-        if (typeof agora.chuva === "number") linhas.push(["chuva", String(agora.chuva).replace(".", ","), "mm de chuva na hora", agora.chuva >= 5]);
+        if (typeof agora.chuva === "number") linhas.push(["chuva", String(agora.chuva).replace(".", ","), agora.intervaloMin ? "mm nos últimos " + agora.intervaloMin + " min (modelo)" : "mm (intervalo não informado)", false]);
         if (typeof agora.vento === "number") linhas.push(["vento", String(Math.round(agora.vento)), "km/h de vento", false]);
         linhas.forEach(function (l) {
           var d = el("div", "metrica" + (l[3] ? " forte" : "") + (l[0] === "temp" ? " destaque" : ""));

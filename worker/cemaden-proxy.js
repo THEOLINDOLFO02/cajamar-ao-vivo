@@ -49,10 +49,23 @@ function valor(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+// Os horários do CEMADEN não trazem fuso. Evidência (coleta de 30/10/2026): a estação de Cajamar tinha leitura 16:00 com a
+// coleta às 16:03 UTC, e várias estações da rede tinham leituras 16:40 a 17:00, ou seja, À FRENTE do relógio. Por isso o horário
+// é tratado como UTC e leituras mais de TOLERANCIA_FUTURO_MIN adiante da coleta NÃO entram na "referência da rede" (relógio
+// errado da estação). Se nenhuma leitura recente (até 6 h antes da coleta) for coerente com UTC, o fuso fica "não confirmado" e a
+// referência continua sendo a maior leitura (comportamento anterior), sinalizado em fusoConfirmado=false.
+export const TOLERANCIA_FUTURO_MIN = 10;
+const JANELA_COERENCIA_MIN = 360;
+
 export function montar(bruto, agora = new Date()) {
   if (!Array.isArray(bruto) || bruto.length < 50) throw new Error("resposta do CEMADEN em formato inesperado");
+  const coletaMin = Math.floor(agora.getTime() / 60000);
   const todas = bruto.map((x) => minutos(x.datahoraUltimovalor)).filter((x) => x !== null);
-  const referencia = todas.length ? todas.reduce((a, b) => (b > a ? b : a), -Infinity) : null;
+  const naoFuturas = todas.filter((m) => m <= coletaMin + TOLERANCIA_FUTURO_MIN);
+  const fusoConfirmado = naoFuturas.some((m) => coletaMin - m <= JANELA_COERENCIA_MIN);
+  const candidatas = fusoConfirmado ? naoFuturas : todas;
+  const referencia = candidatas.length ? candidatas.reduce((a, b) => (b > a ? b : a), -Infinity) : null;
+  const leiturasFuturas = fusoConfirmado ? todas.length - naoFuturas.length : 0;
   const refItem = referencia !== null ? bruto.find((x) => minutos(x.datahoraUltimovalor) === referencia) : null;
   const refTexto = refItem ? refItem.datahoraUltimovalor : null;
   const estacoes = bruto
@@ -64,12 +77,13 @@ export function montar(bruto, agora = new Date()) {
         tipo: x.tipoestacao, status: x.status,
         leitura: x.datahoraUltimovalor || null,
         minutosAntes: m === null || referencia === null ? null : referencia - m,
+        leituraFutura: fusoConfirmado && m !== null && m > coletaMin + TOLERANCIA_FUTURO_MIN,
         ultimo: valor(x.ultimovalor),
         acc: { h1: valor(x.acc1hr), h3: valor(x.acc3hr), h6: valor(x.acc6hr), h12: valor(x.acc12hr), h24: valor(x.acc24hr), h48: valor(x.acc48hr), h72: valor(x.acc72hr), h96: valor(x.acc96hr) }
       };
     })
     .sort((a, b) => (a.ibge === 3509205 ? 0 : 1) - (b.ibge === 3509205 ? 0 : 1) || String(a.cidade || "").localeCompare(String(b.cidade || ""), "pt-BR") || String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR"));
-  return { coletadoEm: agora.toISOString(), fonte: URL_FONTE, referenciaRede: refTexto, estacoes };
+  return { coletadoEm: agora.toISOString(), fonte: URL_FONTE, referenciaRede: refTexto, fusoConfirmado, leiturasFuturas, estacoes };
 }
 
 // ---------- Windy (previsão pontual) ----------
@@ -136,7 +150,7 @@ async function rotaWindy(request, env, cors) {
     }
     return new Response(head ? null : corpo, { headers: { ...json, "Cache-Control": "public, max-age=600" } });
   } catch (e) {
-    const msg = String(e && e.message ? e.message : e).split(env.WINDY_POINT_KEY || " ").join("***");
+    const msg = String(e && e.message ? e.message : e).split(env.WINDY_POINT_KEY || "\u0000").join("***");
     return new Response(head ? null : JSON.stringify({ erro: msg }), { status: 502, headers: { ...json, "Cache-Control": "no-store" } });
   }
 }

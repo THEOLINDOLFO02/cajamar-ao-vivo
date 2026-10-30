@@ -295,12 +295,15 @@
     }
   }
 
+  function numValido(v) { return typeof v === "number" && isFinite(v) ? v : null; }
+
   async function rodar() {
     banco = Estacao.carregarBanco();
     var modoEst = $("selEstacaoComp") ? $("selEstacaoComp").value : "est1";
     var usarRegua = $("selReguaComp") ? $("selReguaComp").value === "sim" : true;
     var aceitarParciais = $("selDiasParciais") ? $("selDiasParciais").value === "todos" : false;
-    var minLeituras = aceitarParciais ? 1 : 1296;
+    // Dia completo = cobertura horária completa e sem lacunas (mesma definição do histórico), não uma contagem fixa de leituras.
+    var diaValido = function (d) { return !!d && numValido(d.chuva) !== null && (aceitarParciais || Estacao.diaCompleto(d) === true); };
 
     var estacoesAtivas = [];
     if (modoEst === "todas") {
@@ -317,7 +320,7 @@
     var mapaDatas = {};
     estacoesAtivas.forEach(function (sl) {
       Object.keys(sl.dias || {}).forEach(function (k) {
-        if (sl.dias[k].n >= minLeituras) mapaDatas[k] = true;
+        if (diaValido(sl.dias[k])) mapaDatas[k] = true;
       });
     });
     var chaves = Object.keys(mapaDatas).sort();
@@ -342,25 +345,29 @@
       var resRuns = await buscarJsonTimeout(urlPrevRuns, 20000);
       if (!resRuns.hourly || !Array.isArray(resRuns.hourly.time)) throw new Error("formato inesperado da API Previous Runs");
 
-      var prevD1 = {}, nulos = {};
+      // Cada valor horário é a soma da hora ANTERIOR ao instante: a soma por data cobre 23:00 do dia anterior até 23:00 do dia
+      // (deslocada 1 h do dia civil da estação). O dia só vale com as 24 horas numéricas; senão fica fora da comparação.
+      var prevD1 = {}, nulos = {}, contH = {};
       resRuns.hourly.time.forEach(function (h, i) {
         var d = h.slice(0, 10), v = resRuns.hourly.precipitation_previous_day1[i];
-        if (v === null || v === undefined) { nulos[d] = (nulos[d] || 0) + 1; return; }
+        if (typeof v !== "number" || !isFinite(v) || v < 0) { nulos[d] = (nulos[d] || 0) + 1; return; }
+        contH[d] = (contH[d] || 0) + 1;
         prevD1[d] = (prevD1[d] || 0) + v;
       });
+      Object.keys(contH).forEach(function (d) { if (contH[d] !== 24) { nulos[d] = (nulos[d] || 0) + (24 - contH[d]); } });
 
       var modEcmwf = {}, modGfs = {};
       try {
         var resMod = await buscarJsonTimeout(urlModelos, 12000);
         if (resMod && resMod.daily && Array.isArray(resMod.daily.time)) {
-          var arrEc = resMod.daily.precipitation_sum_ecmwf_ifs04 || resMod.daily.precipitation_sum_best_match || [];
+          var arrEc = resMod.daily.precipitation_sum_ecmwf_ifs04 || []; // sem substituir por outro modelo: coluna ECMWF só traz ECMWF
           var arrGfs = resMod.daily.precipitation_sum_gfs_seamless || [];
           resMod.daily.time.forEach(function (d, i) {
             if (typeof arrEc[i] === "number") modEcmwf[d] = arrEc[i];
             if (typeof arrGfs[i] === "number") modGfs[d] = arrGfs[i];
           });
         }
-      } catch (eMod) {}
+      } catch (eMod) { if (typeof console !== "undefined") console.warn("[comparar] modelos ECMWF/GFS indisponíveis:", eMod); }
 
       var linhas = [];
       var temAlgumNivel = false;
@@ -372,7 +379,7 @@
 
         estacoesAtivas.forEach(function (sl) {
           var d = sl.dias[k];
-          if (d && d.n >= minLeituras) {
+          if (diaValido(d)) {
             valsEst.push({ id: sl.id, nome: sl.estacao || sl.rotulo, chuva: d.chuva });
             if (usarRegua && d.nvMax !== null && d.nvMax !== undefined) {
               nvMinDia = d.nvMin; nvMaxDia = d.nvMax; nvDeltaDia = d.nvDelta;

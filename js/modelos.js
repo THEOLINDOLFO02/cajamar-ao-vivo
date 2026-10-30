@@ -22,6 +22,7 @@
   function validar(j) { return !!(j && j.current && j.current.time && j.hourly && Array.isArray(j.hourly.time)); }
 
   // Soma 24 h começando em "ini". Se faltar qualquer hora, o total é null (não completa com zero).
+  // O valor horário de precipitação é a soma da hora ANTERIOR ao instante: "próximas 24 h" começam no valor DEPOIS da hora atual.
   function somar24(v, ini) {
     if (!Array.isArray(v) || ini + 24 > v.length) return null;
     var t = 0;
@@ -31,10 +32,10 @@
 
   // Totais por modelo nas próximas 24 h e de 24 a 48 h, a partir da hora atual da resposta.
   function totais(j) {
-    var tempos = j.hourly.time, i0 = Math.max(0, tempos.indexOf(String(j.current.time).slice(0, 13) + ":00"));
+    var i0 = SerieOM.indiceHora(j.hourly.time, j.current.time); // -1 = hora atual ausente: sem totais (nunca o índice 0)
     function linha(m, ehRef) {
       var v = j.hourly["precipitation_" + m.id];
-      return { id: m.id, nome: m.nome, referencia: !!ehRef, h24: somar24(v, i0), h48: somar24(v, i0 + 24) };
+      return { id: m.id, nome: m.nome, referencia: !!ehRef, h24: i0 < 0 ? null : somar24(v, i0 + 1), h48: i0 < 0 ? null : somar24(v, i0 + 25) };
     }
     return { referencia: linha(REFERENCIA, true), modelos: MODELOS.map(function (m) { return linha(m, false); }), hora: String(j.current.time).slice(11, 16) };
   }

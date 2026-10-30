@@ -205,7 +205,7 @@
     cur = i;
     if (modoMapaAtual === "radar") layers[cur].setOpacity(0.7);
     $("slider").value = i;
-    var hora = new Date(frames[i].time * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    var hora = new Date(frames[i].time * 1000).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
     var ehFuturo = i >= pastCount;
     var rt = $("rt"); rt.textContent = hora + " ";
     rt.appendChild(el("span", "badge-frame " + (ehFuturo ? "futuro" : "passado"), ehFuturo ? "Projeção (Nowcast)" : "Chuva detectada"));

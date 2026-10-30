@@ -1,9 +1,9 @@
 // Testes da qualidade do ar e UV (js/ar.js). Os dados abaixo são FICTÍCIOS, criados só para testar o código.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { carregarScript } from "./util.mjs";
+import { carregarScripts } from "./util.mjs";
 
-const { Ar } = carregarScript("js/ar.js");
+const { Ar } = carregarScripts(["js/serie-om.js", "js/ar.js"]);
 
 test("US AQI: limites de cada faixa", () => {
   const nomes = [[0, "Boa"], [50, "Boa"], [51, "Moderada"], [100, "Moderada"], [101, "Ruim para grupos sensíveis"], [150, "Ruim para grupos sensíveis"], [151, "Ruim"], [200, "Ruim"], [201, "Muito ruim"], [300, "Muito ruim"], [301, "Perigosa"], [500, "Perigosa"]];
@@ -15,7 +15,8 @@ test("US AQI: valor inválido não vira 'Boa' (devolve null)", () => {
 });
 
 test("UV (OMS): limites de cada faixa", () => {
-  const nomes = [[0, "Baixo"], [2.9, "Baixo"], [3, "Moderado"], [5.9, "Moderado"], [6, "Alto"], [7.5, "Alto"], [8, "Muito alto"], [10.9, "Muito alto"], [11, "Extremo"], [14, "Extremo"]];
+  // O índice UV é inteiro (arredondado): 2,4 -> 2 (Baixo); 2,5 e 2,9 -> 3 (Moderado); 7,4 -> 7 (Alto); 7,5 -> 8 (Muito alto); 10,4 -> 10; 10,5 -> 11 (Extremo)
+  const nomes = [[0, "Baixo"], [2.4, "Baixo"], [2.5, "Moderado"], [2.9, "Moderado"], [3, "Moderado"], [5.4, "Moderado"], [5.5, "Alto"], [6, "Alto"], [7.4, "Alto"], [7.5, "Muito alto"], [8, "Muito alto"], [10.4, "Muito alto"], [10.5, "Extremo"], [14, "Extremo"]];
   for (const [v, nome] of nomes) assert.equal(Ar.classificarUv(v).nome, nome, "UV " + v);
   assert.equal(Ar.classificarUv(null), null);
 });
