@@ -135,3 +135,12 @@ O cartão "Chuva recente × normal" compara a chuva do **mês até ontem**, dos 
 - É **estimativa de modelo**, que pode diferir de um pluviômetro. Se você importou o CSV da estação, o cartão **confere** o modelo com a estação nos dias completos (mínimo de 7 dias) e mostra a diferença, para você saber o quanto confiar.
 - Dia sem dado nunca é completado com zero (o período fica sem comparação). Usa até ontem, porque o dia de hoje é parcial.
 - Os dados diários (cerca de 33 KB) ficam guardados no aparelho e só são baixados de novo quando muda o dia.
+
+## Integridade das publicações (publicar.html)
+
+- **Ausente não é zero:** campo meteorológico ausente aparece como “—”; zero só quando a API informou 0. Sem dados essenciais a publicação não é gerada e o motivo aparece na tela.
+- **Referência temporal:** o dia de hoje é o de Cajamar (America/Sao_Paulo), validado contra a série da API (datas duplicadas, lacunas, fora de ordem, horários duplicados). Se não for possível determiná-lo, a geração é interrompida.
+- **Consultas indisponíveis ≠ sem ocorrências:** INMET e INPE têm estado próprio (ok, cache, desatualizado, indisponível). “Sem avisos” e “0 focos” só aparecem após consulta válida; a arte e a legenda trazem fonte, data de referência, horário da coleta e, se for o caso, “DESATUALIZADO”/“DADO DO CACHE”/“DADOS PARCIAIS”. Prazos de frescor (clima 3 h, avisos 3 h, previsão 6 h, focos 6 h) são critérios de apresentação, em `js/publicacao.js`.
+- **Faixa de status:** automática e informativa; só um aviso oficial ativo do INMET muda a cor. Alterar cor ou texto manualmente marca a arte como “FAIXA DEFINIDA PELO OPERADOR”; cor e texto incoerentes exigem justificativa visível.
+- **Exportação:** a prévia anterior é apagada ao iniciar uma nova geração; baixar/compartilhar/copiar só funcionam com a imagem do modelo atual totalmente gerada. Simulações levam marca d’água e não podem ser compartilhadas.
+- **Indicadores de deslizamento e de fogo** são referenciais/calculados e não oficiais; sem dados completos mostram “DADOS INSUFICIENTES PARA AVALIAÇÃO”.

@@ -56,12 +56,12 @@
         </label>
         <label class="campo">Nível / Cor da faixa de status
           <select id="nivelFaixa">
-            <option value="auto">🔄 Automático (conforme condição do tempo)</option>
-            <option value="normal">🟢 Normalidade (Verde)</option>
-            <option value="atencao">🟡 Observação (Amarelo)</option>
-            <option value="alerta">🟠 Atenção (Laranja)</option>
-            <option value="emergencia">🔴 Alerta (Vermelho)</option>
-            <option value="maximo">🟣 Alerta Máximo (Roxo)</option>
+            <option value="auto">🔄 Automático (informativo; só o aviso oficial do INMET muda a cor)</option>
+            <option value="normal">🟢 Definir manualmente: Normalidade (Verde)</option>
+            <option value="atencao">🟡 Definir manualmente: Observação (Amarelo)</option>
+            <option value="alerta">🟠 Definir manualmente: Atenção (Laranja)</option>
+            <option value="emergencia">🔴 Definir manualmente: Alerta (Vermelho)</option>
+            <option value="maximo">🟣 Definir manualmente: Alerta Máximo (Roxo)</option>
           </select>
         </label>
       </div>
@@ -87,11 +87,15 @@
         </label>
       </details>
       <p id="status" class="mut" style="margin:6px 0 0;font-size:.86rem" aria-live="polite"></p>
+      <details class="mais-acoes" style="margin-top:8px"><summary>Estado das fontes de dados (INMET, INPE, Open-Meteo)</summary>
+        <p id="fontesPub" class="mut" style="margin:6px 0 0;font-size:.82rem;white-space:pre-line" aria-live="polite">Consultando…</p>
+      </details>
     </section>
 
     <section class="card pub-previa-card" id="secPreviaPub">
       <h2>2. Prévia e compartilhamento</h2>
       <div class="previa"><canvas id="tela" width="1080" height="1920" aria-label="Prévia da imagem para publicação"></canvas></div>
+      <p id="metaPrevia" class="mut" style="margin:6px 0 0;font-size:.82rem" aria-live="polite">Sem prévia válida.</p>
       <div class="barra-acoes">
         <button id="compartilhar" type="button" class="btn primary">📲 Compartilhar (Instagram / WhatsApp)</button>
         <button id="copiarImg" type="button" class="btn">📋 Copiar imagem (Ctrl+V)</button>
@@ -105,6 +109,7 @@
       <summary><span>3. Personalizar textos e legenda (opcional)<small>Edite título, faixa de status, orientações, telefone e legenda da rede social</small></span></summary>
       <div class="colapso-corpo">
         <label class="campo">Texto da faixa superior de status<input id="textoFaixa" maxlength="80" placeholder="Ex.: 🟢 CONDIÇÃO NORMAL · TEMPO SEM ALERTAS SEVEROS"></label>
+        <label class="campo">Justificativa da faixa (obrigatória se a cor e o texto da faixa forem incoerentes; fica visível na arte)<input id="justificativaFaixa" maxlength="120" placeholder="Ex.: decisão do coordenador após vistoria"></label>
         <label class="campo">Título<input id="titulo" maxlength="90"></label>
         <label class="campo">Subtítulo<input id="subtitulo" maxlength="110"></label>
         <label class="campo">Linhas / Orientações da imagem (uma por linha)<textarea id="linhas" rows="6"></textarea></label>
@@ -120,6 +125,7 @@
 <script src="js/estacao.js"></script>
 <script src="js/deslizamento.js"></script>
 <script src="js/queimadas.js"></script>
+<script src="js/publicacao.js"></script>
 <script src="js/publicar.js"></script>
 <script>
 if ('serviceWorker' in navigator) {

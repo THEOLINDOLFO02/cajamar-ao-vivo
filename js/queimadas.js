@@ -234,11 +234,12 @@
     if (!dadosClima) return null;
     var temp = typeof dadosClima.temp === "number" ? dadosClima.temp : null;
     var umid = typeof dadosClima.umid === "number" ? dadosClima.umid : null;
-    var vento = typeof dadosClima.vento === "number" ? dadosClima.vento : 0;
-    var rajada = typeof dadosClima.rajada === "number" ? dadosClima.rajada : vento;
-    var chuva24h = typeof dadosClima.chuva24h === "number" ? dadosClima.chuva24h : 0;
+    var vento = typeof dadosClima.vento === "number" ? dadosClima.vento : null;
+    var chuva24h = typeof dadosClima.chuva24h === "number" ? dadosClima.chuva24h : null;
 
-    if (temp === null || umid === null) return null;
+    // Dado ausente não vira 0: sem temperatura, umidade, vento ou chuva o indicador NÃO é calculado.
+    if (temp === null || umid === null || vento === null || chuva24h === null) return null;
+    var rajada = typeof dadosClima.rajada === "number" ? dadosClima.rajada : vento;
 
     var vRef = Math.max(vento, rajada * 0.75);
     // Índice de Angström: I = (U / 20) + ((27 - T) / 10). Valores < 2.5 indicam condição favorável ao fogo.
@@ -320,6 +321,8 @@
   async function coletarInpeAoVivoInterno() {
     var todos = [];
     var lidos = 0;
+    var tentados = 0;
+    var falhasArq = [];
 
     async function carregarDiarios() {
       var arqsDiarios = [];
@@ -327,7 +330,9 @@
         var htmlDiario = await buscarTexto(URL_DIARIO_BASE, 10000);
         var rxD = /href="([^"]*focos_diario_br_\d{8}\.csv)"/g, md;
         while ((md = rxD.exec(htmlDiario)) !== null) arqsDiarios.push(md[1]);
-      } catch (e) {}
+      } catch (e) {
+        falhasArq.push("lista de arquivos diários: " + (e && e.message ? e.message : "falha"));
+      }
 
       var ultimosDiarios = arqsDiarios.length
         ? arqsDiarios.slice(-2)
@@ -335,10 +340,11 @@
 
       var promessasD = ultimosDiarios.map(function (nomeArq) {
         var urlD = nomeArq.indexOf("http") === 0 ? nomeArq : URL_DIARIO_BASE + nomeArq;
+        tentados++;
         return buscarTexto(urlD, 15000).then(function (txt) {
           todos = todos.concat(lerCsvFocos(txt, 300));
           lidos++;
-        }).catch(function () {});
+        }).catch(function (e) { falhasArq.push(nomeArq + ": " + (e && e.message ? e.message : "falha")); });
       });
       await Promise.all(promessasD);
     }
@@ -352,13 +358,16 @@
         var ultimos = arq10.slice(-3);
         var promessas10 = ultimos.map(function (nome10) {
           var u10 = nome10.indexOf("http") === 0 ? nome10 : URL_10MIN_BASE + nome10;
+          tentados++;
           return buscarTexto(u10, 8000).then(function (t10) {
             todos = todos.concat(lerCsvFocos(t10, 300));
             lidos++;
-          }).catch(function () {});
+          }).catch(function (e) { falhasArq.push(nome10 + ": " + (e && e.message ? e.message : "falha")); });
         });
         await Promise.all(promessas10);
-      } catch (e) {}
+      } catch (e) {
+        falhasArq.push("lista de arquivos de 10 min: " + (e && e.message ? e.message : "falha"));
+      }
     }
 
     await Promise.all([carregarDiarios(), carregar10Min()]);
@@ -368,7 +377,11 @@
     return {
       coletadoEm: new Date().toISOString(),
       fonte: "INPE BDQueimadas (DataServer COIDS — 10 min + Diário)",
-      focos: focos
+      focos: focos,
+      arquivosLidos: lidos,
+      arquivosTentados: tentados,
+      parcial: lidos < tentados,
+      falhas: falhasArq
     };
   }
 

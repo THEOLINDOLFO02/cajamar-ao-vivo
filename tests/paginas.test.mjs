@@ -58,7 +58,7 @@ test("scripts usados por uma página são carregados antes de quem depende deles
     "modelos.js": ["fontes.js"],
     "windy.js": ["fontes.js", "config.js"],
     "climatologia.js": ["fontes.js"],
-    "publicar.js": ["fontes.js", "inmet.js", "estacao.js", "queimadas.js", "deslizamento.js"],
+    "publicar.js": ["fontes.js", "inmet.js", "estacao.js", "queimadas.js", "deslizamento.js", "publicacao.js"],
     "historico.js": ["estacao.js", "deslizamento.js"],
     "quadro.js": ["estacao.js", "deslizamento.js"],
     "observacoes.js": ["deslizamento.js"],
