@@ -223,12 +223,13 @@
         if (avs.length || (dRio && dRio.nvMax !== null)) {
           texto += "\n⛰️ *Status Hidrometeorológico e Encostas:*\n";
           if (avs.length) {
-            avs.sort(function (a, b) { return b.nivel - a.nivel || b.mm24h - a.mm24h; });
-            var p = avs[0];
-            texto += "• Risco Deslizamento: " + p.icone + " *" + p.estado.toUpperCase() + "* (" + p.fonte + " — 1h: " + p.mm1h.toFixed(1).replace(".", ",") + "mm | 24h: " + p.mm24h.toFixed(1).replace(".", ",") + "mm | 168h: " + p.mm168h.toFixed(1).replace(".", ",") + "mm)\n";
+            var concl = avs.filter(function (a) { return a.conclusivo; });
+            concl.sort(function (a, b) { return b.nivel - a.nivel || b.mm24h - a.mm24h; });
+            var p = concl.length ? concl[0] : avs[0];
+            texto += "• Indicador pluviométrico referencial (não oficial): " + p.icone + " *" + p.estado.toUpperCase() + "* (" + p.fonte + " — 1h: " + Deslizamento.fmtMm(p.mm1h) + "mm | 24h: " + Deslizamento.fmtMm(p.mm24h) + "mm | 168h: " + Deslizamento.fmtMm(p.mm168h) + "mm)\n";
           }
           if (dRio && dRio.nvMax !== null) {
-            var avRio = Estacao.avaliarNivelRio(dRio.nvMax, dRio.nvDelta);
+            var avRio = Estacao.avaliarNivelRio(dRio.nvMax, dRio.nvDelta, undefined, Estacao.qualidadeNivel(dRio));
             texto += "• Régua do Rio: " + avRio.icone + " *" + avRio.estado + "* (Máx: " + dRio.nvMax.toFixed(2).replace(".", ",") + "m · Δ: +" + Math.round((dRio.nvDelta || 0) * 100) + "cm)\n";
           }
         }

@@ -89,14 +89,14 @@
       var avDesl = null;
       var avRio = null;
       if (pt.slotId === "regua" && dUlt && dUlt.nvMax !== null && typeof Estacao !== "undefined") {
-        avRio = Estacao.avaliarNivelRio(dUlt.nvMax, dUlt.nvDelta, cotas);
+        avRio = Estacao.avaliarNivelRio(dUlt.nvMax, dUlt.nvDelta, cotas, Estacao.qualidadeNivel(dUlt));
         corPino = avRio.corFundo;
       } else if (pt.slotId && dUlt && typeof Deslizamento !== "undefined") {
         avDesl = Deslizamento.avaliarDiaEstacao(sl.dias, ultData, sl.estacao || pt.nome);
         if (avDesl) corPino = avDesl.corFundo;
       } else if (P.desliz.ultima() && pt.tipo.indexOf("Encosta") > -1) {
         avDesl = P.desliz.ultima();
-        if (avDesl.nivel >= 1) corPino = avDesl.corFundo;
+        if (avDesl.conclusivo && avDesl.nivel >= 1) corPino = avDesl.corFundo;
       }
 
       var estMun = typeof Municipio !== "undefined" ? Municipio.dados() : null;
@@ -122,9 +122,9 @@
         pop.appendChild(el("small", "", "Nível Máx: " + dUlt.nvMax.toFixed(2).replace(".", ",") + " m · Δ: +" + Math.round((dUlt.nvDelta || 0) * 100) + " cm"));
       } else if (avDesl) {
         pop.appendChild(el("br"));
-        pop.appendChild(el("small", "", "⛰️ Risco Deslizamento: " + avDesl.icone + " " + avDesl.estado));
+        pop.appendChild(el("small", "", "⛰️ Indicador referencial (não oficial): " + avDesl.icone + " " + avDesl.estado));
         pop.appendChild(el("br"));
-        pop.appendChild(el("small", "", "1h: " + avDesl.mm1h.toFixed(1).replace(".", ",") + " mm · 24h: " + avDesl.mm24h.toFixed(1).replace(".", ",") + " mm · 168h: " + avDesl.mm168h.toFixed(1).replace(".", ",") + " mm"));
+        pop.appendChild(el("small", "", "1h: " + Deslizamento.fmtMm(avDesl.mm1h) + " mm · 24h: " + Deslizamento.fmtMm(avDesl.mm24h) + " mm · 168h: " + Deslizamento.fmtMm(avDesl.mm168h) + " mm"));
       }
 
       if (foraDoLimite) {

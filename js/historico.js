@@ -99,8 +99,8 @@
     var larg = x1 - x0, bw = Math.max(3, larg / chaves.length * .7);
     chaves.forEach(function (k, i) {
       var d = dias[k], h = (d.chuva || 0) / max * (y1 - y0), cx = x0 + (i + .5) * larg / chaves.length;
-      var r = sv("rect", { x: cx - bw / 2, y: y1 - h, width: bw, height: Math.max(h, d.chuva > 0 ? 1 : 0), class: "barra" + (d.n < 1296 ? " parcial" : "") });
-      var tt = sv("title", {}); tt.textContent = fdataLonga(k) + ": " + f1(d.chuva) + " mm" + (d.n < 1296 ? " (dia incompleto)" : ""); r.appendChild(tt);
+      var r = sv("rect", { x: cx - bw / 2, y: y1 - h, width: bw, height: Math.max(h, d.chuva > 0 ? 1 : 0), class: "barra" + (Estacao.diaCompleto(d) !== true ? " parcial" : "") });
+      var tt = sv("title", {}); tt.textContent = fdataLonga(k) + ": " + f1(d.chuva) + " mm" + (Estacao.diaCompleto(d) !== true ? " (dia incompleto ou sem detalhe: valor mínimo)" : ""); r.appendChild(tt);
       svg.appendChild(r);
     });
     eixoX(svg, chaves, x0, larg, H - 8, 10);
@@ -153,7 +153,7 @@
       t.textContent = (mn + f * (mx - mn)).toFixed(2).replace(".", ",") + "m";
       svg.appendChild(t);
     });
-    if (cotas) {
+    if (cotas && cotas.origem === "usuario") {
       [
         { v: cotas.atencaoM, cor: "#ca8a04", rot: "Atenção " + cotas.atencaoM.toFixed(2).replace(".", ",") + "m" },
         { v: cotas.alertaM, cor: "#ea580c", rot: "Alerta " + cotas.alertaM.toFixed(2).replace(".", ",") + "m" },
@@ -277,7 +277,18 @@
       }
     });
 
-    var incompletos = chaves.filter(function (k) { return dias[k].n < 1296; }).length;
+    // qualidade dos dados do período exibido (dia completo = cobertura horária completa e sem lacunas)
+    var qual = { completos: 0, incompletos: 0, desconhecidos: 0, faltantes: 0, dup: 0, inv: 0, foraOrdem: 0, lacunas: 0 };
+    chaves.forEach(function (k) {
+      var dq = dias[k];
+      var ok = sl.id === "regua" ? Estacao.qualidadeNivel(dq).completo : Estacao.diaCompleto(dq);
+      if (ok === true) qual.completos++; else qual.incompletos++;
+      if (ok === null) qual.desconhecidos++;
+      qual.dup += dq.dup || 0; qual.inv += dq.inv || 0; qual.foraOrdem += dq.foraOrdem || 0; qual.lacunas += (dq.lacunas || []).length;
+    });
+    var diasNoIntervalo = Math.round((Date.parse(chaves[chaves.length - 1] + "T12:00:00Z") - Date.parse(chaves[0] + "T12:00:00Z")) / 86400000) + 1;
+    qual.faltantes = Math.max(0, diasNoIntervalo - chaves.length);
+    var incompletos = qual.incompletos;
     $("periodo").textContent = estacao + " · " + fdataLonga(chaves[0]) + " a " + fdataLonga(chaves[chaves.length - 1]) + " · " + chaves.length + " dia(s) exibido(s)";
     var rs = $("resumo"); rs.textContent = "";
 
@@ -287,13 +298,16 @@
       rs.appendChild(cartao("🌊 Maior Variação Diária (Δ)", f2(nvDeltaMax.v) + " m (" + Math.round(nvDeltaMax.v * 100) + " cm)", fdataLonga(nvDeltaMax.k)));
     }
     if (sl.id !== "regua" || total > 0 || temTemp) {
-      rs.appendChild(cartao("Chuva no período", f1(total) + " mm", comChuva + " dia(s) com 1 mm ou mais"));
+      rs.appendChild(cartao("Chuva do dia civil no período" + (qual.incompletos || qual.faltantes ? " (mínimo)" : ""), f1(total) + " mm", comChuva + " dia(s) com 1 mm ou mais" + (qual.incompletos ? " · " + qual.incompletos + " dia(s) incompleto(s) ou sem detalhe" : "") + (qual.faltantes ? " · " + qual.faltantes + " dia(s) sem registro no período" : "")));
       rs.appendChild(cartao("Dia mais chuvoso", f1(dias[maxK].chuva) + " mm", fdataLonga(maxK)));
-      rs.appendChild(cartao("Maior chuva em 1 h", f1(c60.v) + " mm", fdataLonga(c60.k)));
+      rs.appendChild(cartao("Maior acumulado em 60 min", f1(c60.v) + " mm", fdataLonga(c60.k) + (qual.incompletos ? " · dias incompletos podem subestimar" : "")));
       rs.appendChild(cartao("Maior chuva em 10 min", f1(c10.v) + " mm", "≈ " + f1(c10.v * 6) + " mm/h · " + fdataLonga(c10.k)));
       rs.appendChild(cartao("Temperatura", (tmin ? Math.round(tmin.v) : "—") + "° a " + (tmax ? Math.round(tmax.v) : "—") + "°", "mín " + (tmin ? fdataLonga(tmin.k) : "—") + " · máx " + (tmax ? fdataLonga(tmax.k) : "—")));
       rs.appendChild(cartao("Vento mais forte", f1(vento.v) + " km/h", fdataLonga(vento.k)));
     }
+
+    rs.appendChild(cartao("Qualidade dos dados", qual.completos + "/" + chaves.length + " dia(s) completo(s)",
+      (qual.desconhecidos ? qual.desconhecidos + " sem detalhe horário (reimporte o CSV) · " : "") + qual.lacunas + " lacuna(s) · " + qual.dup + " leitura(s) duplicada(s) · " + qual.inv + " valor(es) inválido(s) · " + qual.foraOrdem + " fora de ordem"));
 
     if ($("cardDeslizamentoHist") && typeof Deslizamento !== "undefined") {
       var mostrarDesliz = sl.id !== "regua" || total > 0;
@@ -303,11 +317,13 @@
         bxD.textContent = "";
         var ultDia = chaves[chaves.length - 1];
         var avUlt = Deslizamento.avaliarDiaEstacao(dias, ultDia, estacao);
-        var avPior = avUlt;
-        var contEstados = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0 };
+                var contEstados = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, sem: 0 };
+        var avPior = null;
         chaves.forEach(function (k) {
           var avK = Deslizamento.avaliarDiaEstacao(dias, k, estacao);
           if (avK) {
+            // Dia sem dados completos não entra nas faixas e nunca conta como "abaixo dos limiares".
+            if (!avK.conclusivo) { contEstados.sem++; return; }
             contEstados[avK.nivel] = (contEstados[avK.nivel] || 0) + 1;
             if (!avPior || avK.nivel > avPior.nivel || (avK.nivel === avPior.nivel && avK.mm24h > avPior.mm24h)) {
               avPior = avK;
@@ -316,9 +332,9 @@
         });
         if (avUlt) {
           var ban = el("div", "desliz-banner");
-          ban.dataset.nivel = String(avUlt.nivel);
-          ban.appendChild(el("strong", "", avUlt.icone + " Último dia registrado (" + fdataLonga(ultDia) + "): " + avUlt.estado.toUpperCase()));
-          ban.appendChild(el("span", "", "Volumes: 1h = " + f1(avUlt.mm1h) + " mm/h (" + avUlt.estado1h + ") · 24h = " + f1(avUlt.mm24h) + " mm/24h (" + avUlt.estado24h + ") · 168h (7d) = " + f1(avUlt.mm168h) + " mm/168h (" + avUlt.estado168h + ")"));
+          ban.dataset.nivel = avUlt.nivel === null ? "semdados" : String(avUlt.nivel);
+          ban.appendChild(el("strong", "", "Indicador referencial (não oficial) — " + avUlt.icone + " último dia registrado (" + fdataLonga(ultDia) + "): " + avUlt.estado.toUpperCase()));
+          ban.appendChild(el("span", "", "Volumes: 1h = " + Deslizamento.fmtMm(avUlt.mm1h) + " mm/h (" + avUlt.estado1h + ") · 24h = " + Deslizamento.fmtMm(avUlt.mm24h) + " mm/24h (" + avUlt.estado24h + ") · 168h (7d) = " + Deslizamento.fmtMm(avUlt.mm168h) + " mm/168h (" + avUlt.estado168h + ")" + (avUlt.conclusivo ? "" : " · janelas sem dado completo: " + avUlt.janelasSemDado.join(", "))));
           ban.appendChild(el("small", "", avUlt.acaoDefesaCivil));
           bxD.appendChild(ban);
 
@@ -326,12 +342,13 @@
           pRes.style.margin = "4px 0 0";
           pRes.style.fontSize = ".82rem";
           pRes.textContent = "No período filtrado (" + chaves.length + " dias): " +
-            "🟢 Normalidade: " + contEstados[0] + " d · " +
-            "🟡 Observação: " + contEstados[1] + " d · " +
-            "🟠 Atenção: " + contEstados[2] + " d · " +
-            "🔴 Alerta: " + contEstados[3] + " d · " +
-            "🟣 Alerta Máximo: " + contEstados[4] + " d" +
-            (avPior && avPior.nivel > 0 ? " | Maior risco no período: " + avPior.icone + " " + avPior.estado + " em " + fdataLonga(avPior.dataIso) + " (24h: " + f1(avPior.mm24h) + " mm · 168h: " + f1(avPior.mm168h) + " mm)." : ".");
+            "🟢 Referencial 0: " + contEstados[0] + " d · " +
+            "🟡 Referencial 1: " + contEstados[1] + " d · " +
+            "🟠 Referencial 2: " + contEstados[2] + " d · " +
+            "🔴 Referencial 3: " + contEstados[3] + " d · " +
+            "🟣 Referencial 4: " + contEstados[4] + " d · " +
+            "⚪ Sem dados suficientes: " + contEstados.sem + " d" +
+            (avPior && avPior.nivel > 0 ? " | Maior indicador referencial no período: " + avPior.icone + " " + avPior.estado + " em " + fdataLonga(avPior.dataIso) + " (24h: " + f1(avPior.mm24h) + " mm · 168h: " + f1(avPior.mm168h) + " mm)." : ".");
           bxD.appendChild(pRes);
         }
       }
@@ -345,17 +362,25 @@
           if ($("cotaAtencaoM")) $("cotaAtencaoM").value = cotasAtuais.atencaoM.toFixed(2);
           if ($("cotaAlertaM")) $("cotaAlertaM").value = cotasAtuais.alertaM.toFixed(2);
           if ($("cotaTransbordoM")) $("cotaTransbordoM").value = cotasAtuais.transbordoM.toFixed(2);
+          if ($("cotaPonto")) $("cotaPonto").value = cotasAtuais.pontoMedicao || "";
+          if ($("notaCotas")) {
+            $("notaCotas").textContent = cotasAtuais.invalida
+              ? "⚠️ As cotas guardadas são inválidas (" + cotasAtuais.erros.join("; ") + "). Os campos mostram valores padrão sugeridos; corrija e salve."
+              : cotasAtuais.origem === "padrao"
+                ? "⚠️ Valores padrão SUGERIDOS, sem fonte técnica nem homologação. O rio só será classificado depois que você informar e salvar as cotas do ponto de medição correspondente."
+                : "Cotas definidas por quem opera o sistema, sem homologação técnica documentada: valide-as para o ponto de medição. Este sistema não controla quem pode alterá-las.";
+          }
         }
         if ($("boxStatusRioHist") && Estacao.avaliarNivelRio) {
           var bxRio = $("boxStatusRioHist");
           bxRio.textContent = "";
           var ultDiaRio = chaves[chaves.length - 1];
           var dUltRio = dias[ultDiaRio];
-          var avRioUlt = Estacao.avaliarNivelRio(dUltRio.nvMax, dUltRio.nvDelta, cotasAtuais);
+          var avRioUlt = Estacao.avaliarNivelRio(dUltRio.nvMax, dUltRio.nvDelta, cotasAtuais, Estacao.qualidadeNivel(dUltRio));
           var banRio = el("div", "desliz-banner");
-          banRio.dataset.rio = avRioUlt.id || "normal";
+          banRio.dataset.rio = avRioUlt.id || "sem_dado";
           banRio.appendChild(el("strong", "", avRioUlt.icone + " Último dia na Régua (" + fdataLonga(ultDiaRio) + "): " + avRioUlt.estado.toUpperCase()));
-          banRio.appendChild(el("span", "", "Nível Máx: " + f2(dUltRio.nvMax) + " m · Mín: " + f2(dUltRio.nvMin) + " m · Subida (Δ): +" + Math.round((dUltRio.nvDelta || 0) * 100) + " cm"));
+          banRio.appendChild(el("span", "", "Nível Máx: " + f2(dUltRio.nvMax) + " m · Mín: " + f2(dUltRio.nvMin) + " m · Variação no dia (Δ): " + (dUltRio.nvDelta === null || dUltRio.nvDelta === undefined ? "—" : "+" + Math.round(dUltRio.nvDelta * 100) + " cm") + " · Leituras de nível em " + (dUltRio.cobHorasNivel === undefined ? "?" : dUltRio.cobHorasNivel) + "/24 h"));
           banRio.appendChild(el("small", "", avRioUlt.motivo));
           bxRio.appendChild(banRio);
         }
@@ -365,7 +390,7 @@
     if ($("cardChuva")) {
       $("cardChuva").hidden = (sl.id === "regua" && total === 0 && !temTemp);
       var g1 = $("gChuva"); g1.textContent = ""; g1.appendChild(graficoChuva(dias, chaves));
-      $("notaParcial").textContent = incompletos ? incompletos + " dia(s) com menos de 90% das leituras (barras claras): a chuva desses dias pode estar subestimada." : "";
+      $("notaParcial").textContent = incompletos ? incompletos + " dia(s) incompleto(s) ou sem detalhe horário (barras claras): a chuva desses dias é um valor MÍNIMO, pode estar subestimada." : "";
     }
     if ($("cardTemp")) {
       $("cardTemp").hidden = !temTemp;
@@ -375,22 +400,49 @@
     }
 
     var tb = $("tabela"); tb.textContent = "";
+    var ehRegua = sl.id === "regua";
+    function tdJanela(j) {
+      var td = el("td");
+      if (!j) { td.textContent = "—"; return td; }
+      if (j.estado === "OK") {
+        td.textContent = f1(j.valor) + " mm";
+        td.title = j.leituras + " leitura(s) · " + j.horasComDado + "/" + j.horasEsperadas + " h cobertas";
+      } else {
+        var sp = el("span", "dados-insuf", "Dados insuficientes");
+        sp.title = j.motivo + (j.minimoParcial !== null && j.minimoParcial !== undefined ? " · soma parcial (NÃO é o acumulado): " + f1(j.minimoParcial) + " mm" : "");
+        td.appendChild(sp);
+      }
+      return td;
+    }
+    function tdCobertura(dq) {
+      var h = ehRegua ? dq.cobHorasNivel : dq.cobHoras;
+      var td = el("td", "", h === undefined ? "sem detalhe" : h + "/24 h" + (!ehRegua && (dq.lacunas || []).length ? " · " + dq.lacunas.length + " lacuna(s)" : ""));
+      td.title = h === undefined ? "Dia guardado por versão anterior: reimporte o CSV" :
+        "Intervalo típico: " + (dq.intMin === null || dq.intMin === undefined ? "—" : dq.intMin + " min") + " · duplicadas: " + (dq.dup || 0) + " · inválidas: " + (dq.inv || 0) + " · fora de ordem: " + (dq.foraOrdem || 0);
+      return td;
+    }
     chaves.slice().reverse().forEach(function (k) {
       var d = dias[k], tr = el("tr");
       var txtNivel = (d.nvMax !== null && d.nvMax !== undefined)
-        ? f2(d.nvMin) + "–" + f2(d.nvMax) + " m (Δ " + Math.round((d.nvDelta || 0) * 100) + " cm)"
+        ? f2(d.nvMin) + "–" + f2(d.nvMax) + " m (Δ " + (d.nvDelta === null || d.nvDelta === undefined ? "—" : Math.round(d.nvDelta * 100)) + " cm)"
         : "—";
       var avDia = (typeof Deslizamento !== "undefined") ? Deslizamento.avaliarDiaEstacao(dias, k, estacao) : null;
+      var temChuva = d.nChuva === undefined ? !ehRegua : d.nChuva > 0;
+      var jn = avDia && avDia.janelas && temChuva ? avDia.janelas : null;
+      var compl = ehRegua ? Estacao.qualidadeNivel(d).completo : Estacao.diaCompleto(d);
 
-      tr.appendChild(el("td", "", fdataLonga(k) + (d.n < 1296 ? " *" : "")));
-      tr.appendChild(el("td", "", f1(d.chuva)));
-      tr.appendChild(el("td", "", f1(d.c60)));
-      tr.appendChild(el("td", "", avDia ? f1(avDia.mm168h) + " mm" : "—"));
+      tr.appendChild(el("td", "", fdataLonga(k) + (compl !== true ? " *" : "")));
+      tr.appendChild(el("td", "", temChuva ? f1(d.chuva) + (Estacao.diaCompleto(d) !== true && d.chuva !== null && d.chuva !== undefined ? " (mín.)" : "") : "—"));
+      tr.appendChild(tdJanela(jn && jn.max60));
+      tr.appendChild(tdJanela(jn && jn.mov24));
+      tr.appendChild(tdJanela(jn && jn.mov168));
+      tr.appendChild(tdCobertura(d));
 
       var tdRisco = el("td");
-      if (avDia) {
+      if (avDia && temChuva) {
         var bdg = el("span", "desliz-badge", avDia.icone + " " + avDia.estado);
-        bdg.dataset.nivel = String(avDia.nivel);
+        bdg.dataset.nivel = avDia.nivel === null ? "semdados" : String(avDia.nivel);
+        if (!avDia.conclusivo) bdg.title = avDia.motivoIndisponibilidade;
         tdRisco.appendChild(bdg);
       } else {
         tdRisco.textContent = "—";
@@ -398,7 +450,7 @@
       tr.appendChild(tdRisco);
 
       [
-        f1(d.c10),
+        temChuva ? f1(d.c10) : "—",
         d.tmin === null || d.tmin === undefined ? "—" : f1(d.tmin),
         d.tmax === null || d.tmax === undefined ? "—" : f1(d.tmax),
         d.umid === null || d.umid === undefined ? "—" : Math.round(d.umid) + "%",
@@ -409,50 +461,64 @@
     });
   }
 
+  var importando = false;
+
+  function lerArquivoTexto(f) {
+    return new Promise(function (resolve) {
+      var max = Estacao.LIMITES_IMPORTACAO.maxBytesArquivo;
+      if (f.size > max) { resolve({ nome: f.name, tamanho: f.size, erroLeitura: "arquivo maior que " + Math.round(max / 1048576) + " MB" }); return; }
+      var rd = new FileReader();
+      rd.onerror = function () { resolve({ nome: f.name, tamanho: f.size, erroLeitura: (rd.error && rd.error.message) || "erro desconhecido" }); };
+      rd.onload = function () { resolve({ nome: f.name, tamanho: f.size, texto: String(rd.result) }); };
+      try { rd.readAsText(f); } catch (e) { resolve({ nome: f.name, tamanho: f.size, erroLeitura: e && e.message ? e.message : "erro de leitura" }); }
+    });
+  }
+
+  function textoRelatorioImportacao(rel) {
+    var partes = [];
+    rel.importados.forEach(function (r) {
+      var extra = [];
+      if (r.descartadas) extra.push(r.descartadas + " linha(s) descartada(s)");
+      if (r.duplicados) extra.push(r.duplicados + " duplicada(s)");
+      if (r.invalidos) extra.push(r.invalidos + " valor(es) de chuva inválido(s)");
+      if (r.foraDeOrdem) extra.push(r.foraDeOrdem + " fora de ordem");
+      partes.push("✔ " + r.nome + " → " + r.rotulo + " (" + r.estacao + "): +" + r.add + " dia(s) novo(s), " + r.subst + " atualizado(s), " + r.mantidos + " mantido(s)" + (extra.length ? " [" + extra.join("; ") + "]" : ""));
+    });
+    rel.rejeitados.forEach(function (r) { partes.push("✖ " + r.nome + ": " + r.motivo); });
+    return "Importação — importados: " + rel.importados.length + ", rejeitados: " + rel.rejeitados.length + ". " + partes.join(" | ");
+  }
+
+  // Lê os arquivos, valida e monta TUDO em memória; só grava se a importação puder ser concluída. Falha não altera o histórico.
   function lerArquivosMultiplos(arquivos) {
     var lista = Array.prototype.slice.call(arquivos || []);
     if (!lista.length) return;
     var destinoPadrao = slotForcadoUpload || ($("slotDestino") ? $("slotDestino").value : "auto");
     slotForcadoUpload = null;
+    if (importando) { aviso("Já existe uma importação em andamento. Aguarde terminar antes de enviar outros arquivos.", true); return; }
+    var lim = Estacao.LIMITES_IMPORTACAO;
+    if (lista.length > lim.maxArquivos) { aviso("Selecione no máximo " + lim.maxArquivos + " arquivos CSV por importação (selecionados: " + lista.length + "). Nenhum dado foi alterado.", true); return; }
+    var totalBytes = lista.reduce(function (t, f) { return t + (f.size || 0); }, 0);
+    if (totalBytes > lim.maxBytesTotal) { aviso("Tamanho total dos arquivos maior que " + Math.round(lim.maxBytesTotal / 1048576) + " MB. Nenhum dado foi alterado.", true); return; }
 
-    var resumos = [];
-    var erros = [];
-    var lidos = 0;
-
-    lista.forEach(function (f, idx) {
-      var rd = new FileReader();
-      rd.onerror = function () {
-        erros.push(f.name + ": falha na leitura");
-        finalizarUm();
-      };
-      rd.onload = function () {
-        try {
-          var rows = Estacao.lerCsv(String(rd.result));
-          var alvo = lista.length > 1 ? "auto" : destinoPadrao;
-          var r = Estacao.mesclarNoSlot(banco, alvo, rows, f.name);
-          banco.ativo = r.slotId;
-          resumos.push(r.rotulo + " (" + r.estacao + "): +" + r.add + " dia(s) novo(s), " + r.subst + " atualizado(s)");
-        } catch (e) {
-          erros.push(f.name + ": " + (e && e.message ? e.message : "formato inesperado"));
-        }
-        finalizarUm();
-      };
-      rd.readAsText(f);
-    });
-
-    function finalizarUm() {
-      lidos++;
-      if (lidos < lista.length) return;
-      guardar();
-      desenhar(false);
-      if (erros.length && !resumos.length) {
-        aviso("Arquivo(s) não reconhecido(s): " + erros.join(" | ") + ". Use o CSV exportado da plataforma (separador ponto e vírgula).", true);
-      } else if (erros.length) {
-        aviso("Importado com avisos: " + resumos.join(" · ") + " | Falhas: " + erros.join(" | "), true);
-      } else {
-        aviso("Importação concluída (" + resumos.length + " arquivo(s)): " + resumos.join(" · "), false);
+    importando = true;
+    if ($("escolher")) $("escolher").disabled = true;
+    Promise.all(lista.map(lerArquivoTexto)).then(function (arqs) {
+      var atual = Estacao.carregarBanco(); // dado mais recente (outra aba pode ter alterado)
+      if (atual.erroCarga) throw new Error(atual.erroCarga + " Importação cancelada.");
+      var plano = Estacao.planejarImportacao(atual, arqs, destinoPadrao);
+      if (plano.alterado) {
+        if (!Estacao.salvarBanco(plano.banco)) throw new Error("Não foi possível gravar neste navegador (modo privado ou armazenamento cheio).");
+        banco = plano.banco;
       }
-    }
+      desenhar(false);
+      aviso(textoRelatorioImportacao(plano.relatorio), plano.relatorio.rejeitados.length > 0);
+    }).catch(function (e) {
+      if (typeof console !== "undefined") console.error("[historico] importação:", e);
+      aviso("Importação não realizada: " + (e && e.message ? e.message : "erro inesperado") + " Os dados existentes foram preservados.", true);
+    }).then(function () {
+      importando = false;
+      if ($("escolher")) $("escolher").disabled = false;
+    });
   }
 
   $("arquivo").onchange = function () {
@@ -482,19 +548,23 @@
     $("btnSalvarCotasRio").onclick = function () {
       var b = this;
       if (!b.dataset.originalHtml) b.dataset.originalHtml = b.innerHTML;
-      var cAt = parseFloat($("cotaAtencaoM").value) || 1.80;
-      var cAl = parseFloat($("cotaAlertaM").value) || 2.30;
-      var cTr = parseFloat($("cotaTransbordoM").value) || 2.80;
-      Estacao.salvarCotasRio({ atencaoM: cAt, alertaM: cAl, transbordoM: cTr });
-      desenhar(true);
-      aviso("Cotas de alerta da régua de nível atualizadas (Atenção: " + f2(cAt) + " m · Alerta: " + f2(cAl) + " m · Transbordamento: " + f2(cTr) + " m).", false);
-      b.disabled = true; b.innerHTML = "✅ Cotas salvas!";
-      setTimeout(function () { b.innerHTML = b.dataset.originalHtml; b.disabled = false; }, 2000);
+      var entrada = { atencaoM: $("cotaAtencaoM").value, alertaM: $("cotaAlertaM").value, transbordoM: $("cotaTransbordoM").value };
+      if ($("cotaPonto")) entrada.pontoMedicao = $("cotaPonto").value;
+      try {
+        var salvas = Estacao.salvarCotasRio(entrada);
+        desenhar(true);
+        aviso("Cotas salvas (Atenção: " + f2(salvas.atencaoM) + " m · Alerta: " + f2(salvas.alertaM) + " m · Transbordamento: " + f2(salvas.transbordoM) + " m). São parâmetros definidos por você, sem homologação técnica documentada.", false);
+        b.disabled = true; b.innerHTML = "✅ Cotas salvas!";
+        setTimeout(function () { b.innerHTML = b.dataset.originalHtml; b.disabled = false; }, 2000);
+      } catch (e) {
+        aviso((e && e.message ? e.message : "Cotas inválidas") + ". As cotas anteriores foram mantidas.", true);
+      }
     };
   }
   if ($("btnExportarTudoHist") && Estacao.gerarBackupCompleto) {
     $("btnExportarTudoHist").onclick = function () {
-      var bkp = Estacao.gerarBackupCompleto();
+      var bkp;
+      try { bkp = Estacao.gerarBackupCompleto(); } catch (e) { if (typeof console !== "undefined") console.error(e); aviso("Backup NÃO exportado: dados locais ilegíveis (" + (e && e.message ? e.message : "erro") + ").", true); return; }
       var blob = new Blob([JSON.stringify(bkp, null, 2)], { type: "application/json" });
       var a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
@@ -510,15 +580,18 @@
       var f = this.files && this.files[0];
       this.value = "";
       if (!f) return;
+      if (f.size > Estacao.LIMITES_IMPORTACAO.maxBytesArquivo) { aviso("Backup NÃO restaurado: arquivo grande demais. Nenhum dado foi alterado.", true); return; }
       var rd = new FileReader();
+      rd.onerror = function () { aviso("Backup NÃO restaurado: falha na leitura do arquivo. Nenhum dado foi alterado.", true); };
       rd.onload = function () {
         try {
           var res = Estacao.restaurarBackupCompleto(String(rd.result));
           banco = Estacao.carregarBanco();
           desenhar(false);
-          aviso("Backup restaurado com sucesso: " + res.estacoesRestauradas + " equipamento(s), +" + res.ocorrenciasNovas + " ocorrência(s) e +" + res.observacoesNovas + " observação(ões).", false);
+          aviso("Backup restaurado por completo: " + res.estacoesRestauradas + " equipamento(s) tocado(s) (+" + res.diasAdicionados + " dia(s) novo(s), " + res.diasAtualizados + " atualizado(s), " + res.diasMantidos + " mantido(s)), +" + res.ocorrenciasNovas + " ocorrência(s), +" + res.observacoesNovas + " observação(ões); cotas: " + res.cotas + "; contato: " + res.contato + "." + (res.avisos.length ? " " + res.avisos.join(" ") : ""), false);
         } catch (e) {
-          aviso("Arquivo de backup não reconhecido.", true);
+          if (typeof console !== "undefined") console.error("[historico] restauração:", e);
+          aviso((e && e.message ? e.message : "Backup não restaurado") + " Nenhum dado foi alterado ou a alteração foi revertida.", true);
         }
       };
       rd.readAsText(f);
@@ -526,6 +599,7 @@
   }
 
   desenhar(false);
+  if (banco.erroCarga) aviso(banco.erroCarga, true);
   window.addEventListener("storage", function (ev) {
     if (!ev || !ev.key || ev.key.indexOf("cajamar:estacoes") === 0 || ev.key.indexOf("cajamar:cotas_rio") === 0) {
       banco = Estacao.carregarBanco();

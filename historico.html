@@ -94,14 +94,15 @@
     </div>
     <section class="card"><h2>Resumo do período</h2><div id="resumo" class="resumo"></div></section>
     <section class="card" id="cardDeslizamentoHist" hidden>
-      <h2>⛰️ Alerta de Risco de Deslizamento (Critérios Pinheiro et al., 2005 / AlertaRio, 2013)</h2>
+      <h2>⛰️ Indicador pluviométrico de encostas (critério referencial, não oficial)</h2>
       <div id="boxDeslizamentoHist"></div>
+      <p class="aviso-ref" style="margin:8px 0 0;font-size:.85rem"><strong>Indicadores pluviométricos de referência. Não substituem vistoria técnica, avaliação de campo ou decisão da autoridade competente.</strong></p>
     </section>
     <section class="card" id="cardNivel" hidden>
       <h2>🌊 Nível do Rio por dia e Cotas de Alerta (metros — Régua de Nível)</h2>
       <div id="boxStatusRioHist" style="margin-bottom:8px"></div>
       <div id="gNivel"></div>
-      <p class="mut" style="margin:6px 0 8px;font-size:.82rem"><span class="leg max"></span> nível máximo diário (m) · <span class="leg min"></span> nível mínimo diário (m) · Linhas tracejadas indicam as cotas de Atenção, Alerta e Transbordamento.</p>
+      <p class="mut" style="margin:6px 0 8px;font-size:.82rem"><span class="leg max"></span> nível máximo diário (m) · <span class="leg min"></span> nível mínimo diário (m) · Linhas tracejadas (só aparecem depois que você salva cotas próprias, sem homologação) indicam Atenção, Alerta e Transbordamento.</p>
       <details class="mais-acoes" style="margin-top:6px">
         <summary>⚙️ Configurar cotas de alerta da régua do rio (metros)</summary>
         <div class="desliz-sim" style="margin-top:6px">
@@ -115,16 +116,21 @@
             <label>🔴 Transbordamento (m)
               <input id="cotaTransbordoM" type="number" min="0.1" max="20" step="0.05" value="2.80">
             </label>
+            <label>📍 Ponto de medição
+              <input id="cotaPonto" type="text" maxlength="200" placeholder="Ex.: régua do Rio Juquery, ponto X">
+            </label>
             <button id="btnSalvarCotasRio" type="button" class="btn primary small">Salvar cotas</button>
           </div>
+          <p id="notaCotas" class="mut" style="margin:6px 0 0;font-size:.82rem"></p>
+          <p class="mut" style="margin:4px 0 0;font-size:.82rem">Exigido: Atenção &lt; Alerta &lt; Transbordamento, todos maiores que zero. Campos vazios, negativos ou não numéricos são rejeitados (não são trocados por valores padrão). As cotas precisam de validação técnica para o ponto de medição correspondente.</p>
         </div>
       </details>
     </section>
     <section class="card" id="cardChuva"><h2>Chuva por dia (mm)</h2><div id="gChuva"></div><p id="notaParcial" class="mut" style="margin:6px 0 0;font-size:.82rem"></p></section>
     <section class="card" id="cardTemp"><h2>Temperatura mínima e máxima (°C)</h2><div id="gTemp"></div><p class="mut" style="margin:6px 0 0;font-size:.82rem"><span class="leg max"></span> máxima · <span class="leg min"></span> mínima</p></section>
     <section class="card"><h2>Dia a dia</h2>
-      <div class="tw"><table><thead><tr id="cabTabela"><th>Dia</th><th>Chuva 24h</th><th>Máx 1 h</th><th>Acum. 168h (7d)</th><th>⛰️ Risco Deslizamento</th><th>Máx 10 min</th><th>Mín °C</th><th>Máx °C</th><th>Umid.</th><th>Vento km/h</th><th>Nível Rio (m)</th></tr></thead><tbody id="tabela"></tbody></table></div>
-      <p class="mut" style="margin:6px 0 0;font-size:.82rem">* dia com menos de 90% das leituras. O Risco de Deslizamento avalia simultaneamente a chuva em 1h (mm/h), 24h (mm/24h) e 168h / 7 dias (mm/168h) conforme Pinheiro et al. (2005) e AlertaRio (2013).</p></section>
+      <div class="tw"><table><thead><tr id="cabTabela"><th>Dia</th><th title="Soma da chuva do dia civil (00:00 a 24:00 BRT), não é janela móvel">Chuva do dia civil (mm)</th><th title="Maior acumulado em qualquer janela móvel de 60 minutos do dia">Máx. em 60 min (mm)</th><th title="Soma das 24 horas anteriores ao fim da janela do dia; exige cobertura completa">Acum. móvel 24 h (mm)</th><th title="Soma das 168 horas anteriores ao fim da janela do dia; exige cobertura completa">Acum. móvel 168 h (mm)</th><th title="Horas do dia com leitura válida, lacunas e qualidade">Cobertura</th><th>⛰️ Indicador referencial</th><th>Máx 10 min</th><th>Mín °C</th><th>Máx °C</th><th>Umid.</th><th>Vento km/h</th><th>Nível Rio (m)</th></tr></thead><tbody id="tabela"></tbody></table></div>
+      <p class="mut" style="margin:6px 0 0;font-size:.82rem">* dia incompleto (horas sem leitura ou lacunas) ou guardado sem detalhe horário: reimporte o CSV. "Dados insuficientes" = a janela móvel não tem cobertura completa; a soma parcial nunca é apresentada como acumulado. O indicador avalia a chuva em 1h (mm/h), 24h (mm/24h) e 168h / 7 dias (mm/168h) com limiares de Pinheiro et al. (2005) e AlertaRio (2013), não homologados para Cajamar. Dias sem as 7 jornadas de dados ficam como "sem dados suficientes".</p></section>
     <div class="rodape-boletim" hidden>
       <div class="boletim-assinaturas">
         <div class="assinatura-box">

@@ -33,10 +33,11 @@
           var res = Estacao.restaurarBackupCompleto(String(rd.result));
           P.desliz.atualizar();
           if ($("msgBackupTudo")) {
-            $("msgBackupTudo").textContent = "✅ Backup restaurado: " + res.estacoesRestauradas + " equipamento(s), +" + res.ocorrenciasNovas + " ocorrência(s) e +" + res.observacoesNovas + " observação(ões).";
+            $("msgBackupTudo").textContent = "✅ Backup restaurado por completo: " + res.estacoesRestauradas + " equipamento(s) (+" + res.diasAdicionados + " dia(s) novo(s), " + res.diasAtualizados + " atualizado(s)), +" + res.ocorrenciasNovas + " ocorrência(s) e +" + res.observacoesNovas + " observação(ões); cotas: " + res.cotas + ".";
           }
         } catch (e) {
-          if ($("msgBackupTudo")) $("msgBackupTudo").textContent = "❌ Arquivo de backup não reconhecido.";
+          if (typeof console !== "undefined") console.error("[painel] restauração:", e);
+          if ($("msgBackupTudo")) $("msgBackupTudo").textContent = "❌ Backup NÃO restaurado: " + (e && e.message ? e.message : "arquivo inválido") + " Nenhum dado foi alterado ou a alteração foi revertida.";
         }
       };
       rd.readAsText(f);

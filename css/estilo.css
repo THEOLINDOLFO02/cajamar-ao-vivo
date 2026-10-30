@@ -520,6 +520,11 @@ details.mais-acoes[open]>summary::before{transform:rotate(90deg)}
 .desliz-badge[data-nivel="2"]{background:var(--org-soft);color:var(--org)}
 .desliz-badge[data-nivel="3"]{background:var(--red-soft);color:var(--red)}
 .desliz-badge[data-nivel="4"]{background:var(--purp-soft);color:var(--purp)}
+.dados-insuf{color:var(--mut);font-style:italic}
+.desliz-banner[data-rio="sem_referencia"],.desliz-banner[data-rio="sem_dado"],.desliz-banner[data-rio="dados_insuficientes"]{background:var(--card);border-left-color:var(--mut);color:var(--fg)}
+.desliz-banner[data-nivel="semdados"]{background:var(--card);border-left-color:var(--mut);color:var(--fg)}
+.desliz-cx[data-nivel="semdados"]{border-top-color:var(--mut)}
+.desliz-badge[data-nivel="semdados"]{background:var(--card);color:var(--mut)}
 
 .desliz-tabela tr[data-nivel="0"] td{background:var(--ok-soft);color:var(--fg)}
 .desliz-tabela tr[data-nivel="1"] td{background:var(--yel-soft);color:var(--fg)}

@@ -75,9 +75,10 @@
   </details>
 
   <section class="card" id="deslizamentoCard">
-    <div class="card-head"><h2>⛰️ Risco de deslizamento</h2></div>
-    <p class="card-sub">Critérios de chuva em 1 h, 24 h e 168 h (Pinheiro et al., 2005; AlertaRio, 2013)</p>
-    <div id="deslizamentoPainel" class="mut carregando">Analisando volumes de chuva (1h, 24h e 168h) para risco de deslizamento…</div>
+    <div class="card-head"><h2>⛰️ Indicador pluviométrico de encostas (referencial)</h2></div>
+    <p class="card-sub">Critério REFERENCIAL de chuva em 1 h, 24 h e 168 h (Pinheiro et al., 2005; AlertaRio, 2013) — não homologado pela Defesa Civil de Cajamar e não é classificação oficial de risco</p>
+    <p class="mut" style="margin:4px 0 8px;font-size:.85rem"><strong>Indicadores pluviométricos de referência. Não substituem vistoria técnica, avaliação de campo ou decisão da autoridade competente.</strong></p>
+    <div id="deslizamentoPainel" class="mut carregando">Analisando volumes de chuva (1h, 24h e 168h)…</div>
     <div id="statusRioPainel" style="margin-top:8px" hidden></div>
     <div class="filtro-periodo" style="margin-top:12px;margin-bottom:0">
         <button id="btnAbrirOcorrenciaDesliz" type="button" class="btn small" title="Abrir ficha de ocorrência ou vistoria preventiva de encosta já preenchida com os volumes atuais">🚨 Abrir Vistoria / Ocorrência</button>
@@ -113,20 +114,20 @@
     </div>
     </details>
     <details style="margin-top:10px">
-      <summary class="mut" style="cursor:pointer;font-weight:600">📋 Ver Tabela Oficial de Critérios de Risco de Deslizamento (Pinheiro et al., 2005; AlertaRio, 2013)</summary>
+      <summary class="mut" style="cursor:pointer;font-weight:600">📋 Ver tabela de limiares REFERENCIAIS (Pinheiro et al., 2005; AlertaRio, 2013) — não oficial</summary>
       <div class="tw" style="margin-top:8px">
         <table class="desliz-tabela" id="tbCriteriosDesliz">
           <thead>
             <tr>
               <th style="width:150px">Estado</th>
               <th>Descrição (Critérios Pluviométricos: 1h · 24h · 168h)</th>
-              <th>Protocolo / Ação Recomendada em Cajamar</th>
+              <th>Observação</th>
             </tr>
           </thead>
           <tbody id="tbodyCriteriosDesliz"></tbody>
         </table>
       </div>
-      <p class="mut" style="margin:6px 0 0;font-size:.78rem">Referência técnica: Adaptado de Pinheiro et al. (2005); Sistema AlertaRio (2013). Monitoramento preventivo para encostas e taludes de Cajamar (Jordanésia, Polvilho, Ponunduva, Centro e Vila Nova).</p>
+      <p class="mut" style="margin:6px 0 0;font-size:.78rem">Referência técnica: adaptado de Pinheiro et al. (2005) e AlertaRio (2013), calibrados para o Rio de Janeiro e NÃO homologados para Cajamar. Sem as três janelas com dado completo não há classificação. Contexto: encostas e taludes de Cajamar (Jordanésia, Polvilho, Ponunduva, Centro e Vila Nova).</p>
     </details>
   </section>
 

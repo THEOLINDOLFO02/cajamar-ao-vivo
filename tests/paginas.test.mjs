@@ -94,34 +94,34 @@ test("config.js não contém chaves ou senhas", () => {
   assert.doesNotMatch(c, /(api[_-]?key|secret|token|senha|password)\s*[:=]/i);
 });
 
-test("critérios de risco de deslizamento (Pinheiro et al., 2005; AlertaRio, 2013) classificam corretamente os 5 níveis", async () => {
+test("aritmética dos limiares REFERENCIAIS (não homologados; não prova validade científica) mantém os 5 níveis", async () => {
   const { carregarScript } = await import("./util.mjs");
   const win = carregarScript("js/deslizamento.js");
   const D = win.Deslizamento;
   assert.ok(D && Array.isArray(D.ESTADOS) && D.ESTADOS.length === 5);
 
   // Normalidade: < 10 mm/h, < 25 mm/24h, < 50 mm/168h
-  assert.equal(D.avaliarRisco({ mm1h: 5, mm24h: 12, mm168h: 30 }).id, "normalidade");
+  assert.equal(D.avaliarRisco({ mm1h: 5, mm24h: 12, mm168h: 30 }).id, "referencial_0");
 
   // Observação: 10 a 20 mm/h, 25 a 50 mm/24h, 50 a 100 mm/168h
-  assert.equal(D.avaliarRisco({ mm1h: 15, mm24h: 10, mm168h: 20 }).id, "observacao");
-  assert.equal(D.avaliarRisco({ mm1h: 2, mm24h: 35, mm168h: 40 }).id, "observacao");
-  assert.equal(D.avaliarRisco({ mm1h: 2, mm24h: 10, mm168h: 75 }).id, "observacao");
+  assert.equal(D.avaliarRisco({ mm1h: 15, mm24h: 10, mm168h: 20 }).id, "referencial_1");
+  assert.equal(D.avaliarRisco({ mm1h: 2, mm24h: 35, mm168h: 40 }).id, "referencial_1");
+  assert.equal(D.avaliarRisco({ mm1h: 2, mm24h: 10, mm168h: 75 }).id, "referencial_1");
 
   // Atenção: 20 a 30 mm/h, 50 a 100 mm/24h, 100 a 150 mm/168h
-  assert.equal(D.avaliarRisco({ mm1h: 25, mm24h: 20, mm168h: 30 }).id, "atencao");
-  assert.equal(D.avaliarRisco({ mm1h: 5, mm24h: 70, mm168h: 80 }).id, "atencao");
-  assert.equal(D.avaliarRisco({ mm1h: 5, mm24h: 20, mm168h: 125 }).id, "atencao");
+  assert.equal(D.avaliarRisco({ mm1h: 25, mm24h: 20, mm168h: 30 }).id, "referencial_2");
+  assert.equal(D.avaliarRisco({ mm1h: 5, mm24h: 70, mm168h: 80 }).id, "referencial_2");
+  assert.equal(D.avaliarRisco({ mm1h: 5, mm24h: 20, mm168h: 125 }).id, "referencial_2");
 
   // Alerta: 30 a 50 mm/h, 100 a 150 mm/24h, 150 a 210 mm/168h (e 40 a 80 mm/h combinado)
-  assert.equal(D.avaliarRisco({ mm1h: 38, mm24h: 40, mm168h: 60 }).id, "alerta");
-  assert.equal(D.avaliarRisco({ mm1h: 10, mm24h: 120, mm168h: 130 }).id, "alerta");
-  assert.equal(D.avaliarRisco({ mm1h: 45, mm24h: 60, mm168h: 175 }).id, "alerta");
+  assert.equal(D.avaliarRisco({ mm1h: 38, mm24h: 40, mm168h: 60 }).id, "referencial_3");
+  assert.equal(D.avaliarRisco({ mm1h: 10, mm24h: 120, mm168h: 130 }).id, "referencial_3");
+  assert.equal(D.avaliarRisco({ mm1h: 45, mm24h: 60, mm168h: 175 }).id, "referencial_3");
 
   // Alerta Máximo: > 50 mm/h, > 150 mm/24h, > 210 mm/168h (e > 80 mm/h)
-  assert.equal(D.avaliarRisco({ mm1h: 55, mm24h: 60, mm168h: 70 }).id, "alerta_maximo");
-  assert.equal(D.avaliarRisco({ mm1h: 15, mm24h: 160, mm168h: 180 }).id, "alerta_maximo");
-  assert.equal(D.avaliarRisco({ mm1h: 10, mm24h: 40, mm168h: 225 }).id, "alerta_maximo");
+  assert.equal(D.avaliarRisco({ mm1h: 55, mm24h: 60, mm168h: 70 }).id, "referencial_4");
+  assert.equal(D.avaliarRisco({ mm1h: 15, mm24h: 160, mm168h: 180 }).id, "referencial_4");
+  assert.equal(D.avaliarRisco({ mm1h: 10, mm24h: 40, mm168h: 225 }).id, "referencial_4");
 });
 
 test("Estacao.avaliarNivelRio e backup completo funcionam corretamente", async () => {
@@ -145,7 +145,7 @@ test("Estacao.avaliarNivelRio e backup completo funcionam corretamente", async (
   };
   E.salvarCotasRio({ atencaoM: 1.95, alertaM: 2.40, transbordoM: 3.00 }, mem);
   mem.setItem("cajamar:ocorrencias:v1", JSON.stringify([{ id: "oc1", tipo: "Incêndios" }]));
-  mem.setItem("cajamar:observacoes:v1", JSON.stringify([{ id: "ob1", local: "Jordanésia" }]));
+  mem.setItem("cajamar:observacoes:v1", JSON.stringify([{ id: "ob1", local: "Jordanésia", quando: "2026-01-02T10:00", chuvaMm: null, ventoKmh: null }]));
 
   const bkp = E.gerarBackupCompleto(mem);
   assert.equal(bkp.cotasRio.atencaoM, 1.95);
@@ -218,4 +218,40 @@ test("Fontes.guardar protege dados operacionais do usuário quando o localStorag
   assert.ok(dados["cajamar:ocorrencias:v1"], "nunca deve apagar ocorrências do usuário para liberar espaço de cache");
   assert.equal(dados["cajamar:clima"], undefined, "deve remover o cache de API mais antigo para abrir espaço");
   assert.deepEqual(JSON.parse(JSON.stringify(win.Fontes.lerGuardado("avisos_inmet").d)), { avisos: [1, 2, 3] });
+});
+
+// ---- Histórico: nomes das colunas, aviso obrigatório e regressões da auditoria ----
+test("historico.html: colunas distinguem dia civil, 60 min, 24 h e 168 h móveis e mostram cobertura", () => {
+  const html = readFileSync(join(RAIZ, "historico.html"), "utf8");
+  for (const col of ["Chuva do dia civil (mm)", "Máx. em 60 min (mm)", "Acum. móvel 24 h (mm)", "Acum. móvel 168 h (mm)", "Cobertura", "Indicador referencial"]) {
+    assert.ok(html.includes(col), "coluna ausente: " + col);
+  }
+  assert.ok(!html.includes("<th>Chuva 24h</th>"), "o dia civil não pode mais se chamar 24h");
+  assert.ok(!html.includes("<th>Acum. 168h (7d)</th>"));
+  assert.match(html, /Atenção &lt; Alerta &lt; Transbordamento/);
+  assert.match(html, /validação técnica para o ponto de medição/);
+});
+
+test("aviso de indicadores de referência aparece no painel e no histórico", () => {
+  const frase = "Indicadores pluviométricos de referência. Não substituem vistoria técnica, avaliação de campo ou decisão da autoridade competente.";
+  for (const pg of ["index.html", "historico.html"]) {
+    assert.ok(readFileSync(join(RAIZ, pg), "utf8").includes(frase), pg + " sem o aviso obrigatório");
+  }
+});
+
+test("regressão: estacao.js e historico.js não engolem erros em catch vazio nem usam o limite fixo de 1296 leituras", () => {
+  for (const arq of ["js/estacao.js", "js/historico.js"]) {
+    const src = readFileSync(join(RAIZ, arq), "utf8");
+    assert.doesNotMatch(src, /catch\s*\(\s*\w+\s*\)\s*\{\s*\}/, arq + " tem catch vazio");
+    assert.doesNotMatch(src, /\.n\s*<\s*1296/, arq + " ainda usa n < 1296 para decidir dia completo");
+    assert.doesNotMatch(src, /parseFloat\([^)]*\)\s*\|\|\s*\d/, arq + " troca valor inválido por padrão com ||");
+  }
+});
+
+test("páginas que usam janelas de estação carregam estacao.js antes de deslizamento.js", () => {
+  for (const pg of ["index.html", "historico.html", "quadro.html", "publicar.html"]) {
+    const html = readFileSync(join(RAIZ, pg), "utf8");
+    const a = html.indexOf("js/estacao.js"), b = html.indexOf("js/deslizamento.js");
+    assert.ok(a > -1 && b > a, pg + ": estacao.js deve vir antes de deslizamento.js");
+  }
 });

@@ -183,38 +183,21 @@
   }
   function cartao(rot, val, nota) { var d = el("div", "cx"); d.appendChild(el("span", "", rot)); d.appendChild(el("strong", "", val)); if (nota) d.appendChild(el("small", "", nota)); return d; }
 
-  // Avalia o risco de deslizamento de uma observação manual combinando a leitura atual
-  // com outras leituras recentes do mesmo local nas últimas 24h e 168h (7 dias)
+  // Cada leitura vale só para a janela que declara; a regra fica em Deslizamento.avaliarObservacaoManual (testável).
   function avaliarDeslizamentoObservacao(r) {
-    if (typeof Deslizamento === "undefined" || r.chuvaMm === null) return null;
-    var tRef = new Date(r.quando).getTime();
-    var locNorm = String(r.local || "").trim().toLowerCase();
-    var mm1h = r.janela === "1 h" ? r.chuvaMm : 0;
-    var mm24h = r.janela === "24 h" ? r.chuvaMm : (r.janela === "1 h" ? r.chuvaMm : 0);
-    var mm168h = r.janela === "168 h" ? r.chuvaMm : 0;
+    if (typeof Deslizamento === "undefined") return null;
+    return Deslizamento.avaliarObservacaoManual(r, rows);
+  }
 
-    var soma24Local = 0, soma168Local = 0;
-    rows.forEach(function (o) {
-      if (o.chuvaMm === null) return;
-      if (String(o.local || "").trim().toLowerCase() !== locNorm) return;
-      var dt = tRef - new Date(o.quando).getTime();
-      if (dt < 0 || dt > 168 * 3600000) return;
-      if (o.janela === "1 h" && dt <= 3600000 && o.chuvaMm > mm1h) mm1h = o.chuvaMm;
-      if (o.janela !== "168 h") {
-        if (dt <= 24 * 3600000) soma24Local += o.chuvaMm;
-        soma168Local += o.chuvaMm;
-      }
-    });
-    if (soma24Local > mm24h) mm24h = soma24Local;
-    if (soma168Local > mm168h) mm168h = soma168Local;
-    if (mm24h > mm168h) mm168h = mm24h;
-
-    return Deslizamento.avaliarRisco({
-      mm1h: mm1h,
-      mm24h: mm24h,
-      mm168h: mm168h,
-      fonte: r.local
-    });
+  // Texto do indicador para o relatório: nunca apresenta normalidade sem as três janelas.
+  function textoDeslizamentoObs(av) {
+    if (!av) return "";
+    if (av.conclusivo) return av.icone + " *" + av.estado + "* (indicador referencial, não oficial)";
+    var isol = [];
+    if (av.nivel1h !== null) isol.push("1 h: " + av.estado1h);
+    if (av.nivel24h !== null) isol.push("24 h: " + av.estado24h);
+    if (av.nivel168h !== null) isol.push("168 h: " + av.estado168h);
+    return "⚪ *Sem dados suficientes* para o indicador referencial" + (isol.length ? " (isolado, não conclusivo — " + isol.join("; ") + ")" : "");
   }
 
   function gerarRelatorioObs() {
@@ -236,7 +219,7 @@
       if (r.ventoEscala) partes.push("Vento: " + r.ventoEscala);
       if (partes.length) texto += "   • " + partes.join(" | ") + "\n";
       var av = avaliarDeslizamentoObservacao(r);
-      if (av) texto += "   • ⛰️ Deslizamento: " + av.icone + " *" + av.estado + "*\n";
+      if (av) texto += "   • ⛰️ Deslizamento (critério referencial): " + textoDeslizamentoObs(av) + "\n";
       if (r.obs) texto += "   • 📝 " + r.obs + "\n";
     });
     texto += "\n━━━━━━━━━━━━━━━━━━━━\nDefesa Civil de Cajamar (199)";

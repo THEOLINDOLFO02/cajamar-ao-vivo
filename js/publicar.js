@@ -372,8 +372,8 @@
         if (climaOM && climaOM.hourly) {
           var serieD = Deslizamento.extrairDeSerieHoraria(climaOM.hourly, climaOM.current && climaOM.current.time);
           if (serieD && serieD.atual) {
-            o.push(["serie:atual", "Ao Vivo Cajamar (1h/24h/168h) — " + serieD.atual.icone + " " + serieD.atual.estado + " (" + f1(serieD.atual.mm168h) + " mm/168h)"]);
-            o.push(["serie:proj", "Projeção Próximas 24h — " + serieD.projecao24h.icone + " " + serieD.projecao24h.estado + " (~" + f1(serieD.projecao24h.mm24h) + " mm/24h)"]);
+            o.push(["serie:atual", "Estimativa de modelo (1h/24h/168h) — " + serieD.atual.icone + " " + serieD.atual.estado + " (" + f1(serieD.atual.mm168h) + " mm/168h)"]);
+            o.push(["serie:proj", "Previsão do modelo, próximas 24h — " + serieD.projecao24h.icone + " " + serieD.projecao24h.estado + " (~" + f1(serieD.projecao24h.mm24h) + " mm/24h)"]);
           }
         }
         carregarHistorico();
@@ -390,11 +390,11 @@
             });
           });
         }
-        o.push(["sim:0", "Modelo Educativo / Preventivo — 🟢 Normalidade (< 10 mm/h · < 25 mm/24h · < 50 mm/168h)"]);
-        o.push(["sim:1", "Comunicado Preventivo — 🟡 Estado de Observação (10–20 mm/h · 25–50 mm/24h · 50–100 mm/168h)"]);
-        o.push(["sim:2", "Comunicado à População — 🟠 Estado de Atenção (20–30 mm/h · 50–100 mm/24h · 100–150 mm/168h)"]);
-        o.push(["sim:3", "Comunicado Urgente — 🔴 Estado de Alerta (30–50 mm/h · 100–150 mm/24h · 150–210 mm/168h)"]);
-        o.push(["sim:4", "Emergência Geodinâmica — 🟣 Estado de Alerta Máximo (> 50 mm/h · > 150 mm/24h · > 210 mm/168h)"]);
+        o.push(["sim:0", "Exemplo ilustrativo — Referencial 0 (< 10 mm/h · < 25 mm/24h · < 50 mm/168h)"]);
+        o.push(["sim:1", "Exemplo ilustrativo — Referencial 1 (10–20 mm/h · 25–50 mm/24h · 50–100 mm/168h)"]);
+        o.push(["sim:2", "Exemplo ilustrativo — Referencial 2 (20–30 mm/h · 50–100 mm/24h · 100–150 mm/168h)"]);
+        o.push(["sim:3", "Exemplo ilustrativo — Referencial 3 (30–50 mm/h · 100–150 mm/24h · 150–210 mm/168h)"]);
+        o.push(["sim:4", "Exemplo ilustrativo — Referencial 4 (> 50 mm/h · > 150 mm/24h · > 210 mm/168h)"]);
       }
     } else if (tipo === "flyer_fogo") {
       if (climaOM && climaOM.daily && Array.isArray(climaOM.daily.time)) {
@@ -471,7 +471,7 @@
       else setStatus("Dados meteorológicos de Cajamar atualizados às " + hm(coletaOM) + (focosInpe ? " · Satélites INPE (" + focosInpe.length + " focos na região)" : "") + ".");
     }
     if (tipo === "flyer_deslizamento") {
-      setStatus("Critérios de Risco de Deslizamento (Pinheiro et al., 2005; AlertaRio, 2013): avaliação simultânea de 1h, 24h e 168h (7 dias).");
+      setStatus("Indicador pluviométrico REFERENCIAL de deslizamento (Pinheiro et al., 2005; AlertaRio, 2013) — NÃO homologado pela Defesa Civil de Cajamar e não oficial. Avalia 1h, 24h e 168h (7 dias) e exige dados completos nas três janelas.");
     }
     if (tipo === "flyer_estacoes") {
       if (!o.length) bloqueio = "Nenhum arquivo CSV carregado ainda. Envie de 1 a 4 CSVs (estações e régua do rio) na aba “Histórico da estação” ou “Previsão × medido”.";
@@ -597,41 +597,42 @@
       } else if (v && v.indexOf("sim:") === 0) {
         var nvSim = parseInt(v.slice(4), 10) || 0;
         var exemplos = [
-          { mm1h: 2, mm24h: 8, mm168h: 22, fonte: "Monitoramento Preventivo Cajamar" },
-          { mm1h: 14, mm24h: 35, mm168h: 68, fonte: "Protocolo Preventivo Cajamar" },
-          { mm1h: 24, mm24h: 72, mm168h: 120, fonte: "Alerta Preventivo de Encostas" },
-          { mm1h: 38, mm24h: 118, mm168h: 175, fonte: "Alerta de Risco de Deslizamento" },
-          { mm1h: 56, mm24h: 165, mm168h: 230, fonte: "Emergência de Risco de Deslizamento" }
+          { mm1h: 2, mm24h: 8, mm168h: 22, tipo: "simulacao", fonte: "EXEMPLO ILUSTRATIVO — dados fictícios" },
+          { mm1h: 14, mm24h: 35, mm168h: 68, tipo: "simulacao", fonte: "EXEMPLO ILUSTRATIVO — dados fictícios" },
+          { mm1h: 24, mm24h: 72, mm168h: 120, tipo: "simulacao", fonte: "EXEMPLO ILUSTRATIVO — dados fictícios" },
+          { mm1h: 38, mm24h: 118, mm168h: 175, tipo: "simulacao", fonte: "EXEMPLO ILUSTRATIVO — dados fictícios" },
+          { mm1h: 56, mm24h: 165, mm168h: 230, tipo: "simulacao", fonte: "EXEMPLO ILUSTRATIVO — dados fictícios" }
         ];
         avDesl = Deslizamento.avaliarRisco(exemplos[nvSim] || exemplos[0]);
       }
       if (!avDesl) {
-        avDesl = Deslizamento.avaliarRisco({ mm1h: 0, mm24h: 0, mm168h: 0, fonte: "Monitoramento Cajamar" });
+        avDesl = Deslizamento.avaliarRisco({ fonte: "Monitoramento Cajamar" });
       }
 
       m.tipoFlyer = "deslizamento";
       m.dadosDeslizamento = avDesl;
       m.cor = avDesl.corFundo;
-      m.tag = "⛰️ RISCO DE DESLIZAMENTO EM CAJAMAR: " + avDesl.icone + " " + avDesl.estado.toUpperCase();
+      m.tag = "⛰️ INDICADOR PLUVIOMÉTRICO REFERENCIAL (NÃO OFICIAL): " + avDesl.icone + " " + avDesl.estado.toUpperCase();
 
-      $("titulo").value = "ESTADO: " + avDesl.estado.toUpperCase();
-      $("subtitulo").value = "Monitoramento de Encostas · " + avDesl.fonte;
+      $("titulo").value = "INDICADOR REFERENCIAL: " + avDesl.estado.toUpperCase();
+      $("subtitulo").value = "Critério não oficial · " + avDesl.fonte;
 
       L.push(avDesl.orientacaoPopulacao);
       L.push("Sinais de perigo: rachaduras em paredes/muros, árvores ou postes inclinados e água barrenta brotando do barranco.");
-      L.push("Gatilho técnico atual: " + avDesl.gatilhos.join(" · ") + ".");
-      L.push("Moradores de encostas (Jordanésia, Polvilho, Ponunduva, Centro): ao notar qualquer sinal, saia do imóvel e ligue 199.");
+      L.push("Critério referencial não homologado: " + avDesl.gatilhos.join(" · "));
+      L.push("Ao notar qualquer sinal de movimento do terreno, ligue 199 (Defesa Civil) ou 193 (Bombeiros). Evacuação e interdição são decididas apenas pela Defesa Civil.");
 
-      m.rodape = "Critérios: Pinheiro et al. (2005); AlertaRio (2013) · Defesa Civil de Cajamar";
+      m.rodape = "Critério referencial NÃO homologado (Pinheiro et al., 2005; AlertaRio, 2013) · Defesa Civil de Cajamar";
 
-      leg = "⛰️ BOLETIM DE RISCO DE DESLIZAMENTO DE TERRA — CAJAMAR/SP\n\n" +
-        avDesl.icone + " ESTADO ATUAL: " + avDesl.estado.toUpperCase() + "\n" +
+      leg = "⛰️ INDICADOR PLUVIOMÉTRICO REFERENCIAL PARA ENCOSTAS — CAJAMAR/SP\n\n" +
+        avDesl.icone + " INDICADOR REFERENCIAL (NÃO OFICIAL): " + avDesl.estado.toUpperCase() + "\n" +
+        "⚠️ " + Deslizamento.AVISO_CRITERIO + "\n" +
         "📋 Faixa de critério: " + avDesl.descricaoCriterio + "\n\n" +
         "🌧️ VOLUMES DE ÁGUA ANALISADOS:\n" +
         "• Em 1 hora (mm/h): " + f1(avDesl.mm1h) + " mm/h (" + avDesl.estado1h + ")\n" +
         "• Em 24 horas (mm/24h): " + f1(avDesl.mm24h) + " mm/24h (" + avDesl.estado24h + ")\n" +
         "• Em 7 dias / 168h (mm/168h): " + f1(avDesl.mm168h) + " mm/168h (" + avDesl.estado168h + ")\n\n" +
-        "📌 ORIENTAÇÕES À POPULAÇÃO DE ÁREAS DE ENCOSTA:\n" +
+        "📌 ORIENTAÇÕES GERAIS:\n" +
         L.map(function (t) { return "✔️ " + t; }).join("\n") +
         "\n\n📞 Emergência: Defesa Civil 199 | Bombeiros 193";
     } else if (tipo === "flyer_fogo") {
@@ -1312,6 +1313,12 @@
   }
 
   // ---------- Panfleto Visual de Risco de Deslizamento (flyer_deslizamento) ----------
+  // Estado de uma janela; sem dado (null) usa o estado "sem dados", nunca o nível 0.
+  function estJanela(n) {
+    var D = window.Deslizamento;
+    return n === null || n === undefined ? Object.assign({}, D.SEM_DADOS, { estado: "Sem dado" }) : D.ESTADOS[n];
+  }
+
   function desenharFlyerDeslizamento(cfg, fmtKey, yBase) {
     var av = modelo.dadosDeslizamento;
     if (!av) return;
@@ -1328,7 +1335,7 @@
     ctx.textAlign = "left";
     ctx.fillStyle = "#fff";
     ctx.font = "800 " + (fmtKey === "stories" ? "42px " : fmtKey === "retrato" ? "34px " : "28px ") + FONTE;
-    ctx.fillText($("titulo").value || ("ESTADO: " + String(av.estado).toUpperCase()), x + 26, y + (fmtKey === "stories" ? 54 : fmtKey === "retrato" ? 42 : 34));
+    ctx.fillText($("titulo").value || ("INDICADOR REFERENCIAL: " + String(av.estado).toUpperCase()), x + 26, y + (fmtKey === "stories" ? 54 : fmtKey === "retrato" ? 42 : 34));
 
     ctx.fillStyle = "#fde047";
     ctx.font = "700 " + (fmtKey === "stories" ? "28px " : fmtKey === "retrato" ? "23px " : "19px ") + FONTE;
@@ -1336,7 +1343,7 @@
 
     ctx.fillStyle = "#cbd5e1";
     ctx.font = "500 " + (fmtKey === "stories" ? "22px " : "17px ") + FONTE;
-    ctx.fillText("Critérios técnicos: Pinheiro et al. (2005) e AlertaRio (2013) — 1h · 24h · 168h (7 dias)", x + 26, y + (fmtKey === "stories" ? 128 : fmtKey === "retrato" ? 100 : 80));
+    ctx.fillText("Critério referencial NÃO homologado (Pinheiro 2005; AlertaRio 2013) — 1h · 24h · 168h", x + 26, y + (fmtKey === "stories" ? 128 : fmtKey === "retrato" ? 100 : 80));
 
     y += hHero + (fmtKey === "feed" ? 12 : 20);
 
@@ -1345,9 +1352,9 @@
     var gap = 16;
     var wJan = (larg - gap * 2) / 3;
     var janelas = [
-      { rot: "⏱️ CHUVA 1 HORA", val: f1(av.mm1h) + " mm/h", est: window.Deslizamento.ESTADOS[av.nivel1h || 0], ref: "Normal < 10 · Alerta ≥ 30" },
-      { rot: "🌧️ ACUMULADO 24H", val: f1(av.mm24h) + " mm/24h", est: window.Deslizamento.ESTADOS[av.nivel24h || 0], ref: "Normal < 25 · Alerta ≥ 100" },
-      { rot: "📅 ACUM. 168H (7 DIAS)", val: f1(av.mm168h) + " mm", est: window.Deslizamento.ESTADOS[av.nivel168h || 0], ref: "Normal < 50 · Alerta ≥ 150" }
+      { rot: "⏱️ CHUVA 1 HORA", val: f1(av.mm1h) + " mm/h", est: estJanela(av.nivel1h), ref: "Ref.0 < 10 · Ref.3 ≥ 30" },
+      { rot: "🌧️ ACUMULADO 24H", val: f1(av.mm24h) + " mm/24h", est: estJanela(av.nivel24h), ref: "Ref.0 < 25 · Ref.3 ≥ 100" },
+      { rot: "📅 ACUM. 168H (7 DIAS)", val: f1(av.mm168h) + " mm", est: estJanela(av.nivel168h), ref: "Ref.0 < 50 · Ref.3 ≥ 150" }
     ];
 
     janelas.forEach(function (j, idx) {
@@ -1413,7 +1420,7 @@
     ctx.fillStyle = "#fde047";
     var tamCab = fmtKey === "stories" ? 27 : fmtKey === "retrato" ? 22 : 18;
     ctx.font = "800 " + tamCab + "px " + FONTE;
-    ctx.fillText("⛰️ SINAIS DE ALERTA EM ENCOSTAS E ORIENTAÇÕES À POPULAÇÃO:", x + 24, y + tamCab + 12);
+    ctx.fillText("⛰️ SINAIS NAS ENCOSTAS E ORIENTAÇÕES GERAIS:", x + 24, y + tamCab + 12);
 
     var yTxt = y + tamCab * 2 + (fmtKey === "feed" ? 10 : 18);
     var linhas = $("linhas").value.split(/\n/).map(function (s) { return s.trim(); }).filter(Boolean);
