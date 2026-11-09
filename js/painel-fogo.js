@@ -109,7 +109,7 @@
         btnVer.type = "button";
         btnVer.style.minHeight = "28px";
         btnVer.style.padding = "2px 8px";
-        btnVer.onclick = function () { focarFocoNoMapa(f); };
+        btnVer.onclick = function () { if (P.mapa && P.mapa.focarFoco) P.mapa.focarFoco(f); };
         tdBtn.appendChild(btnVer);
         tr.appendChild(tdBtn);
         tbody.appendChild(tr);

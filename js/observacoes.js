@@ -7,7 +7,7 @@
 
   function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x !== undefined) e.textContent = x; return e; }
   function p2(n) { return (n < 10 ? "0" : "") + n; }
-  function f1(v) { return v.toFixed(1).replace(".", ","); }
+  function f1(v) { return v === null || v === undefined || !isFinite(v) ? "—" : v.toFixed(1).replace(".", ","); }
   function novoId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
   function nowLocal() { var d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); }
   function fmt(iso) { var d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }); }
@@ -253,15 +253,22 @@
         if (r.chuvaMm !== null && (maxC === null || r.chuvaMm > maxC.chuvaMm)) maxC = r;
         if (r.ventoKmh !== null && (maxV === null || r.ventoKmh > maxV.ventoKmh)) maxV = r;
         var avD = avaliarDeslizamentoObservacao(r);
-        if (avD && (!piorDesl || avD.nivel > piorDesl.nivel || (avD.nivel === piorDesl.nivel && avD.mm24h > piorDesl.mm24h))) {
-          piorDesl = avD;
+        if (avD) {
+          var rankD = avD.conclusivo && avD.nivel !== null ? avD.nivel : -1;
+          var rankPior = piorDesl && piorDesl.conclusivo && piorDesl.nivel !== null ? piorDesl.nivel : -1;
+          if (!piorDesl || rankD > rankPior || (rankD === rankPior && (avD.mm24h || 0) > (piorDesl.mm24h || 0))) {
+            piorDesl = avD;
+          }
         }
       });
       rs.appendChild(cartao("Observações", String(vis.length), "no filtro atual"));
       rs.appendChild(cartao("Maior chuva registrada", maxC ? f1(maxC.chuvaMm) + " mm" : "—", maxC ? "em " + maxC.janela + " · " + fmt(maxC.quando) : "nenhuma leitura em mm"));
       rs.appendChild(cartao("Maior vento registrado", maxV ? Math.round(maxV.ventoKmh) + " km/h" : "—", maxV ? fmt(maxV.quando) : "nenhuma leitura em km/h"));
       if (piorDesl) {
-        rs.appendChild(cartao("⛰️ Risco de Deslizamento (Máx)", piorDesl.icone + " " + piorDesl.estado, piorDesl.fonte + " (24h: " + f1(piorDesl.mm24h) + " mm · 168h: " + f1(piorDesl.mm168h) + " mm)"));
+        var notaDesl = piorDesl.conclusivo
+          ? (piorDesl.fonte || "Indicador referencial") + " (1h: " + f1(piorDesl.mm1h) + " mm · 24h: " + f1(piorDesl.mm24h) + " mm · 168h: " + f1(piorDesl.mm168h) + " mm)"
+          : "Faltam leituras em 1 h, 24 h e 168 h no mesmo local";
+        rs.appendChild(cartao("⛰️ Risco de Deslizamento (Máx)", piorDesl.icone + " " + piorDesl.estado, notaDesl));
       }
     }
     // lista
@@ -286,7 +293,7 @@
       var avObs = avaliarDeslizamentoObservacao(r);
       if (avObs) {
         var bdg = el("span", "desliz-badge", "⛰️ " + avObs.icone + " " + avObs.estado);
-        bdg.dataset.nivel = String(avObs.nivel);
+        bdg.dataset.nivel = avObs.nivel === null || avObs.nivel === undefined ? "semdados" : String(avObs.nivel);
         v.appendChild(bdg);
       }
       li.appendChild(v);
@@ -303,7 +310,7 @@
   rows = carregar().sort(function (a, b) { return new Date(b.quando) - new Date(a.quando); });
   render();
   window.addEventListener("storage", function (ev) {
-    if (!ev || !ev.key || ev.key === KEY || ev.key.indexOf("cajamar:") === 0) {
+    if (!ev || !ev.key || ev.key === CHAVE || ev.key.indexOf("cajamar:") === 0) {
       rows = carregar().sort(function (a, b) { return new Date(b.quando) - new Date(a.quando); });
       render();
     }

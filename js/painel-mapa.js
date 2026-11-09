@@ -404,7 +404,8 @@
   $("slider").oninput = function () { play(false); show(+this.value); };
 
   P.mapa = {
-    carregarRadar: radar, desenharFocos: desenharFocosNoMapa, atualizarPontos: atualizarPontosCajamarNoMapa,
+    carregarRadar: radar, desenharFocos: desenharFocosNoMapa, focarFoco: focarFocoNoMapa, atualizarPontos: atualizarPontosCajamarNoMapa,
     definirAvisos: function (dentro, proximos) { avisosMapa = dentro; avisosProximosMapa = proximos; desenharAvisosNoMapa(); }
   };
+  window.focarFocoNoMapa = focarFocoNoMapa;
 })();

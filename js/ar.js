@@ -70,7 +70,7 @@
         var r = await Fontes.consultar("ar", URL_AR, validar);
         var d = resumir(r.dados), a = classificarAqi(d.aqi), u = classificarUv(d.uv);
         B.textContent = ""; B.className = "";
-        if (r.antigo) B.appendChild(el("p", "stale", "Não foi possível atualizar agora. Mostrando dados antigos, coletados em " + new Date(r.de).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) + "."));
+        if (r.antigo) B.appendChild(el("p", "stale", "Não foi possível atualizar agora. Mostrando dados antigos, coletados em " + new Date(r.de).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }) + "."));
 
         var grade = el("div", "ar-grade");
         function tile(rotulo, valor, faixa, extra) {

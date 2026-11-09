@@ -394,7 +394,7 @@
   if (memoria) aviso("Armazenamento do navegador indisponível: os registros não serão guardados. Use Exportar.", "ruim");
   render();
   window.addEventListener("storage", function (ev) {
-    if (!ev || !ev.key || ev.key === KEY || ev.key.indexOf("cajamar:") === 0) {
+    if (!ev || !ev.key || ev.key === CHAVE || ev.key.indexOf("cajamar:") === 0) {
       rows = carregar();
       render();
     }

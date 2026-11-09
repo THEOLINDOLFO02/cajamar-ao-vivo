@@ -255,3 +255,15 @@ test("páginas que usam janelas de estação carregam estacao.js antes de desliz
     assert.ok(a > -1 && b > a, pg + ": estacao.js deve vir antes de deslizamento.js");
   }
 });
+
+test("regressão: observacoes.js e quadro.js não referenciam KEY indefinida em storage e painel-mapa expõe focarFoco", () => {
+  for (const arq of ["js/observacoes.js", "js/quadro.js"]) {
+    const src = readFileSync(join(RAIZ, arq), "utf8");
+    assert.doesNotMatch(src, /\bev\.key\s*===\s*KEY\b/, arq + " referencia KEY indefinida no listener de storage");
+    assert.match(src, /\bev\.key\s*===\s*CHAVE\b/, arq + " deve usar CHAVE no listener de storage");
+  }
+  const mapaSrc = readFileSync(join(RAIZ, "js", "painel-mapa.js"), "utf8");
+  const fogoSrc = readFileSync(join(RAIZ, "js", "painel-fogo.js"), "utf8");
+  assert.match(mapaSrc, /focarFoco\s*:\s*focarFocoNoMapa/, "painel-mapa.js deve expor focarFoco em P.mapa");
+  assert.match(fogoSrc, /P\.mapa\.focarFoco\b/, "painel-fogo.js deve acionar P.mapa.focarFoco");
+});

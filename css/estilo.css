@@ -211,6 +211,7 @@ th{font-size:.76rem;color:var(--mut);font-weight:700;letter-spacing:.04em;text-t
 tbody tr:hover td{background:var(--acc-soft)}
 .tw table:not(.desliz-tabela) th:first-child,.tw table:not(.desliz-tabela) td:first-child{position:sticky;left:0;background:var(--card);z-index:1}
 .tw table:not(.desliz-tabela) tbody tr:hover td:first-child{background:var(--acc-soft)}
+@media (max-width:640px){.tw table:not(.desliz-tabela) th:first-child,.tw table:not(.desliz-tabela) td:first-child{max-width:150px;white-space:normal;overflow-wrap:break-word}}
 .bar{display:inline-block;height:8px;border-radius:4px;background:var(--bar);vertical-align:middle;margin-left:6px}
 .hours{display:flex;gap:4px;align-items:flex-end;height:110px;overflow-x:auto;padding-bottom:2px}
 .hours div{flex:0 0 26px;text-align:center;font-size:.68rem;color:var(--mut);display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:2px}
@@ -269,6 +270,7 @@ tbody tr:hover td{background:var(--acc-soft)}
 /* ---------- 6. Páginas ---------- */
 /* Quadro de ocorrências */
 .counts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:420px){.counts{grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px}.count{padding:10px}.count b{font-size:1.45rem}}
 .count{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;box-shadow:var(--sombra)}
 .count b{display:block;font-size:1.7rem;font-variant-numeric:tabular-nums;line-height:1.1}
 .count span{font-size:.82rem;color:var(--mut);font-weight:650}
@@ -336,8 +338,9 @@ tbody tr:hover td{background:var(--acc-soft)}
 }
 
 /* ---------- ajustes de largura (celular) ---------- */
-.filtro-periodo label,.rotulo-inline{display:grid;gap:4px;flex:1 1 230px;min-width:0;font-size:.88rem;font-weight:650}
-.filtro-periodo select,.rotulo-inline select,.sel-inline{width:100%;max-width:100%;min-height:44px}
+.filtro-periodo label:has(input,select),.rotulo-inline{display:grid;gap:4px;flex:1 1 230px;min-width:0;font-size:.88rem;font-weight:650}
+.rotulo-inline select,.sel-inline{width:100%;max-width:100%;min-height:44px}
+@media (max-width:560px){.filtro-periodo select,.filtro-periodo input{flex:1 1 100%;width:100%;max-width:100%;min-height:44px}}
 .nav-bar a{padding:0 14px;font-size:.9rem}
 #form:not(.card){background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px;box-shadow:var(--sombra)}
 #form h2{margin:0}
@@ -402,6 +405,7 @@ tbody tr:hover td{background:var(--acc-soft)}
 .hero[data-nivel="normal"]{border-left-color:var(--ok)}
 .hero-metricas{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:10px}
 .hero-metricas:empty{display:none}
+.hero-metricas>.stale{grid-column:1 / -1}
 .metrica{display:grid;gap:2px;align-content:center;padding:12px 14px;border-radius:var(--r);background:color-mix(in srgb,var(--card) 70%,transparent);border:1px solid color-mix(in srgb,var(--fg) 8%,transparent);min-width:0}
 .metrica b{font-size:1.9rem;line-height:1;font-weight:760;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .metrica.destaque b{font-size:2.6rem}
@@ -416,7 +420,7 @@ tbody tr:hover td{background:var(--acc-soft)}
   .hero-chips{grid-column:1}
   .hero-acoes,.hero-nota{grid-column:1 / -1}
 }
-@media (max-width:420px){.metrica b{font-size:1.5rem}.metrica.destaque b{font-size:2.1rem}.metrica{padding:10px}}
+@media (max-width:420px){.hero-metricas{grid-template-columns:1fr 1fr}.hero-metricas .metrica.destaque{grid-column:1 / -1}.metrica b{font-size:1.5rem}.metrica.destaque b{font-size:2.1rem}.metrica{padding:10px}}
 
 /* Botão de atualizar com retorno visível */
 .giro{display:inline-block}

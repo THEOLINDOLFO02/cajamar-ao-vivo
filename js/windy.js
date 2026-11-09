@@ -67,7 +67,7 @@
         var d = resumir(r.dados), cape = d.capeMax ? classificarCape(d.capeMax.v) : null;
         if (!d.pontos.length) throw new Error("sem pontos futuros");
         B.textContent = ""; B.className = "";
-        if (r.antigo) B.appendChild(el("p", "stale", "Não foi possível atualizar agora. Mostrando dados antigos, coletados em " + new Date(r.de).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) + "."));
+        if (r.antigo) B.appendChild(el("p", "stale", "Não foi possível atualizar agora. Mostrando dados antigos, coletados em " + new Date(r.de).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }) + "."));
 
         var k = el("div", "k");
         [

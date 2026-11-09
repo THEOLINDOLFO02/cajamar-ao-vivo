@@ -104,7 +104,7 @@
         var todos = t.modelos.concat([t.referencia]).reduce(function (a, m) { return a.concat([m.h24, m.h48]); }, []).filter(ok);
         var escala = Math.max.apply(null, todos.concat([5]));
         B.textContent = ""; B.className = "";
-        if (r.antigo) B.appendChild(el("p", "stale", "Não foi possível atualizar agora. Mostrando dados antigos, coletados em " + new Date(r.de).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) + "."));
+        if (r.antigo) B.appendChild(el("p", "stale", "Não foi possível atualizar agora. Mostrando dados antigos, coletados em " + new Date(r.de).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }) + "."));
         var grade = el("div", "mod-grade");
         grade.appendChild(bloco("Próximas 24 h", "h24", t, escala));
         grade.appendChild(bloco("De 24 a 48 h", "h48", t, escala));
