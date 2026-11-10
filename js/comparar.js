@@ -1,4 +1,4 @@
-// Compara a chuva diária medida (1 a 3 estações meteorológicas) e a régua de nível do rio
+// Compara a chuva diária medida (1 a 4 estações meteorológicas) e a régua de nível do rio
 // com as previsões dos boletins/modelos meteorológicos (Open-Meteo D-1, ECMWF e GFS).
 (function () {
   "use strict";
@@ -68,7 +68,7 @@
     if (sel) {
       var valAnt = sel.value || banco.ativo || "est1";
       sel.textContent = "";
-      ["est1", "est2", "est3"].forEach(function (id, idx) {
+      ["est1", "est2", "est3", "est4"].forEach(function (id, idx) {
         var s = banco.slots[id];
         var nDias = Object.keys(s.dias || {}).length;
         var nome = s.estacao ? s.estacao : ("Estação Meteorológica " + (idx + 1));
@@ -85,6 +85,7 @@
         if (Object.keys(banco.slots.est1.dias || {}).length) valAnt = "est1";
         else if (Object.keys(banco.slots.est2.dias || {}).length) valAnt = "est2";
         else if (Object.keys(banco.slots.est3.dias || {}).length) valAnt = "est3";
+        else if (Object.keys(banco.slots.est4.dias || {}).length) valAnt = "est4";
       }
       sel.value = valAnt;
     }
@@ -98,11 +99,12 @@
     var s1 = banco.slots.est1 || { dias: {} };
     var s2 = banco.slots.est2 || { dias: {} };
     var s3 = banco.slots.est3 || { dias: {} };
+    var s4 = banco.slots.est4 || { dias: {} };
     var sr = banco.slots.regua || { dias: {} };
     var sr2 = banco.slots.regua2 || { dias: {} };
 
     var mapaDatas = {};
-    [s1, s2, s3, sr, sr2].forEach(function (sl) {
+    [s1, s2, s3, s4, sr, sr2].forEach(function (sl) {
       Object.keys(sl.dias || {}).forEach(function (k) { mapaDatas[k] = true; });
     });
     var datas = Object.keys(mapaDatas).sort().reverse();
@@ -115,8 +117,9 @@
     if ($("thSimEst1")) $("thSimEst1").textContent = "🌡️ " + (s1.estacao || "Estação 1");
     if ($("thSimEst2")) $("thSimEst2").textContent = "🌡️ " + (s2.estacao || "Estação 2");
     if ($("thSimEst3")) $("thSimEst3").textContent = "🌡️ " + (s3.estacao || "Estação 3");
+    if ($("thSimEst4")) $("thSimEst4").textContent = "🌡️ " + (s4.estacao || "Estação 4");
 
-    var tot1 = 0, n1 = 0, tot2 = 0, n2 = 0, tot3 = 0, n3 = 0, maxNv = null, maxDelta = null;
+    var tot1 = 0, n1 = 0, tot2 = 0, n2 = 0, tot3 = 0, n3 = 0, tot4 = 0, n4 = 0, maxNv = null, maxDelta = null;
     var tb = $("tbSimultaneo");
     tb.textContent = "";
 
@@ -124,10 +127,11 @@
       var d1 = s1.dias ? s1.dias[k] : null;
       var d2 = s2.dias ? s2.dias[k] : null;
       var d3 = s3.dias ? s3.dias[k] : null;
+      var d4 = s4.dias ? s4.dias[k] : null;
       var dr = sr.dias ? sr.dias[k] : null;
       var dr2 = sr2.dias ? sr2.dias[k] : null;
       if (!dr) {
-        [d1, d2, d3].forEach(function (dx) {
+        [d1, d2, d3, d4].forEach(function (dx) {
           if (dx && dx.nvMax !== null && dx.nvMax !== undefined && !dr) dr = dx;
         });
       }
@@ -136,6 +140,7 @@
       if (d1) { tot1 += d1.chuva; n1++; vals.push(d1.chuva); }
       if (d2) { tot2 += d2.chuva; n2++; vals.push(d2.chuva); }
       if (d3) { tot3 += d3.chuva; n3++; vals.push(d3.chuva); }
+      if (d4) { tot4 += d4.chuva; n4++; vals.push(d4.chuva); }
       [[dr, sr], [dr2, sr2]].forEach(function (par, idx) {
         var x = par[0];
         if (x && x.nvMax !== null && x.nvMax !== undefined) {
@@ -147,7 +152,7 @@
 
       var tr = el("tr");
       tr.appendChild(el("td", "", fdLonga(k)));
-      [d1, d2, d3].forEach(function (dx) {
+      [d1, d2, d3, d4].forEach(function (dx) {
         if (!dx) {
           tr.appendChild(el("td", "mut", "—"));
         } else {
@@ -179,6 +184,7 @@
       if (n1) rs.appendChild(cartao("🌡️ " + (s1.estacao || "Estação 1"), f1(tot1) + " mm", n1 + " dia(s) carregado(s)"));
       if (n2) rs.appendChild(cartao("🌡️ " + (s2.estacao || "Estação 2"), f1(tot2) + " mm", n2 + " dia(s) carregado(s)"));
       if (n3) rs.appendChild(cartao("🌡️ " + (s3.estacao || "Estação 3"), f1(tot3) + " mm", n3 + " dia(s) carregado(s)"));
+      if (n4) rs.appendChild(cartao("🌡️ " + (s4.estacao || "Estação 4"), f1(tot4) + " mm", n4 + " dia(s) carregado(s)"));
       if (maxNv) rs.appendChild(cartao("🌊 Pico de nível do rio (" + maxNv.r + ")", f2(maxNv.v) + " m", "em " + fdLonga(maxNv.k) + (maxDelta ? " (Δ máx +" + Math.round(maxDelta.v * 100) + " cm)" : "")));
     }
   }
@@ -316,7 +322,7 @@
 
     var estacoesAtivas = [];
     if (modoEst === "todas") {
-      ["est1", "est2", "est3"].forEach(function (id) {
+      ["est1", "est2", "est3", "est4"].forEach(function (id) {
         if (Object.keys(banco.slots[id].dias || {}).length) estacoesAtivas.push(banco.slots[id]);
       });
     } else if (banco.slots[modoEst] && Object.keys(banco.slots[modoEst].dias || {}).length) {

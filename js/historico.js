@@ -1,4 +1,4 @@
-// Histórico das 3 estações meteorológicas e 1 régua de nível do rio em Cajamar:
+// Histórico das 4 estações meteorológicas e 2 réguas de nível do rio em Cajamar:
 // Os CSVs são lidos no próprio navegador (nada é enviado).
 // O resumo por dia de cada equipamento fica guardado no localStorage deste aparelho.
 (function () {
@@ -538,7 +538,7 @@
   };
   if ($("limparTudo")) {
     $("limparTudo").onclick = function () {
-      if (!confirm("Apagar o histórico das 3 estações e das 2 réguas de nível guardado neste navegador?")) return;
+      if (!confirm("Apagar o histórico das 4 estações e das 2 réguas de nível guardado neste navegador?")) return;
       banco = Estacao.criarBancoVazio();
       guardar();
       aviso("Todos os históricos foram apagados."); desenhar(false);

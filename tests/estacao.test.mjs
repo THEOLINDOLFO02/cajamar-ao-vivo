@@ -288,7 +288,7 @@ test("validarArquivoCsv: extensão, binário, vazio, tamanho e cabeçalho", () =
   assert.ok(Estacao.validarArquivoCsv({ ...ok, texto: "{\"json\": true}" }).some((e) => /cabeçalho/.test(e)));
 });
 
-test("planejarImportacao: aceita até 5 arquivos; um inválido não altera nada e os válidos são importados", () => {
+test("planejarImportacao: aceita até 6 arquivos; um inválido não altera nada e os válidos são importados", () => {
   const banco = Estacao.criarBancoVazio();
   const antes = JSON.stringify(banco);
   const bom = { nome: "est1.csv", tamanho: 100, texto: gerarCsvChuva({ horas: 48 }) };
@@ -310,10 +310,10 @@ test("planejarImportacao: aceita até 5 arquivos; um inválido não altera nada 
   assert.equal(JSON.stringify(so.banco), antes);
 });
 
-test("planejarImportacao: mais de 5 arquivos ou tamanho total excessivo são recusados por inteiro", () => {
+test("planejarImportacao: mais de 6 arquivos ou tamanho total excessivo são recusados por inteiro", () => {
   const banco = Estacao.criarBancoVazio();
   const a = { nome: "a.csv", tamanho: 10, texto: gerarCsvChuva({ horas: 1 }) };
-  assert.throws(() => Estacao.planejarImportacao(banco, [a, a, a, a, a, a], "auto"), /máximo de 5/);
+  assert.throws(() => Estacao.planejarImportacao(banco, [a, a, a, a, a, a, a], "auto"), /máximo de 6/);
   assert.throws(() => Estacao.planejarImportacao(banco, [], "auto"), /nenhum arquivo/);
   const grande = { ...a, tamanho: Estacao.LIMITES_IMPORTACAO.maxBytesTotal };
   assert.throws(() => Estacao.planejarImportacao(banco, [grande, grande], "auto"), /tamanho total/);
@@ -492,7 +492,7 @@ test("duas réguas: o banco tem regua e regua2, e SLOTS_PADRAO as lista como slo
   assert.equal(JSON.stringify(Estacao.IDS_NIVEL), JSON.stringify(["regua", "regua2"]));
   assert.equal(Estacao.ehSlotNivel("regua2"), true);
   assert.equal(Estacao.ehSlotNivel("est1"), false);
-  assert.equal(Estacao.SLOTS_PADRAO.length, 5);
+  assert.equal(Estacao.SLOTS_PADRAO.length, 6);
 });
 
 test("duas réguas: CSV de nível entra na régua certa (SN já conhecido, pista no nome e primeira vazia)", () => {
@@ -520,4 +520,15 @@ test("duas réguas: banco salvo antes (sem regua2, rótulo antigo) carrega sem p
   assert.equal(banco.slots.regua.dias["2026-01-10"].nvMax, 2);
   assert.equal(banco.slots.regua.rotulo, "Régua de Nível — Jordanésia");
   assert.equal(Object.keys(banco.slots.regua2.dias).length, 0);
+});
+
+test("quatro estações: o CSV da 4ª estação meteorológica vai para est4", () => {
+  const banco = Estacao.criarBancoVazio();
+  const csv = (sn, nome) => Estacao.lerCsv([
+    CABECALHO,
+    `cajamar;${sn};${nome};meteorologica;;10/01/2026 00:00:00;1768014000000;20,0;70,0;935,0;1;5,0;180;0;0;4,4;;0`
+  ].join("\n"));
+  const ids = ["A", "B", "C", "D"].map((n, i) => Estacao.mesclarNoSlot(banco, "auto", csv(String(i + 1), "Estação " + n), "e" + i + ".csv").slotId);
+  assert.equal(JSON.stringify(ids), JSON.stringify(["est1", "est2", "est3", "est4"]));
+  assert.equal(Estacao.SLOTS_PADRAO.filter((s) => s.tipo === "meteorologica").length, 4);
 });

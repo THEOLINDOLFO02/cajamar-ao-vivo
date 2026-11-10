@@ -27,7 +27,7 @@
   var MAX_LACUNAS_POR_DIA = 40;
 
   var LIMITES_IMPORTACAO = {
-    maxArquivos: 5,
+    maxArquivos: 6,
     maxBytesArquivo: 25 * 1024 * 1024,
     maxBytesTotal: 60 * 1024 * 1024
   };
@@ -37,6 +37,7 @@
     { id: "est1", rotulo: "Estação Meteorológica 1", tipo: "meteorologica" },
     { id: "est2", rotulo: "Estação Meteorológica 2", tipo: "meteorologica" },
     { id: "est3", rotulo: "Estação Meteorológica 3", tipo: "meteorologica" },
+    { id: "est4", rotulo: "Estação Meteorológica 4", tipo: "meteorologica" },
     { id: "regua", rotulo: "Régua de Nível — Jordanésia", tipo: "nivel" },
     { id: "regua2", rotulo: "Régua de Nível — Natura", tipo: "nivel" }
   ];
@@ -380,6 +381,7 @@
         est1: { id: "est1", rotulo: "Estação Meteorológica 1", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
         est2: { id: "est2", rotulo: "Estação Meteorológica 2", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
         est3: { id: "est3", rotulo: "Estação Meteorológica 3", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
+        est4: { id: "est4", rotulo: "Estação Meteorológica 4", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
         regua: { id: "regua", rotulo: "Régua de Nível — Jordanésia", tipo: "nivel", estacao: "", sn: "", dias: {} },
         regua2: { id: "regua2", rotulo: "Régua de Nível — Natura", tipo: "nivel", estacao: "", sn: "", dias: {} }
       }
@@ -441,6 +443,7 @@
       s = banco.slots.est1;
       if (!Object.keys(s.dias).length && Object.keys(banco.slots.est2.dias).length) s = banco.slots.est2;
       else if (!Object.keys(s.dias).length && Object.keys(banco.slots.est3.dias).length) s = banco.slots.est3;
+      else if (!Object.keys(s.dias).length && Object.keys(banco.slots.est4.dias).length) s = banco.slots.est4;
     }
     if (s && Object.keys(s.dias).length) return JSON.stringify({ estacao: s.estacao, dias: s.dias });
     return null;
@@ -487,7 +490,7 @@
     return "regua";
   }
 
-  // Escolhe automaticamente em qual dos 5 slots (est1, est2, est3, regua, regua2) gravar o CSV quando não foi forçado um slot.
+  // Escolhe automaticamente em qual dos 6 slots (est1, est2, est3, est4, regua, regua2) gravar o CSV quando não foi forçado um slot.
   function escolherSlotAutomatico(banco, rows, nomeArquivo) {
     var tipo = detectarTipo(rows);
     var nome = (rows[0] && rows[0].nome) || "";
@@ -498,7 +501,7 @@
       return escolherSlotNivel(banco, nome, sn, arq);
     }
     // 1) Se já existe slot com o mesmo SN ou mesmo nome de estação, atualiza-o
-    var idsMet = ["est1", "est2", "est3"];
+    var idsMet = ["est1", "est2", "est3", "est4"];
     for (var i = 0; i < idsMet.length; i++) {
       var sl = banco.slots[idsMet[i]];
       if (sn && sl.sn && sl.sn === sn) return sl.id;

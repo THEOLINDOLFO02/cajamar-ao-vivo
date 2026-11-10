@@ -64,11 +64,11 @@
   document.addEventListener("cajamar:municipio", function () { desenharLimite(); atualizarPontosCajamarNoMapa(); });
 
   var PONTOS_CAJAMAR = [
-    // Coordenadas informadas pela Defesa Civil de Cajamar (10/11/2026). Os slots est1/est2/est3 seguem a numeração das estações.
+    // Coordenadas informadas pela Defesa Civil de Cajamar (10/11/2026). Os slots est1 a est4 seguem a numeração das estações.
     { nome: "Jordanésia · Pluviômetro (Estação 1)", lat: -23.335132, lon: -46.825585, cor: "#c2410c", tipo: "Pluviômetro / Área de Encosta", slotId: "est1" },
     { nome: "Polvilho · Pluviômetro (Estação 2)", lat: -23.410408, lon: -46.845375, cor: "#c2410c", tipo: "Pluviômetro / Área Urbana", slotId: "est2" },
     { nome: "Ponunduva · Pluviômetro (Estação 3)", lat: -23.329440, lon: -46.918672, cor: "#c2410c", tipo: "Pluviômetro / Encostas e Zona Rural", slotId: "est3" },
-    { nome: "KM 43 · Pluviômetro", lat: -23.314125, lon: -46.8635147, cor: "#0b6e8f", tipo: "Pluviômetro / Encostas e Mata", slotId: null },
+    { nome: "KM 43 · Pluviômetro (Estação 4)", lat: -23.314125, lon: -46.8635147, cor: "#c2410c", tipo: "Pluviômetro / Encostas e Mata", slotId: "est4" },
     { nome: "Jordanésia · Pluviométrica e Nível", lat: -23.336754, lon: -46.842581, cor: "#0284c7", tipo: "Pluviométrica e Nível do rio (régua)", slotId: "regua" },
     { nome: "Natura · Pluviométrica e Nível", lat: -23.400109, lon: -46.834746, cor: "#0284c7", tipo: "Pluviométrica e Nível do rio (régua)", slotId: "regua2" },
     { nome: "Base Defesa Civil", lat: -23.407150, lon: -46.858613, cor: "#b91c1c", tipo: "Base Operacional COMPDEC", slotId: null }

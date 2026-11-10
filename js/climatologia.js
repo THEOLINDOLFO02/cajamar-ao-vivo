@@ -176,7 +176,7 @@
         var conf = null, nomeEst = "";
         if (typeof Estacao !== "undefined" && Estacao.carregarBanco) {
           var banco = Estacao.carregarBanco();
-          ["est1", "est2", "est3"].forEach(function (id) {
+          ["est1", "est2", "est3", "est4"].forEach(function (id) {
             var sl = banco && banco.slots && banco.slots[id];
             var c = sl && sl.dias ? conferir(d.s, sl.dias, d.fim, 60) : null;
             if (c && (!conf || c.dias > conf.dias)) { conf = c; nomeEst = sl.estacao || sl.rotulo || id; }
