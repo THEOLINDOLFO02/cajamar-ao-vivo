@@ -160,7 +160,7 @@
         bancoEstacoes = Estacao.carregarBanco();
         var sAtivo = bancoEstacoes.slots[bancoEstacoes.ativo];
         if (!sAtivo || !Object.keys(sAtivo.dias || {}).length) {
-          ["est1", "est2", "est3", "est4"].forEach(function (id) {
+          ["est1", "est2", "est3", "est4", "est5"].forEach(function (id) {
             if (!sAtivo || !Object.keys(sAtivo.dias || {}).length) sAtivo = bancoEstacoes.slots[id];
           });
         }
@@ -360,7 +360,7 @@
     carregarHistorico();
     var datas = {};
     if (bancoEstacoes && bancoEstacoes.slots) {
-      ["est1", "est2", "est3", "est4", "regua", "regua2"].forEach(function (id) {
+      ["est1", "est2", "est3", "est4", "est5", "regua", "regua2"].forEach(function (id) {
         var sl = bancoEstacoes.slots[id];
         if (!sl || !sl.dias) return;
         Object.keys(sl.dias).forEach(function (k) { datas[k] = true; });
@@ -382,7 +382,7 @@
     var reguas = [];
 
     if (bancoEstacoes && bancoEstacoes.slots) {
-      ["est1", "est2", "est3", "est4"].forEach(function (id, idx) {
+      ["est1", "est2", "est3", "est4", "est5"].forEach(function (id, idx) {
         var sl = bancoEstacoes.slots[id];
         var d = sl && sl.dias ? sl.dias[dataIso] : null;
         estacoes.push({
@@ -473,7 +473,7 @@
         }
         carregarHistorico();
         if (bancoEstacoes && bancoEstacoes.slots) {
-          ["est1", "est2", "est3", "est4"].forEach(function (id, idx) {
+          ["est1", "est2", "est3", "est4", "est5"].forEach(function (id, idx) {
             var sl = bancoEstacoes.slots[id];
             if (!sl || !sl.dias) return;
             var nomeE = sl.estacao || ("Estação " + (idx + 1));
@@ -515,7 +515,7 @@
     } else if (tipo === "chuva") {
       carregarHistorico();
       if (bancoEstacoes && bancoEstacoes.slots) {
-        ["est1", "est2", "est3", "est4"].forEach(function (id, idx) {
+        ["est1", "est2", "est3", "est4", "est5"].forEach(function (id, idx) {
           var sl = bancoEstacoes.slots[id];
           if (!sl || !sl.dias) return;
           var nomeEst = sl.estacao || ("Estação " + (idx + 1));
@@ -575,7 +575,7 @@
       return r;
     }
     if (tipo === "flyer_estacoes") {
-      if (!o.length) r.bloqueio = "Nenhum arquivo CSV carregado ainda. Envie de 1 a 6 CSVs (estações e réguas do rio) na aba “Histórico da estação” ou “Previsão × medido”.";
+      if (!o.length) r.bloqueio = "Nenhum arquivo CSV carregado ainda. Envie de 1 a 7 CSVs (estações e réguas do rio) na aba “Histórico da estação” ou “Previsão × medido”.";
       else r.status = "Dados locais das estações e régua de nível prontos para gerar o panfleto consolidado (medição local; dias incompletos são sinalizados).";
       return r;
     }
@@ -923,7 +923,7 @@
       m.tag = m.faixaAuto.texto;
       m.rastro = { fonte: "Rede de Estações Locais e Régua (CSV importados neste aparelho)", natureza: "medição", referenciaIso: bal.dataIso, coletaMs: null, estado: "ok", parcial: bal.incompletos > 0 || bal.semChuva > 0, extra: "Medição local, não é dado oficial do INMET/CEMADEN" };
       $("titulo").value = "MONITORAMENTO LOCAL · " + bal.dtCurta;
-      $("subtitulo").value = "4 Estações Meteorológicas e 2 Réguas de Nível do Rio em Cajamar";
+      $("subtitulo").value = "5 Estações Meteorológicas e 2 Réguas de Nível do Rio em Cajamar";
 
       if (bal.maxChuva !== null) {
         L.push("Maior volume registrado no dia: " + f1(bal.maxChuva) + " mm" + (bal.estMaior ? " (" + bal.estMaior.nome + ")" : "") + (bal.maior1h !== null ? " · Pico em 60 min: " + f1(bal.maior1h) + " mm." : "."));
@@ -1532,7 +1532,7 @@
     desenharItens(linhas, x + 24, yTxt, larg - 48, tamTxt, cfg.limite - 12, 2, 6);
   }
 
-  // ---------- Panfleto Visual das 4 Estações + Réguas de Nível (flyer_estacoes) ----------
+  // ---------- Panfleto Visual das 5 Estações + Réguas de Nível (flyer_estacoes) ----------
   function desenharFlyerEstacoes(cfg, fmtKey, yBase) {
     var b = modelo.dadosEstacoes;
     if (!b) return;

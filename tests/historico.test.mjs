@@ -27,13 +27,13 @@ test("página abre sem dados e com dado ilegível avisa sem apagar o original", 
   assert.equal(st.getItem("cajamar:estacoes:v2"), "{ilegivel", "nada é sobrescrito só por abrir a página");
 });
 
-test("importação com mais de 6 arquivos é recusada por inteiro e não altera o histórico", async () => {
+test("importação com mais de 7 arquivos é recusada por inteiro e não altera o histórico", async () => {
   const st = criarStorage();
   const amb = abrirHistorico(st);
-  const arqs = Array.from({ length: 7 }, (_, i) => arquivoFalso("e" + i + ".csv", csvOk()));
+  const arqs = Array.from({ length: 8 }, (_, i) => arquivoFalso("e" + i + ".csv", csvOk()));
   amb.els.arquivo.onchange.call({ files: arqs, value: "x" });
   await esperar();
-  assert.match(amb.els.aviso.textContent, /no máximo 6/);
+  assert.match(amb.els.aviso.textContent, /no máximo 7/);
   assert.equal(amb.els.aviso.className.includes("ruim"), true);
   assert.equal(st.escritas, 0);
 });

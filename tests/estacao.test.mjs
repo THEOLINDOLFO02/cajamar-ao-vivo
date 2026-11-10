@@ -288,7 +288,7 @@ test("validarArquivoCsv: extensão, binário, vazio, tamanho e cabeçalho", () =
   assert.ok(Estacao.validarArquivoCsv({ ...ok, texto: "{\"json\": true}" }).some((e) => /cabeçalho/.test(e)));
 });
 
-test("planejarImportacao: aceita até 6 arquivos; um inválido não altera nada e os válidos são importados", () => {
+test("planejarImportacao: aceita até 7 arquivos; um inválido não altera nada e os válidos são importados", () => {
   const banco = Estacao.criarBancoVazio();
   const antes = JSON.stringify(banco);
   const bom = { nome: "est1.csv", tamanho: 100, texto: gerarCsvChuva({ horas: 48 }) };
@@ -310,10 +310,10 @@ test("planejarImportacao: aceita até 6 arquivos; um inválido não altera nada 
   assert.equal(JSON.stringify(so.banco), antes);
 });
 
-test("planejarImportacao: mais de 6 arquivos ou tamanho total excessivo são recusados por inteiro", () => {
+test("planejarImportacao: mais de 7 arquivos ou tamanho total excessivo são recusados por inteiro", () => {
   const banco = Estacao.criarBancoVazio();
   const a = { nome: "a.csv", tamanho: 10, texto: gerarCsvChuva({ horas: 1 }) };
-  assert.throws(() => Estacao.planejarImportacao(banco, [a, a, a, a, a, a, a], "auto"), /máximo de 6/);
+  assert.throws(() => Estacao.planejarImportacao(banco, [a, a, a, a, a, a, a, a], "auto"), /máximo de 7/);
   assert.throws(() => Estacao.planejarImportacao(banco, [], "auto"), /nenhum arquivo/);
   const grande = { ...a, tamanho: Estacao.LIMITES_IMPORTACAO.maxBytesTotal };
   assert.throws(() => Estacao.planejarImportacao(banco, [grande, grande], "auto"), /tamanho total/);
@@ -492,7 +492,7 @@ test("duas réguas: o banco tem regua e regua2, e SLOTS_PADRAO as lista como slo
   assert.equal(JSON.stringify(Estacao.IDS_NIVEL), JSON.stringify(["regua", "regua2"]));
   assert.equal(Estacao.ehSlotNivel("regua2"), true);
   assert.equal(Estacao.ehSlotNivel("est1"), false);
-  assert.equal(Estacao.SLOTS_PADRAO.length, 6);
+  assert.equal(Estacao.SLOTS_PADRAO.length, 7);
 });
 
 test("duas réguas: CSV de nível entra na régua certa (SN já conhecido, pista no nome e primeira vazia)", () => {
@@ -530,5 +530,40 @@ test("quatro estações: o CSV da 4ª estação meteorológica vai para est4", (
   ].join("\n"));
   const ids = ["A", "B", "C", "D"].map((n, i) => Estacao.mesclarNoSlot(banco, "auto", csv(String(i + 1), "Estação " + n), "e" + i + ".csv").slotId);
   assert.equal(JSON.stringify(ids), JSON.stringify(["est1", "est2", "est3", "est4"]));
-  assert.equal(Estacao.SLOTS_PADRAO.filter((s) => s.tipo === "meteorologica").length, 4);
+  assert.equal(Estacao.SLOTS_PADRAO.filter((s) => s.tipo === "meteorologica").length, 5);
+});
+
+// ---------- exportação nova: timestamp_ms em notação científica e horário sem segundos ----------
+const CAB_NOVO = CABECALHO + ";dew_point_c;battery_v;avg_voltage;avg_current;signal_dbm";
+const linhaNova = (alias, cat, dh, ts, t, ch, nv) => ["cajamar", "77", alias, cat, dh, dh, ts, t, "", "", "", "", "", "0", "0", ch, nv, "", "", "", "", "", ""].join(";");
+
+test("timestamp_ms em notação científica não descarta a linha: o instante vem de data_hora_brt (UTC-3), com ou sem segundos", () => {
+  const rows = Estacao.lerCsv([CAB_NOVO,
+    linhaNova("Est X", "meteorologica", "16/09/2026 16:47", "1,78959E+12", "15,0", "0,2", ""),
+    linhaNova("Est X", "meteorologica", "16/09/2026 16:48:30", "1,78959E+12", "15,0", "0", "")].join("\n"));
+  assert.equal(rows.length, 2);
+  assert.equal(rows.descartadas.length, 0);
+  assert.equal(rows[0].ts, Date.UTC(2026, 8, 16, 19, 47)); // 16:47 BRT = 19:47 UTC
+  assert.equal(rows[1].ts, Date.UTC(2026, 8, 16, 19, 48, 30));
+  assert.equal(rows[0].dia, "2026-09-16");
+  assert.equal(rows.tsDeData, 2);
+});
+
+test("timestamp_ms ausente continua sendo descartado e hora inexistente também", () => {
+  const rows = Estacao.lerCsv([CAB_NOVO,
+    linhaNova("Est X", "meteorologica", "16/09/2026 16:47", "", "15,0", "0", ""),
+    linhaNova("Est X", "meteorologica", "16/09/2026 25:10", "1,78959E+12", "15,0", "0", "")].join("\n"));
+  assert.equal(rows.length, 0);
+  assert.equal(rows.descartadas.length, 2);
+});
+
+test("categoria 'nivel' é régua mesmo com chuva registrada; com temperatura vira 'ambos'", () => {
+  const regua = Estacao.lerCsv([CAB_NOVO,
+    linhaNova("Jordanésia", "nivel", "16/09/2026 16:59", "1,78959E+12", "", "0,4", "0,43"),
+    linhaNova("Jordanésia", "nivel", "16/09/2026 17:00", "1,78959E+12", "", "0", "0,44")].join("\n"));
+  assert.equal(Estacao.detectarTipo(regua), "nivel");
+  const banco = Estacao.criarBancoVazio();
+  assert.equal(Estacao.mesclarNoSlot(banco, "auto", regua, "cajamar_jordanesia_2025-11-10_a_2026-11-10.csv").slotId, "regua");
+  const comTemp = Estacao.lerCsv([CAB_NOVO, linhaNova("Y", "nivel", "16/09/2026 16:59", "1,78959E+12", "14,0", "0", "0,5")].join("\n"));
+  assert.equal(Estacao.detectarTipo(comTemp), "ambos");
 });

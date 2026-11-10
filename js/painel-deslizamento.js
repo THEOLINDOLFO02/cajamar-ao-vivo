@@ -44,7 +44,7 @@
     var out = [];
     try {
       var banco = Estacao.carregarBanco();
-      ["est1", "est2", "est3", "est4"].forEach(function (id, idx) {
+      ["est1", "est2", "est3", "est4", "est5"].forEach(function (id, idx) {
         var sl = banco.slots[id];
         if (!sl || !sl.dias) return;
         var datas = Object.keys(sl.dias).sort();

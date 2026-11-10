@@ -30,15 +30,15 @@
     </nav>
 <main id="conteudo">
   <div class="pagina-cab"><h1>Previsão × medido</h1><p class="sub">Compare a chuva medida com o que foi previsto</p></div>
-  <div class="aux aux-curto">🔒 Envie de <b>1 a 6 CSV</b> (estações e réguas do rio) para cruzar a chuva medida com as previsões. Os arquivos são lidos só no seu navegador.
+  <div class="aux aux-curto">🔒 Envie de <b>1 a 7 CSV</b> (estações e réguas do rio) para cruzar a chuva medida com as previsões. Os arquivos são lidos só no seu navegador.
     <details><summary>Detalhes</summary>Você também pode escolher apenas <b>1 estação + a régua de nível</b> para cruzar a chuva medida e a resposta do rio com as previsões dos boletins/modelos meteorológicos (<b>Open-Meteo D-1</b>, <b>ECMWF</b> e <b>GFS</b>).</details>
   </div>
 
   <section class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-      <h2 style="margin:0">1. Arquivos CSV carregados (4 Estações + 2 Réguas de Nível)</h2>
+      <h2 style="margin:0">1. Arquivos CSV carregados (5 Estações + 2 Réguas de Nível)</h2>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button id="btnImportarMulti" type="button" class="btn primary small">📂 Enviar 1 a 6 CSVs de uma vez</button>
+        <button id="btnImportarMulti" type="button" class="btn primary small">📂 Enviar 1 a 7 CSVs de uma vez</button>
         <input id="arqComp" type="file" accept=".csv,text/csv" multiple hidden>
       </div>
     </div>
@@ -47,7 +47,7 @@
 
   <section class="card" id="cardSimultaneo" hidden>
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-      <h2 style="margin:0">📊 Quadro Simultâneo Local: Estação 1 × 2 × 3 × 4 × Nível do Rio</h2>
+      <h2 style="margin:0">📊 Quadro Simultâneo Local: Estação 1 × 2 × 3 × 4 × 5 × Nível do Rio</h2>
       <a href="publicar.html" class="btn small">📰 Gerar Panfleto das Estações + Rio</a>
     </div>
     <p class="mut" style="margin:0 0 10px;font-size:.83rem">Comparação direta entre os pontos monitorados em Cajamar (chuva diária, pico de 1h, diferença espacial entre bairros/estações e elevação `Δ` na régua do rio).</p>
@@ -61,6 +61,7 @@
             <th id="thSimEst2">🌡️ Estação 2</th>
             <th id="thSimEst3">🌡️ Estação 3</th>
             <th id="thSimEst4">🌡️ Estação 4</th>
+            <th id="thSimEst5">🌡️ Estação 5</th>
             <th>Média / Maior Δ</th>
             <th>🌊 Régua Jordanésia (Mín–Máx / Δ)</th>
             <th>🌊 Régua Natura (Mín–Máx / Δ)</th>
@@ -80,6 +81,7 @@
           <option value="est2">Estação Meteorológica 2</option>
           <option value="est3">Estação Meteorológica 3</option>
           <option value="est4">Estação Meteorológica 4</option>
+          <option value="est5">Estação Meteorológica 5</option>
           <option value="todas">Todas as estações carregadas (comparar lado a lado + média)</option>
         </select>
       </label>

@@ -31,11 +31,11 @@
 <main id="conteudo">
   <div class="pagina-cab"><h1>Histórico da estação</h1><p class="sub">Chuva, temperatura e vento a partir do CSV importado</p></div>
   <div class="aux aux-curto">🔒 Os CSV são lidos <b>só no seu navegador</b>; nada vai para servidor. Dados auxiliares: não substituem INMET e CEMADEN.
-    <details><summary>Detalhes</summary>Você pode importar de <b>1 a 6 arquivos CSV</b> (as <b>4 estações meteorológicas</b> e as <b>2 réguas de nível do rio</b> de Cajamar).</details>
+    <details><summary>Detalhes</summary>Você pode importar de <b>1 a 7 arquivos CSV</b> (as <b>5 estações meteorológicas</b> e as <b>2 réguas de nível do rio</b> de Cajamar).</details>
   </div>
   <section class="card barra-ferramentas" aria-label="Importar e exportar dados">
     <div class="barra-acoes">
-      <button id="escolher" type="button" class="btn primary">📂 Importar CSV(s) (1 a 6 arquivos)</button>
+      <button id="escolher" type="button" class="btn primary">📂 Importar CSV(s) (1 a 7 arquivos)</button>
       <button id="imprimir" type="button" class="btn" disabled>🖨️ Gerar Boletim (PDF / Imprimir)</button>
     </div>
     <label for="slotDestino" class="rotulo-inline">
@@ -46,6 +46,7 @@
         <option value="est2">Estação Meteorológica 2</option>
         <option value="est3">Estação Meteorológica 3</option>
         <option value="est4">Estação Meteorológica 4</option>
+        <option value="est5">Estação Meteorológica 5</option>
         <option value="regua">🌊 Régua de Nível — Jordanésia</option>
         <option value="regua2">🌊 Régua de Nível — Natura</option>
       </select>
@@ -65,11 +66,11 @@
     <input id="arquivo" type="file" accept=".csv,text/csv" multiple hidden>
   </section>
   <section class="card">
-    <h2>Equipamentos em Cajamar (4 Estações Meteorológicas + 2 Réguas de Nível)</h2>
+    <h2>Equipamentos em Cajamar (5 Estações Meteorológicas + 2 Réguas de Nível)</h2>
     <div id="gradeSlots" class="slots-grid"></div>
   </section>
   <div id="aviso" class="warn" hidden></div>
-  <section class="card" id="vazio"><h2>Sem dados neste equipamento ainda</h2><p class="mut" style="margin:0">Toque em “Importar CSV(s)” acima (você pode selecionar de 1 até os 6 arquivos CSV de uma vez) ou clique em “Enviar CSV” dentro do cartão da estação ou da régua de nível desejada.</p></section>
+  <section class="card" id="vazio"><h2>Sem dados neste equipamento ainda</h2><p class="mut" style="margin:0">Toque em “Importar CSV(s)” acima (você pode selecionar de 1 até os 7 arquivos CSV de uma vez) ou clique em “Enviar CSV” dentro do cartão da estação ou da régua de nível desejada.</p></section>
   <div id="dadosHist" hidden>
     <div class="cabecalho-boletim" hidden>
       <div class="boletim-topo">

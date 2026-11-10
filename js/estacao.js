@@ -27,7 +27,7 @@
   var MAX_LACUNAS_POR_DIA = 40;
 
   var LIMITES_IMPORTACAO = {
-    maxArquivos: 6,
+    maxArquivos: 7,
     maxBytesArquivo: 25 * 1024 * 1024,
     maxBytesTotal: 60 * 1024 * 1024
   };
@@ -38,6 +38,7 @@
     { id: "est2", rotulo: "Estação Meteorológica 2", tipo: "meteorologica" },
     { id: "est3", rotulo: "Estação Meteorológica 3", tipo: "meteorologica" },
     { id: "est4", rotulo: "Estação Meteorológica 4", tipo: "meteorologica" },
+    { id: "est5", rotulo: "Estação Meteorológica 5", tipo: "meteorologica" },
     { id: "regua", rotulo: "Régua de Nível — Jordanésia", tipo: "nivel" },
     { id: "regua2", rotulo: "Régua de Nível — Natura", tipo: "nivel" }
   ];
@@ -90,12 +91,23 @@
     for (var i = 1; i < linhas.length; i++) {
       var c = linhas[i].split(";");
       var tsTxt = String(c[idx.timestamp_ms] === undefined ? "" : c[idx.timestamp_ms]).trim();
-      var ts = tsTxt === "" ? NaN : Number(tsTxt), dh = c[idx.data_hora_brt] || "";
-      var m = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(dh);
+      var dh = c[idx.data_hora_brt] || "";
+      var m = /^(\d{2})\/(\d{2})\/(\d{4})(?: (\d{2}):(\d{2})(?::(\d{2}))?)?/.exec(dh);
+      // timestamp_ms só vale quando vem como inteiro completo. Exportações em notação científica ("1,78959E+12") perdem
+      // até ~3 h de precisão: nesse caso o instante é calculado de data_hora_brt (horário de Brasília, UTC-3), com ou sem segundos.
+      var tsExato = /^\d{12,14}$/.test(tsTxt);
+      var ts = tsExato ? Number(tsTxt) : NaN;
+      var derivado = false;
+      if (!tsExato && tsTxt !== "" && /^[\d.,]+[eE][+-]?\d+$/.test(tsTxt) && m && m[4] !== undefined) {
+        var hh = +m[4], mi = +m[5], ss = m[6] === undefined ? 0 : +m[6];
+        if (hh > 23 || mi > 59 || ss > 59) { out.descartadas.push({ linha: i + 1, motivo: "hora inexistente em data_hora_brt" }); continue; }
+        if (diaReal(+m[3], +m[2], +m[1])) { ts = Date.UTC(+m[3], +m[2] - 1, +m[1], hh + 3, mi, ss); derivado = true; }
+      }
       if (!isFinite(ts) || ts <= 0 || !m) { out.descartadas.push({ linha: i + 1, motivo: "timestamp_ms ou data_hora_brt ausente/inválido" }); continue; }
       if (!diaReal(+m[3], +m[2], +m[1])) { out.descartadas.push({ linha: i + 1, motivo: "data inexistente" }); continue; }
       var dia = m[3] + "-" + m[2] + "-" + m[1];
-      if (chaveDiaDe(ts) !== dia) { out.descartadas.push({ linha: i + 1, motivo: "timestamp_ms não corresponde à data de data_hora_brt" }); continue; }
+      if (derivado) out.tsDeData = (out.tsDeData || 0) + 1;
+      else if (chaveDiaDe(ts) !== dia) { out.descartadas.push({ linha: i + 1, motivo: "timestamp_ms não corresponde à data de data_hora_brt" }); continue; }
       var fx = 0;
       var lim = function (v, faixa) { if (v === null) return null; if (v < faixa[0] || v > faixa[1]) { fx++; return null; } return v; };
       var brutoCh = idx.rain_interval_mm !== undefined ? c[idx.rain_interval_mm] : undefined;
@@ -357,16 +369,19 @@
 
   // Detecta se um conjunto de linhas CSV pertence à Régua de Nível ("nivel"), Estação Meteorológica ("meteorologica") ou ambos ("ambos").
   function detectarTipo(rows) {
-    var temNivel = false, temClima = false, cat = "", nome = "";
+    var temNivel = false, temClima = false, temSensor = false, cat = "", nome = "";
     for (var i = 0; i < rows.length; i++) {
       var r = rows[i];
       if (!cat && r.cat) cat = r.cat;
       if (!nome && r.nome) nome = r.nome.toLowerCase();
       if (r.nv !== null && r.nv !== undefined) temNivel = true;
+      if (r.t !== null || r.u !== null) temSensor = true;
       if (r.t !== null || (r.ch !== null && r.ch > 0) || r.u !== null) temClima = true;
-      if (temNivel && temClima) break;
+      if (temNivel && temSensor) break;
     }
-    if (/hidro|fluv|nivel|nível|regua|régua|rio/.test(cat) || /régua|regua|nível|nivel|rio\b/.test(nome)) {
+    // A categoria informada pelo equipamento ("nivel") manda: a régua também registra chuva, mas só é meteorológica se tiver sensor de temperatura/umidade.
+    if (/hidro|fluv|nivel|nível|regua|régua/.test(cat)) return temSensor ? "ambos" : "nivel";
+    if (/rio/.test(cat) || /régua|regua|nível|nivel|rio\b/.test(nome)) {
       return temClima ? "ambos" : "nivel";
     }
     if (temNivel && !temClima) return "nivel";
@@ -382,6 +397,7 @@
         est2: { id: "est2", rotulo: "Estação Meteorológica 2", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
         est3: { id: "est3", rotulo: "Estação Meteorológica 3", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
         est4: { id: "est4", rotulo: "Estação Meteorológica 4", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
+        est5: { id: "est5", rotulo: "Estação Meteorológica 5", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
         regua: { id: "regua", rotulo: "Régua de Nível — Jordanésia", tipo: "nivel", estacao: "", sn: "", dias: {} },
         regua2: { id: "regua2", rotulo: "Régua de Nível — Natura", tipo: "nivel", estacao: "", sn: "", dias: {} }
       }
@@ -444,6 +460,7 @@
       if (!Object.keys(s.dias).length && Object.keys(banco.slots.est2.dias).length) s = banco.slots.est2;
       else if (!Object.keys(s.dias).length && Object.keys(banco.slots.est3.dias).length) s = banco.slots.est3;
       else if (!Object.keys(s.dias).length && Object.keys(banco.slots.est4.dias).length) s = banco.slots.est4;
+      else if (!Object.keys(s.dias).length && Object.keys(banco.slots.est5.dias).length) s = banco.slots.est5;
     }
     if (s && Object.keys(s.dias).length) return JSON.stringify({ estacao: s.estacao, dias: s.dias });
     return null;
@@ -490,7 +507,7 @@
     return "regua";
   }
 
-  // Escolhe automaticamente em qual dos 6 slots (est1, est2, est3, est4, regua, regua2) gravar o CSV quando não foi forçado um slot.
+  // Escolhe automaticamente em qual dos 7 slots (est1 a est5, regua, regua2) gravar o CSV quando não foi forçado um slot.
   function escolherSlotAutomatico(banco, rows, nomeArquivo) {
     var tipo = detectarTipo(rows);
     var nome = (rows[0] && rows[0].nome) || "";
@@ -501,7 +518,7 @@
       return escolherSlotNivel(banco, nome, sn, arq);
     }
     // 1) Se já existe slot com o mesmo SN ou mesmo nome de estação, atualiza-o
-    var idsMet = ["est1", "est2", "est3", "est4"];
+    var idsMet = ["est1", "est2", "est3", "est4", "est5"];
     for (var i = 0; i < idsMet.length; i++) {
       var sl = banco.slots[idsMet[i]];
       if (sn && sl.sn && sl.sn === sn) return sl.id;
