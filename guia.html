@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light dark">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Guia de Valores</title>
+<meta name="theme-color" content="#0b6e8f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cajamar Clima">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/logo-dc-cajamar.jpg">
+<link rel="stylesheet" href="css/estilo.css">
+<script src="js/ui.js" defer></script>
+</head>
+<body>
+<a class="pular" href="#conteudo">Pular para o conteúdo</a>
+<header class="topo">
+  <a class="marca" href="index.html"><img src="assets/logo-dc-cajamar.jpg" alt="" width="46" height="46"><span><strong>Cajamar ao Vivo</strong><small>Defesa Civil · acompanhamento auxiliar</small></span></a>
+  <div class="topo-acoes"><button id="btnTema" type="button" class="btn-icone" aria-label="Alternar tema: automático, claro ou escuro" title="Tema: automático">◐</button></div>
+</header>
+<nav class="nav-bar" aria-label="Navegação principal">
+      <a href="index.html">Painel ao vivo</a>
+      <a href="quadro.html">Quadro de ocorrências</a>
+      <a href="observacoes.html">Observações manuais</a>
+      <a href="historico.html">Histórico da estação</a>
+      <a href="publicar.html">Gerar publicação</a>
+      <a href="comparar.html">Previsão × medido</a>
+      <a href="extremos.html">Recordes e extremos</a>
+      <a href="guia.html" class="ativo" aria-current="page">Guia de valores</a>
+    </nav>
+<main id="conteudo">
+  <div class="pagina-cab"><h1>Guia de valores e procedimentos</h1><p class="sub">Digite um valor e veja a faixa, o que ele significa e o que fazer</p></div>
+  <div class="aux aux-curto">ⓘ Orientação geral de saúde e proteção civil. <b>Não é aviso oficial</b>: aviso, evacuação e interdição são decididos pela Defesa Civil e pelo INMET. Cada faixa mostra a sua fonte; as marcadas como “referência geral” não são limiares oficiais nem homologados pela Defesa Civil de Cajamar.
+    <details><summary>Emergência</summary>199 Defesa Civil · 193 Bombeiros · 192 SAMU</details>
+  </div>
+  <section class="card">
+    <div class="barra-acoes">
+      <button id="btnPreencher" type="button" class="btn">⬇️ Preencher com a última leitura do painel</button>
+      <a class="btn" href="publicar.html">📰 Ir para Gerar publicação</a>
+    </div>
+    <p id="guiaMsgPainel" class="mut" style="margin:8px 0 0"></p>
+  </section>
+  <div id="guiaLista"></div>
+</main>
+<script src="js/guia-dados.js"></script>
+<script src="js/guia.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() { navigator.serviceWorker.register('./sw.js').catch(function(){}); });
+}
+</script>
+</body>
+</html>
