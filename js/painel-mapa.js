@@ -71,7 +71,7 @@
     { nome: "KM 43 · Pluviômetro", lat: -23.314125, lon: -46.8635147, cor: "#0b6e8f", tipo: "Pluviômetro / Encostas e Mata", slotId: null },
     { nome: "Jordanésia · Pluviométrica e Nível", lat: -23.336754, lon: -46.842581, cor: "#0284c7", tipo: "Pluviométrica e Nível do rio", slotId: null },
     { nome: "Natura · Pluviométrica e Nível", lat: -23.400109, lon: -46.834746, cor: "#0284c7", tipo: "Pluviométrica e Nível do rio", slotId: null },
-    { nome: "Base Defesa Civil / Bombeiros (199)", lat: -23.407150, lon: -46.858613, cor: "#b91c1c", tipo: "Base Operacional COMPDEC", slotId: null }
+    { nome: "Base Defesa Civil", lat: -23.407150, lon: -46.858613, cor: "#b91c1c", tipo: "Base Operacional COMPDEC", slotId: null }
   ];
 
   function atualizarPontosCajamarNoMapa() {
