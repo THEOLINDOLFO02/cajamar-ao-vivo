@@ -126,7 +126,7 @@ button:disabled,.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
 .btn.small{min-height:40px;padding:0 12px;font-size:.88rem;border-radius:10px}
 .btn.ativo-som{background:var(--ok);color:#fff;border-color:var(--ok);font-weight:700}
 .barra-acoes{display:flex;gap:8px;flex-wrap:wrap}
-.barra-modos-mapa{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px;margin-bottom:10px}
+.barra-modos-mapa{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
 .barra-modos-mapa::-webkit-scrollbar{display:none}
 .barra-modos-mapa .btn{flex:none}
 .atalho-pub{flex:none}

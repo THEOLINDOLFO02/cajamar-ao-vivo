@@ -10,6 +10,13 @@
     if (min < 60) return min + " min";
     return Math.floor(min / 60) + " h" + (min % 60 ? " " + (min % 60) + " min" : "");
   }
+  // Horário do CEMADEN ("dd/mm/aa HH:MM", sem fuso) -> horário de Brasília. Só converte quando a coleta confirmou que o feed está em UTC.
+  function paraBrasilia(txt, utc) {
+    var m = /^(\d{2})\/(\d{2})\/(\d{2}) (\d{2}):(\d{2})$/.exec(String(txt || ""));
+    if (!m || !utc) return null;
+    var d = new Date(Date.UTC(2000 + +m[3], +m[2] - 1, +m[1], +m[4], +m[5]));
+    return d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", "");
+  }
   function nome(s) { return String(s).toLowerCase().replace(/(^|\s)(\S)/g, function (m, a, b) { return a + b.toUpperCase(); }).replace(/ (Da|De|Do|Das|Dos) /g, function (m) { return m.toLowerCase(); }); }
   function validar(j) { return !!(j && Array.isArray(j.estacoes) && j.coletadoEm); }
 
@@ -27,7 +34,7 @@
       B.textContent = ""; B.className = "";
       if (r.antigo) B.appendChild(el("p", "stale", "Não foi possível atualizar agora. Mostrando dados antigos, coletados em " + dh(r.de) + "."));
       var idadeColeta = Math.round((Date.now() - new Date(j.coletadoEm).getTime()) / 60000);
-      B.appendChild(el("p", "mut", "Coletado do CEMADEN em " + dh(j.coletadoEm) + " (há " + atraso(idadeColeta) + "). Leitura mais recente da rede: " + j.referenciaRede + " (horário informado pelo CEMADEN)."));
+      B.appendChild(el("p", "mut", "Coletado do CEMADEN em " + dh(j.coletadoEm) + " (há " + atraso(idadeColeta) + "). Leitura mais recente da rede: " + (paraBrasilia(j.referenciaRede, j.fusoConfirmado === true) ? paraBrasilia(j.referenciaRede, true) + " (horário de Brasília; o CEMADEN informa " + j.referenciaRede + " em UTC)." : j.referenciaRede + " (horário informado pelo CEMADEN, sem fuso confirmado).")));
       if (j.fusoConfirmado === false) B.appendChild(el("p", "stale", "Os horários do CEMADEN não trazem fuso e não foi possível confirmar que estão em UTC: a idade das leituras pode estar imprecisa."));
       if (j.leiturasFuturas > 0) B.appendChild(el("p", "mut", j.leiturasFuturas + " estação(ões) da rede informam leitura à frente do horário da coleta (relógio da estação). Essas leituras não definem a “leitura mais recente da rede”."));
       if (idadeColeta > 180) B.appendChild(el("p", "stale", "Coleta com mais de 3 h: a coleta automática do GitHub às vezes atrasa por horas. Para dado em tempo real, confira o site do CEMADEN."));
@@ -59,7 +66,7 @@
         lista.forEach(function (e) {
           var tr = el("tr");
           tr.appendChild(el("td", "", (e.ibge === 3509205 ? "★ " : "") + nome(e.cidade) + " · " + e.nome));
-          tr.appendChild(el("td", "", e.leitura.slice(9) + " (−" + atraso(e.minutosAntes) + ")" + (e.leituraFutura ? " ⚠ horário à frente da coleta" : "")));
+          tr.appendChild(el("td", "", (paraBrasilia(e.leitura, j.fusoConfirmado === true) ? paraBrasilia(e.leitura, true).slice(6) : e.leitura.slice(9)) + " (−" + atraso(e.minutosAntes) + ")" + (e.leituraFutura ? " ⚠ horário à frente da coleta" : "")));
           tr.appendChild(celulaChuva(e.acc.h1));
           tr.appendChild(celulaChuva(e.acc.h24));
           tr.appendChild(celulaChuva(e.acc.h72));
@@ -88,5 +95,5 @@
       B.appendChild(el("span", "err", msg + "O arquivo é gerado pelo robô do GitHub; ele só existe depois de publicado. Veja o mapa do CEMADEN (mapainterativo.cemaden.gov.br)."));
     }
   }
-  w.Cemaden = { carregar: carregar };
+  w.Cemaden = { carregar: carregar, paraBrasilia: paraBrasilia };
 })(window);

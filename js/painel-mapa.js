@@ -64,12 +64,14 @@
   document.addEventListener("cajamar:municipio", function () { desenharLimite(); atualizarPontosCajamarNoMapa(); });
 
   var PONTOS_CAJAMAR = [
-    { nome: "Jordanésia (Estação 1 / Encostas)", lat: -23.3283, lon: -46.8622, cor: "#c2410c", tipo: "Estação Meteorológica / Área de Encosta", slotId: "est1" },
-    { nome: "Polvilho (Estação 2 / Urbano)", lat: -23.3853, lon: -46.8286, cor: "#c2410c", tipo: "Estação Meteorológica / Área Urbana", slotId: "est2" },
-    { nome: "Cajamar Centro (Estação 3 / Encostas)", lat: -23.3556, lon: -46.8778, cor: "#c2410c", tipo: "Estação Meteorológica / Distrito Sede", slotId: "est3" },
-    { nome: "Rio Juquery — Régua de Nível (Cajamar)", lat: -23.3595, lon: -46.8710, cor: "#0284c7", tipo: "Monitoramento Fluviométrico (Régua)", slotId: "regua" },
-    { nome: "Ponunduva / KM 43 (Serra e Matas)", lat: -23.3108, lon: -46.9458, cor: "#0b6e8f", tipo: "Encostas e Zona Rural / Mata", slotId: null },
-    { nome: "Base Defesa Civil / Bombeiros (199)", lat: -23.3325, lon: -46.8603, cor: "#b91c1c", tipo: "Base Operacional COMPDEC", slotId: null }
+    // Coordenadas informadas pela Defesa Civil de Cajamar (10/11/2026). Os slots est1/est2/est3 seguem a numeração das estações.
+    { nome: "Jordanésia · Pluviômetro (Estação 1)", lat: -23.335132, lon: -46.825585, cor: "#c2410c", tipo: "Pluviômetro / Área de Encosta", slotId: "est1" },
+    { nome: "Polvilho · Pluviômetro (Estação 2)", lat: -23.410408, lon: -46.845375, cor: "#c2410c", tipo: "Pluviômetro / Área Urbana", slotId: "est2" },
+    { nome: "Ponunduva · Pluviômetro (Estação 3)", lat: -23.329440, lon: -46.918672, cor: "#c2410c", tipo: "Pluviômetro / Encostas e Zona Rural", slotId: "est3" },
+    { nome: "KM 43 · Pluviômetro", lat: -23.314125, lon: -46.8635147, cor: "#0b6e8f", tipo: "Pluviômetro / Encostas e Mata", slotId: null },
+    { nome: "Jordanésia · Pluviométrica e Nível", lat: -23.336754, lon: -46.842581, cor: "#0284c7", tipo: "Pluviométrica e Nível do rio", slotId: null },
+    { nome: "Natura · Pluviométrica e Nível", lat: -23.400109, lon: -46.834746, cor: "#0284c7", tipo: "Pluviométrica e Nível do rio", slotId: null },
+    { nome: "Base Defesa Civil / Bombeiros (199)", lat: -23.407150, lon: -46.858613, cor: "#b91c1c", tipo: "Base Operacional COMPDEC", slotId: null }
   ];
 
   function atualizarPontosCajamarNoMapa() {
@@ -259,7 +261,7 @@
       atualizarPontosCajamarNoMapa();
       if (layerPontos && !map.hasLayer(layerPontos)) layerPontos.addTo(map);
       map.setView([LAT, LON], 12);
-      if (m) m.textContent = "Pontos monitorados de Cajamar: clique em qualquer marcador (Jordanésia, Polvilho, Centro, Ponunduva ou Rio Juquery) para ver o risco de deslizamento, nível do rio e abrir vistoria.";
+      if (m) m.textContent = "Pontos monitorados de Cajamar: clique em qualquer marcador (Jordanésia, Polvilho, Ponunduva, KM 43, Natura ou Base da Defesa Civil) para ver o indicador referencial, o nível do rio e abrir vistoria.";
     } else {
       if (m && frames.length) {
         m.textContent = pastCount + " quadros passados (chuva detectada) + " + (frames.length - pastCount) + " de projeção (nowcast).";
