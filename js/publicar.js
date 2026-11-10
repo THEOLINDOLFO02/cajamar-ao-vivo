@@ -360,7 +360,7 @@
     carregarHistorico();
     var datas = {};
     if (bancoEstacoes && bancoEstacoes.slots) {
-      ["est1", "est2", "est3", "regua"].forEach(function (id) {
+      ["est1", "est2", "est3", "regua", "regua2"].forEach(function (id) {
         var sl = bancoEstacoes.slots[id];
         if (!sl || !sl.dias) return;
         Object.keys(sl.dias).forEach(function (k) { datas[k] = true; });
@@ -379,6 +379,7 @@
     var diaSemLongo = DIAS_LONGO[dtObj.getDay()] || "";
     var estacoes = [];
     var regua = null;
+    var reguas = [];
 
     if (bancoEstacoes && bancoEstacoes.slots) {
       ["est1", "est2", "est3"].forEach(function (id, idx) {
@@ -395,17 +396,22 @@
           regua = { nome: "Régua de Nível do Rio", nvMin: d.nvMin, nvMax: d.nvMax, nvMed: d.nvMed, nvDelta: d.nvDelta };
         }
       });
-      var slReg = bancoEstacoes.slots.regua;
-      if (slReg && slReg.dias && slReg.dias[dataIso] && slReg.dias[dataIso].nvMax !== null) {
-        var dr = slReg.dias[dataIso];
-        regua = {
-          nome: slReg.estacao || "Régua de Nível do Rio",
-          nvMin: dr.nvMin,
-          nvMax: dr.nvMax,
-          nvMed: dr.nvMed,
-          nvDelta: dr.nvDelta
-        };
-      }
+      ["regua", "regua2"].forEach(function (idNivel) {
+        var slReg = bancoEstacoes.slots[idNivel];
+        var dr = slReg && slReg.dias ? slReg.dias[dataIso] : null;
+        if (dr && dr.nvMax !== null && dr.nvMax !== undefined) {
+          reguas.push({
+            id: idNivel,
+            nome: slReg.estacao || (slReg.rotulo || "Régua de Nível do Rio"),
+            curto: idNivel === "regua" ? "Jordanésia" : "Natura",
+            nvMin: dr.nvMin,
+            nvMax: dr.nvMax,
+            nvMed: dr.nvMed,
+            nvDelta: dr.nvDelta
+          });
+        }
+      });
+      if (reguas.length) regua = reguas[0];
     } else if (historico && historico.dias && historico.dias[dataIso]) {
       estacoes.push({
         id: "est1",
@@ -436,6 +442,7 @@
       semChuva: comDados.length - comChuva.length,
       incompletos: incompletos,
       regua: regua,
+      reguas: reguas,
       maxChuva: maxChuva,
       mediaChuva: mediaChuva,
       maior1h: maior1h,
@@ -568,7 +575,7 @@
       return r;
     }
     if (tipo === "flyer_estacoes") {
-      if (!o.length) r.bloqueio = "Nenhum arquivo CSV carregado ainda. Envie de 1 a 4 CSVs (estações e régua do rio) na aba “Histórico da estação” ou “Previsão × medido”.";
+      if (!o.length) r.bloqueio = "Nenhum arquivo CSV carregado ainda. Envie de 1 a 5 CSVs (estações e réguas do rio) na aba “Histórico da estação” ou “Previsão × medido”.";
       else r.status = "Dados locais das estações e régua de nível prontos para gerar o panfleto consolidado (medição local; dias incompletos são sinalizados).";
       return r;
     }
@@ -916,7 +923,7 @@
       m.tag = m.faixaAuto.texto;
       m.rastro = { fonte: "Rede de Estações Locais e Régua (CSV importados neste aparelho)", natureza: "medição", referenciaIso: bal.dataIso, coletaMs: null, estado: "ok", parcial: bal.incompletos > 0 || bal.semChuva > 0, extra: "Medição local, não é dado oficial do INMET/CEMADEN" };
       $("titulo").value = "MONITORAMENTO LOCAL · " + bal.dtCurta;
-      $("subtitulo").value = "3 Estações Meteorológicas e Régua de Nível do Rio em Cajamar";
+      $("subtitulo").value = "3 Estações Meteorológicas e 2 Réguas de Nível do Rio em Cajamar";
 
       if (bal.maxChuva !== null) {
         L.push("Maior volume registrado no dia: " + f1(bal.maxChuva) + " mm" + (bal.estMaior ? " (" + bal.estMaior.nome + ")" : "") + (bal.maior1h !== null ? " · Pico em 60 min: " + f1(bal.maior1h) + " mm." : "."));
@@ -925,9 +932,10 @@
         L.push("Nenhuma estação com leitura de chuva válida neste dia.");
       }
       if (bal.incompletos > 0) L.push("Atenção: " + bal.incompletos + " estação(ões) com dia incompleto ou sem detalhe horário — valores de chuva são MÍNIMOS.");
-      if (bal.regua) {
-        L.push("Régua de Nível do Rio: mínimo de " + f2(bal.regua.nvMin) + " m, máximo de " + f2(bal.regua.nvMax) + " m (variação no dia Δ " + (bal.regua.nvDelta === null || bal.regua.nvDelta === undefined ? "—" : "+" + Math.round(bal.regua.nvDelta * 100) + " cm") + ").");
-      }
+      var listaReguas = bal.reguas && bal.reguas.length ? bal.reguas : (bal.regua ? [bal.regua] : []);
+      listaReguas.forEach(function (rg) {
+        L.push("Régua de Nível" + (rg.curto ? " (" + rg.curto + ")" : " do Rio") + ": mínimo de " + f2(rg.nvMin) + " m, máximo de " + f2(rg.nvMax) + " m (variação no dia Δ " + (rg.nvDelta === null || rg.nvDelta === undefined ? "—" : "+" + Math.round(rg.nvDelta * 100) + " cm") + ").");
+      });
       L.push("Em caso de alagamento, elevação rápida do rio ou risco em encostas, acione a Defesa Civil pelo 199.");
 
       leg = "🌧️🌊 BALANÇO DAS ESTAÇÕES E NÍVEL DO RIO EM CAJAMAR — " + bal.dtCurta + "\n\n" +
@@ -936,7 +944,7 @@
           if (!e.temDado) return "• 🌡️ " + e.nome + ": sem leitura importada";
           return "• 🌡️ " + e.nome + ": " + (Publicacao.num(e.d.chuva) === null ? "chuva indisponível" : f1(e.d.chuva) + " mm no dia" + (e.completo !== true ? " (mínimo)" : "")) + " (máx 60 min: " + f1(e.d.c60) + " mm | Temp " + gC(e.d.tmin).replace("°C", "") + "° a " + gC(e.d.tmax) + ")";
         }).join("\n") +
-        (bal.regua ? "\n• 🌊 " + bal.regua.nome + ": Nível mín " + f2(bal.regua.nvMin) + " m / máx " + f2(bal.regua.nvMax) + " m (variação Δ " + (bal.regua.nvDelta === null || bal.regua.nvDelta === undefined ? "—" : "+" + Math.round(bal.regua.nvDelta * 100) + " cm") + ")" : "") +
+        listaReguas.map(function (rg) { return "\n• 🌊 " + rg.nome + ": Nível mín " + f2(rg.nvMin) + " m / máx " + f2(rg.nvMax) + " m (variação Δ " + (rg.nvDelta === null || rg.nvDelta === undefined ? "—" : "+" + Math.round(rg.nvDelta * 100) + " cm") + ")"; }).join("") +
         "\n\n📌 DESTAQUES:\n" +
         L.map(function (t) { return "✔️ " + t; }).join("\n") +
         "\n\n📞 Emergência: Defesa Civil 199 | Bombeiros 193";
@@ -1556,7 +1564,12 @@
       };
     });
 
-    blocos.push({
+    var rgs = b.reguas || [];
+    if (rgs.length > 1) {
+      var maior = rgs[0].nvMax >= rgs[1].nvMax ? rgs[0] : rgs[1];
+      var linhaRg = function (r) { return r.curto + ": " + f2(r.nvMin) + " a " + f2(r.nvMax) + " m (Δ " + (Publicacao.num(r.nvDelta) === null ? "—" : "+" + Math.round(r.nvDelta * 100) + " cm") + ")"; };
+      blocos.push({ icone: "🌊", nome: "Réguas do rio (Jordanésia e Natura)", cor: "#34d399", principal: f2(maior.nvMax) + " m (" + maior.curto + ")", det1: linhaRg(rgs[0]), det2: linhaRg(rgs[1]) });
+    } else blocos.push({
       icone: "🌊",
       nome: b.regua ? b.regua.nome : "Régua de Nível do Rio",
       cor: b.regua ? "#34d399" : "#64748b",

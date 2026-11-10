@@ -203,29 +203,27 @@
     if (!boxRio || typeof Estacao === "undefined") return;
     try {
       var banco = Estacao.carregarBanco();
-      var slReg = banco.slots && banco.slots.regua;
-      var datas = slReg && slReg.dias ? Object.keys(slReg.dias).sort() : [];
-      if (!datas.length) {
-        boxRio.hidden = true;
-        return;
-      }
-      var ultD = datas[datas.length - 1];
-      var dRio = slReg.dias[ultD];
-      if (!dRio || dRio.nvMax === null || dRio.nvMax === undefined) {
-        boxRio.hidden = true;
-        return;
-      }
       var cotas = Estacao.carregarCotasRio();
-      var avRio = Estacao.avaliarNivelRio(dRio.nvMax, dRio.nvDelta, cotas, Estacao.qualidadeNivel(dRio));
-      boxRio.hidden = false;
       boxRio.textContent = "";
-      var ban = el("div", "desliz-banner");
-      ban.dataset.rio = avRio.id || "sem_dado";
-      ban.style.marginBottom = "0";
-      ban.appendChild(el("strong", "", "🌊 " + (slReg.estacao || "Régua de Nível do Rio") + " [" + ultD.slice(8, 10) + "/" + ultD.slice(5, 7) + "]: " + avRio.icone + " " + avRio.estado.toUpperCase()));
-      ban.appendChild(el("span", "", "Nível Máx: " + dRio.nvMax.toFixed(2).replace(".", ",") + " m · Mín: " + (dRio.nvMin !== null ? dRio.nvMin.toFixed(2).replace(".", ",") : "—") + " m · Subida (Δ): +" + Math.round((dRio.nvDelta || 0) * 100) + " cm"));
-      ban.appendChild(el("small", "", avRio.motivo + " (Cotas configuradas: Atenção " + cotas.atencaoM.toFixed(2).replace(".", ",") + "m · Alerta " + cotas.alertaM.toFixed(2).replace(".", ",") + "m · Transbordo " + cotas.transbordoM.toFixed(2).replace(".", ",") + "m — sem homologação técnica)"));
-      boxRio.appendChild(ban);
+      var algum = false;
+      Estacao.IDS_NIVEL.forEach(function (idNivel) {
+        var slReg = banco.slots && banco.slots[idNivel];
+        var datas = slReg && slReg.dias ? Object.keys(slReg.dias).sort() : [];
+        if (!datas.length) return;
+        var ultD = datas[datas.length - 1];
+        var dRio = slReg.dias[ultD];
+        if (!dRio || dRio.nvMax === null || dRio.nvMax === undefined) return;
+        var avRio = Estacao.avaliarNivelRio(dRio.nvMax, dRio.nvDelta, cotas, Estacao.qualidadeNivel(dRio));
+        algum = true;
+        var ban = el("div", "desliz-banner");
+        ban.dataset.rio = avRio.id || "sem_dado";
+        ban.style.marginBottom = "0";
+        ban.appendChild(el("strong", "", "🌊 " + (slReg.estacao || slReg.rotulo) + " [" + ultD.slice(8, 10) + "/" + ultD.slice(5, 7) + "]: " + avRio.icone + " " + avRio.estado.toUpperCase()));
+        ban.appendChild(el("span", "", "Nível Máx: " + dRio.nvMax.toFixed(2).replace(".", ",") + " m · Mín: " + (dRio.nvMin !== null ? dRio.nvMin.toFixed(2).replace(".", ",") : "—") + " m · Subida (Δ): +" + Math.round((dRio.nvDelta || 0) * 100) + " cm"));
+        ban.appendChild(el("small", "", avRio.motivo + " (Cotas configuradas: Atenção " + cotas.atencaoM.toFixed(2).replace(".", ",") + "m · Alerta " + cotas.alertaM.toFixed(2).replace(".", ",") + "m · Transbordo " + cotas.transbordoM.toFixed(2).replace(".", ",") + "m — sem homologação técnica; as mesmas cotas valem para as duas réguas)"));
+        boxRio.appendChild(ban);
+      });
+      boxRio.hidden = !algum;
     } catch (e) {
       boxRio.hidden = true;
     }

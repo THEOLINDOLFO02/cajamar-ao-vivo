@@ -37,7 +37,7 @@
       var chaves = Object.keys(sl.dias || {}).sort();
       var ativo = banco.ativo === info.id;
       var card = el("div", "slot-card" + (ativo ? " ativo" : ""));
-      var icone = info.id === "regua" ? "🌊 " : "🌡️ ";
+      var icone = Estacao.ehSlotNivel(info.id) ? "🌊 " : "🌡️ ";
       var topo = el("div", "slot-topo");
       topo.appendChild(el("strong", "", icone + info.rotulo));
       var badge = el("span", "slot-badge " + (chaves.length ? "ok" : "vazio"), chaves.length ? chaves.length + " dia(s)" : "Sem CSV");
@@ -49,7 +49,7 @@
       if (chaves.length) {
         card.appendChild(el("small", "mut", fdataLonga(chaves[0]) + " a " + fdataLonga(chaves[chaves.length - 1])));
       } else {
-        card.appendChild(el("small", "mut", info.id === "regua" ? "Leituras de nível do rio (m)" : "Chuva, temperatura, vento e umidade"));
+        card.appendChild(el("small", "mut", Estacao.ehSlotNivel(info.id) ? "Leituras de nível do rio (m)" : "Chuva, temperatura, vento e umidade"));
       }
 
       var acoes = el("div", "slot-acoes");
@@ -281,7 +281,7 @@
     var qual = { completos: 0, incompletos: 0, desconhecidos: 0, faltantes: 0, dup: 0, inv: 0, foraOrdem: 0, lacunas: 0 };
     chaves.forEach(function (k) {
       var dq = dias[k];
-      var ok = sl.id === "regua" ? Estacao.qualidadeNivel(dq).completo : Estacao.diaCompleto(dq);
+      var ok = Estacao.ehSlotNivel(sl.id) ? Estacao.qualidadeNivel(dq).completo : Estacao.diaCompleto(dq);
       if (ok === true) qual.completos++; else qual.incompletos++;
       if (ok === null) qual.desconhecidos++;
       qual.dup += dq.dup || 0; qual.inv += dq.inv || 0; qual.foraOrdem += dq.foraOrdem || 0; qual.lacunas += (dq.lacunas || []).length;
@@ -297,7 +297,7 @@
       rs.appendChild(cartao("🌊 Nível Mínimo do Rio", nvMinGlobal ? f2(nvMinGlobal.v) + " m" : "—", nvMinGlobal ? "em " + fdataLonga(nvMinGlobal.k) : ""));
       rs.appendChild(cartao("🌊 Maior Variação Diária (Δ)", f2(nvDeltaMax.v) + " m (" + Math.round(nvDeltaMax.v * 100) + " cm)", fdataLonga(nvDeltaMax.k)));
     }
-    if (sl.id !== "regua" || total > 0 || temTemp) {
+    if (!Estacao.ehSlotNivel(sl.id) || total > 0 || temTemp) {
       rs.appendChild(cartao("Chuva do dia civil no período" + (qual.incompletos || qual.faltantes ? " (mínimo)" : ""), f1(total) + " mm", comChuva + " dia(s) com 1 mm ou mais" + (qual.incompletos ? " · " + qual.incompletos + " dia(s) incompleto(s) ou sem detalhe" : "") + (qual.faltantes ? " · " + qual.faltantes + " dia(s) sem registro no período" : "")));
       rs.appendChild(cartao("Dia mais chuvoso", f1(dias[maxK].chuva) + " mm", fdataLonga(maxK)));
       rs.appendChild(cartao("Maior acumulado em 60 min", f1(c60.v) + " mm", fdataLonga(c60.k) + (qual.incompletos ? " · dias incompletos podem subestimar" : "")));
@@ -310,7 +310,7 @@
       (qual.desconhecidos ? qual.desconhecidos + " sem detalhe horário (reimporte o CSV) · " : "") + qual.lacunas + " lacuna(s) · " + qual.dup + " leitura(s) duplicada(s) · " + qual.inv + " valor(es) inválido(s) · " + qual.foraOrdem + " fora de ordem"));
 
     if ($("cardDeslizamentoHist") && typeof Deslizamento !== "undefined") {
-      var mostrarDesliz = sl.id !== "regua" || total > 0;
+      var mostrarDesliz = !Estacao.ehSlotNivel(sl.id) || total > 0;
       $("cardDeslizamentoHist").hidden = !mostrarDesliz;
       if (mostrarDesliz) {
         var bxD = $("boxDeslizamentoHist");
@@ -388,7 +388,7 @@
       }
     }
     if ($("cardChuva")) {
-      $("cardChuva").hidden = (sl.id === "regua" && total === 0 && !temTemp);
+      $("cardChuva").hidden = (Estacao.ehSlotNivel(sl.id) && total === 0 && !temTemp);
       var g1 = $("gChuva"); g1.textContent = ""; g1.appendChild(graficoChuva(dias, chaves));
       $("notaParcial").textContent = incompletos ? incompletos + " dia(s) incompleto(s) ou sem detalhe horário (barras claras): a chuva desses dias é um valor MÍNIMO, pode estar subestimada." : "";
     }
@@ -400,7 +400,7 @@
     }
 
     var tb = $("tabela"); tb.textContent = "";
-    var ehRegua = sl.id === "regua";
+    var ehRegua = Estacao.ehSlotNivel(sl.id);
     function tdJanela(j) {
       var td = el("td");
       if (!j) { td.textContent = "—"; return td; }
@@ -538,7 +538,7 @@
   };
   if ($("limparTudo")) {
     $("limparTudo").onclick = function () {
-      if (!confirm("Apagar o histórico das 3 estações e da régua de nível guardado neste navegador?")) return;
+      if (!confirm("Apagar o histórico das 3 estações e das 2 réguas de nível guardado neste navegador?")) return;
       banco = Estacao.criarBancoVazio();
       guardar();
       aviso("Todos os históricos foram apagados."); desenhar(false);

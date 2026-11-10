@@ -52,6 +52,41 @@
     P.desenharFontes();
   }
   var atualizando = false;
+
+  // ---------- Compartilhar a situação (abre o WhatsApp; quem clica revisa e envia) ----------
+  if ($("btnCompartilhar")) {
+    $("btnCompartilhar").onclick = function () {
+      var t = $("heroTitulo") ? $("heroTitulo").textContent.trim() : "";
+      var s = $("heroSub") ? $("heroSub").textContent.trim() : "";
+      var m = $("heroMetricas") ? Array.prototype.map.call($("heroMetricas").children, function (c) { return c.innerText.replace(/\s*\n\s*/g, " ").trim(); }).filter(Boolean) : [];
+      var hora = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      var linhas = ["*Cajamar ao Vivo* — " + hora, t];
+      if (s) linhas.push(s);
+      if (m.length) linhas.push(m.join(" · "));
+      linhas.push("Dados auxiliares: confirme no INMET e no CEMADEN antes de decidir.", location.origin + location.pathname);
+      window.open("https://wa.me/?text=" + encodeURIComponent(linhas.filter(Boolean).join("\n")), "_blank", "noopener");
+    };
+  }
+
+  // ---------- Modo TV: tela cheia, letras maiores, sem menus ----------
+  function sairModoTv() {
+    document.body.classList.remove("modo-tv");
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(function () {});
+  }
+  if ($("btnModoTv")) {
+    $("btnModoTv").onclick = function () {
+      document.body.classList.add("modo-tv");
+      var el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen().catch(function () {});
+      window.scrollTo(0, 0);
+    };
+    var sair = document.createElement("button");
+    sair.type = "button"; sair.id = "btnSairTv"; sair.className = "btn"; sair.textContent = "✕ Sair do modo TV";
+    sair.onclick = sairModoTv;
+    document.body.appendChild(sair);
+    document.addEventListener("fullscreenchange", function () { if (!document.fullscreenElement) document.body.classList.remove("modo-tv"); });
+    document.addEventListener("keydown", function (ev) { if (ev.key === "Escape") document.body.classList.remove("modo-tv"); });
+  }
   $("reload").onclick = go;
   go();
   setInterval(go, 600000);

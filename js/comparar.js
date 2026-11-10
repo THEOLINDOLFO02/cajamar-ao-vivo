@@ -26,10 +26,10 @@
         var sl = banco.slots[info.id];
         var chaves = Object.keys(sl.dias || {}).sort();
         var selAtual = $("selEstacaoComp") ? $("selEstacaoComp").value : banco.ativo;
-        var ativo = (info.id === "regua" && $("selReguaComp") && $("selReguaComp").value === "sim" && chaves.length > 0) ||
-                    (info.id !== "regua" && (selAtual === info.id || (selAtual === "todas" && chaves.length > 0)));
+        var ativo = (Estacao.ehSlotNivel(info.id) && $("selReguaComp") && $("selReguaComp").value === info.id && chaves.length > 0) ||
+                    (!Estacao.ehSlotNivel(info.id) && (selAtual === info.id || (selAtual === "todas" && chaves.length > 0)));
         var card = el("div", "slot-card" + (ativo ? " ativo" : ""));
-        var icone = info.id === "regua" ? "🌊 " : "🌡️ ";
+        var icone = Estacao.ehSlotNivel(info.id) ? "🌊 " : "🌡️ ";
         var topo = el("div", "slot-topo");
         topo.appendChild(el("strong", "", icone + info.rotulo));
         topo.appendChild(el("span", "slot-badge " + (chaves.length ? "ok" : "vazio"), chaves.length ? chaves.length + " dia(s)" : "Sem CSV"));
@@ -39,11 +39,11 @@
         if (chaves.length) {
           card.appendChild(el("small", "mut", fdLonga(chaves[0]) + " a " + fdLonga(chaves[chaves.length - 1])));
         } else {
-          card.appendChild(el("small", "mut", info.id === "regua" ? "Envia leitura de nível do rio (m)" : "Envia chuva e clima da estação"));
+          card.appendChild(el("small", "mut", Estacao.ehSlotNivel(info.id) ? "Envia leitura de nível do rio (m)" : "Envia chuva e clima da estação"));
         }
 
         var acoes = el("div", "slot-acoes");
-        if (info.id !== "regua" && chaves.length) {
+        if (!Estacao.ehSlotNivel(info.id) && chaves.length) {
           var btnUsar = el("button", "btn small" + (selAtual === info.id ? " primary" : ""), selAtual === info.id ? "✓ Escolhida" : "Escolher esta");
           btnUsar.type = "button";
           btnUsar.onclick = function () {
@@ -99,9 +99,10 @@
     var s2 = banco.slots.est2 || { dias: {} };
     var s3 = banco.slots.est3 || { dias: {} };
     var sr = banco.slots.regua || { dias: {} };
+    var sr2 = banco.slots.regua2 || { dias: {} };
 
     var mapaDatas = {};
-    [s1, s2, s3, sr].forEach(function (sl) {
+    [s1, s2, s3, sr, sr2].forEach(function (sl) {
       Object.keys(sl.dias || {}).forEach(function (k) { mapaDatas[k] = true; });
     });
     var datas = Object.keys(mapaDatas).sort().reverse();
@@ -124,6 +125,7 @@
       var d2 = s2.dias ? s2.dias[k] : null;
       var d3 = s3.dias ? s3.dias[k] : null;
       var dr = sr.dias ? sr.dias[k] : null;
+      var dr2 = sr2.dias ? sr2.dias[k] : null;
       if (!dr) {
         [d1, d2, d3].forEach(function (dx) {
           if (dx && dx.nvMax !== null && dx.nvMax !== undefined && !dr) dr = dx;
@@ -134,10 +136,14 @@
       if (d1) { tot1 += d1.chuva; n1++; vals.push(d1.chuva); }
       if (d2) { tot2 += d2.chuva; n2++; vals.push(d2.chuva); }
       if (d3) { tot3 += d3.chuva; n3++; vals.push(d3.chuva); }
-      if (dr && dr.nvMax !== null && dr.nvMax !== undefined) {
-        if (!maxNv || dr.nvMax > maxNv.v) maxNv = { v: dr.nvMax, k: k };
-        if (!maxDelta || (dr.nvDelta || 0) > maxDelta.v) maxDelta = { v: dr.nvDelta || 0, k: k };
-      }
+      [[dr, sr], [dr2, sr2]].forEach(function (par, idx) {
+        var x = par[0];
+        if (x && x.nvMax !== null && x.nvMax !== undefined) {
+          var nomeR = idx === 0 ? "Jordanésia" : "Natura";
+          if (!maxNv || x.nvMax > maxNv.v) maxNv = { v: x.nvMax, k: k, r: nomeR };
+          if (!maxDelta || (x.nvDelta || 0) > maxDelta.v) maxDelta = { v: x.nvDelta || 0, k: k };
+        }
+      });
 
       var tr = el("tr");
       tr.appendChild(el("td", "", fdLonga(k)));
@@ -157,11 +163,13 @@
         tr.appendChild(el("td", "mut", "—"));
       }
 
-      if (dr && dr.nvMax !== null && dr.nvMax !== undefined) {
-        tr.appendChild(el("td", "", f2(dr.nvMin) + " a " + f2(dr.nvMax) + " m (+" + Math.round((dr.nvDelta || 0) * 100) + " cm)"));
-      } else {
-        tr.appendChild(el("td", "mut", "—"));
-      }
+      [dr, dr2].forEach(function (x) {
+        if (x && x.nvMax !== null && x.nvMax !== undefined) {
+          tr.appendChild(el("td", "", f2(x.nvMin) + " a " + f2(x.nvMax) + " m (+" + Math.round((x.nvDelta || 0) * 100) + " cm)"));
+        } else {
+          tr.appendChild(el("td", "mut", "—"));
+        }
+      });
       tb.appendChild(tr);
     });
 
@@ -171,7 +179,7 @@
       if (n1) rs.appendChild(cartao("🌡️ " + (s1.estacao || "Estação 1"), f1(tot1) + " mm", n1 + " dia(s) carregado(s)"));
       if (n2) rs.appendChild(cartao("🌡️ " + (s2.estacao || "Estação 2"), f1(tot2) + " mm", n2 + " dia(s) carregado(s)"));
       if (n3) rs.appendChild(cartao("🌡️ " + (s3.estacao || "Estação 3"), f1(tot3) + " mm", n3 + " dia(s) carregado(s)"));
-      if (maxNv) rs.appendChild(cartao("🌊 Pico na Régua do Rio", f2(maxNv.v) + " m", "em " + fdLonga(maxNv.k) + (maxDelta ? " (Δ máx +" + Math.round(maxDelta.v * 100) + " cm)" : "")));
+      if (maxNv) rs.appendChild(cartao("🌊 Pico de nível do rio (" + maxNv.r + ")", f2(maxNv.v) + " m", "em " + fdLonga(maxNv.k) + (maxDelta ? " (Δ máx +" + Math.round(maxDelta.v * 100) + " cm)" : "")));
     }
   }
 
@@ -190,8 +198,8 @@
           var rows = Estacao.lerCsv(String(rd.result));
           var alvo = lista.length > 1 ? "auto" : (alvoForcado || "auto");
           var r = Estacao.mesclarNoSlot(banco, alvo, rows, f.name);
-          if (r.slotId !== "regua" && $("selEstacaoComp")) $("selEstacaoComp").value = r.slotId;
-          if (r.slotId === "regua" && $("selReguaComp")) $("selReguaComp").value = "sim";
+          if (!Estacao.ehSlotNivel(r.slotId) && $("selEstacaoComp")) $("selEstacaoComp").value = r.slotId;
+          if (Estacao.ehSlotNivel(r.slotId) && $("selReguaComp")) $("selReguaComp").value = r.slotId;
           resumos.push(r.rotulo + " (" + r.estacao + "): " + r.totalDias + " dia(s)");
         } catch (e) {
           erros.push(f.name + ": " + (e && e.message ? e.message : "formato inválido"));
@@ -300,7 +308,8 @@
   async function rodar() {
     banco = Estacao.carregarBanco();
     var modoEst = $("selEstacaoComp") ? $("selEstacaoComp").value : "est1";
-    var usarRegua = $("selReguaComp") ? $("selReguaComp").value === "sim" : true;
+    var reguaEscolhida = $("selReguaComp") ? $("selReguaComp").value : "regua";
+    var usarRegua = Estacao.ehSlotNivel(reguaEscolhida);
     var aceitarParciais = $("selDiasParciais") ? $("selDiasParciais").value === "todos" : false;
     // Dia completo = cobertura horária completa e sem lacunas (mesma definição do histórico), não uma contagem fixa de leituras.
     var diaValido = function (d) { return !!d && numValido(d.chuva) !== null && (aceitarParciais || Estacao.diaCompleto(d) === true); };
@@ -314,7 +323,7 @@
       estacoesAtivas.push(banco.slots[modoEst]);
     }
 
-    var reguaSlot = banco.slots.regua;
+    var reguaSlot = banco.slots[usarRegua ? reguaEscolhida : "regua"];
     var diasRegua = (usarRegua && reguaSlot && reguaSlot.dias) ? reguaSlot.dias : {};
 
     var mapaDatas = {};

@@ -217,10 +217,14 @@
           var av = Deslizamento.avaliarDiaEstacao(sl.dias, u, sl.estacao || ("Estação " + (idx + 1)));
           if (av) avs.push(av);
         });
-        var slReg = banco.slots && banco.slots.regua;
-        var dsReg = slReg && slReg.dias ? Object.keys(slReg.dias).sort() : [];
-        var dRio = dsReg.length ? slReg.dias[dsReg[dsReg.length - 1]] : null;
-        if (avs.length || (dRio && dRio.nvMax !== null)) {
+        var rios = [];
+        Estacao.IDS_NIVEL.forEach(function (idNivel) {
+          var slReg = banco.slots && banco.slots[idNivel];
+          var dsReg = slReg && slReg.dias ? Object.keys(slReg.dias).sort() : [];
+          var dR = dsReg.length ? slReg.dias[dsReg[dsReg.length - 1]] : null;
+          if (dR && dR.nvMax !== null && dR.nvMax !== undefined) rios.push({ nome: (slReg.rotulo || "").replace("Régua de Nível — ", ""), d: dR });
+        });
+        if (avs.length || rios.length) {
           texto += "\n⛰️ *Status Hidrometeorológico e Encostas:*\n";
           if (avs.length) {
             var concl = avs.filter(function (a) { return a.conclusivo; });
@@ -228,10 +232,10 @@
             var p = concl.length ? concl[0] : avs[0];
             texto += "• Indicador pluviométrico referencial (não oficial): " + p.icone + " *" + p.estado.toUpperCase() + "* (" + p.fonte + " — 1h: " + Deslizamento.fmtMm(p.mm1h) + "mm | 24h: " + Deslizamento.fmtMm(p.mm24h) + "mm | 168h: " + Deslizamento.fmtMm(p.mm168h) + "mm)\n";
           }
-          if (dRio && dRio.nvMax !== null) {
-            var avRio = Estacao.avaliarNivelRio(dRio.nvMax, dRio.nvDelta, undefined, Estacao.qualidadeNivel(dRio));
-            texto += "• Régua do Rio: " + avRio.icone + " *" + avRio.estado + "* (Máx: " + dRio.nvMax.toFixed(2).replace(".", ",") + "m · Δ: +" + Math.round((dRio.nvDelta || 0) * 100) + "cm)\n";
-          }
+          rios.forEach(function (r) {
+            var avRio = Estacao.avaliarNivelRio(r.d.nvMax, r.d.nvDelta, undefined, Estacao.qualidadeNivel(r.d));
+            texto += "• Régua do Rio (" + r.nome + "): " + avRio.icone + " *" + avRio.estado + "* (Máx: " + r.d.nvMax.toFixed(2).replace(".", ",") + "m · Δ: +" + Math.round((r.d.nvDelta || 0) * 100) + "cm)\n";
+          });
         }
       } catch (e) {}
     }

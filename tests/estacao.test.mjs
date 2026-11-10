@@ -288,7 +288,7 @@ test("validarArquivoCsv: extensão, binário, vazio, tamanho e cabeçalho", () =
   assert.ok(Estacao.validarArquivoCsv({ ...ok, texto: "{\"json\": true}" }).some((e) => /cabeçalho/.test(e)));
 });
 
-test("planejarImportacao: aceita até 4 arquivos; um inválido não altera nada e os válidos são importados", () => {
+test("planejarImportacao: aceita até 5 arquivos; um inválido não altera nada e os válidos são importados", () => {
   const banco = Estacao.criarBancoVazio();
   const antes = JSON.stringify(banco);
   const bom = { nome: "est1.csv", tamanho: 100, texto: gerarCsvChuva({ horas: 48 }) };
@@ -310,10 +310,10 @@ test("planejarImportacao: aceita até 4 arquivos; um inválido não altera nada 
   assert.equal(JSON.stringify(so.banco), antes);
 });
 
-test("planejarImportacao: mais de 4 arquivos ou tamanho total excessivo são recusados por inteiro", () => {
+test("planejarImportacao: mais de 5 arquivos ou tamanho total excessivo são recusados por inteiro", () => {
   const banco = Estacao.criarBancoVazio();
   const a = { nome: "a.csv", tamanho: 10, texto: gerarCsvChuva({ horas: 1 }) };
-  assert.throws(() => Estacao.planejarImportacao(banco, [a, a, a, a, a], "auto"), /máximo de 4/);
+  assert.throws(() => Estacao.planejarImportacao(banco, [a, a, a, a, a, a], "auto"), /máximo de 5/);
   assert.throws(() => Estacao.planejarImportacao(banco, [], "auto"), /nenhum arquivo/);
   const grande = { ...a, tamanho: Estacao.LIMITES_IMPORTACAO.maxBytesTotal };
   assert.throws(() => Estacao.planejarImportacao(banco, [grande, grande], "auto"), /tamanho total/);
@@ -478,4 +478,46 @@ test("salvarBanco: falha de gravação reverte e devolve false", () => {
   banco.slots.est1.dias["2026-01-01"] = { n: 1 };
   assert.equal(Estacao.salvarBanco(banco, st), false);
   assert.equal(st.getItem("cajamar:estacoes:v2"), null, "a primeira gravação foi desfeita");
+});
+
+// ---------- duas réguas de nível (Jordanésia = regua, Natura = regua2) ----------
+const csvNivel = (alias, sn, nivel) => Estacao.lerCsv([
+  CABECALHO,
+  `cajamar;${sn};${alias};hidrologica;;10/01/2026 00:00:00;1768014000000;;;;;;;;;;${nivel};0`
+].join("\n"));
+
+test("duas réguas: o banco tem regua e regua2, e SLOTS_PADRAO as lista como slots de nível", () => {
+  const banco = Estacao.criarBancoVazio();
+  assert.ok(banco.slots.regua && banco.slots.regua2);
+  assert.equal(JSON.stringify(Estacao.IDS_NIVEL), JSON.stringify(["regua", "regua2"]));
+  assert.equal(Estacao.ehSlotNivel("regua2"), true);
+  assert.equal(Estacao.ehSlotNivel("est1"), false);
+  assert.equal(Estacao.SLOTS_PADRAO.length, 5);
+});
+
+test("duas réguas: CSV de nível entra na régua certa (SN já conhecido, pista no nome e primeira vazia)", () => {
+  const banco = Estacao.criarBancoVazio();
+  // 1º arquivo, sem pista: primeira régua vazia (Jordanésia)
+  const a = Estacao.mesclarNoSlot(banco, "auto", csvNivel("Régua A", "11", "1,50"), "regua-a.csv");
+  assert.equal(a.slotId, "regua");
+  // 2º arquivo, outro SN: a régua seguinte (Natura)
+  const b = Estacao.mesclarNoSlot(banco, "auto", csvNivel("Régua B", "22", "0,80"), "regua-b.csv");
+  assert.equal(b.slotId, "regua2");
+  // reimportar o SN 11 volta para a primeira, o SN 22 para a segunda
+  assert.equal(Estacao.mesclarNoSlot(banco, "auto", csvNivel("Régua A", "11", "1,60"), "x.csv").slotId, "regua");
+  assert.equal(Estacao.mesclarNoSlot(banco, "auto", csvNivel("Outro nome", "22", "0,90"), "y.csv").slotId, "regua2");
+  assert.equal(banco.slots.regua.dias["2026-01-10"].nvMax, 1.6);
+  assert.equal(banco.slots.regua2.dias["2026-01-10"].nvMax, 0.9);
+  // pista no nome do arquivo com as duas já ocupadas e SN novo
+  assert.equal(Estacao.mesclarNoSlot(banco, "auto", csvNivel("Novo", "33", "1,00"), "natura-novo.csv").slotId, "regua2");
+  assert.equal(Estacao.mesclarNoSlot(banco, "auto", csvNivel("Terceiro", "34", "1,00"), "jordanesia-novo.csv").slotId, "regua");
+});
+
+test("duas réguas: banco salvo antes (sem regua2, rótulo antigo) carrega sem perder dados", () => {
+  const antigo = { ativo: "est1", slots: { regua: { id: "regua", rotulo: "Régua de Nível do Rio", tipo: "nivel", estacao: "Rio X", sn: "7", dias: { "2026-01-10": { nvMax: 2, nvMin: 1, n: 5 } } } } };
+  const st = criarStorage({ "cajamar:estacoes:v2": JSON.stringify(antigo) });
+  const banco = Estacao.carregarBanco(st);
+  assert.equal(banco.slots.regua.dias["2026-01-10"].nvMax, 2);
+  assert.equal(banco.slots.regua.rotulo, "Régua de Nível — Jordanésia");
+  assert.equal(Object.keys(banco.slots.regua2.dias).length, 0);
 });

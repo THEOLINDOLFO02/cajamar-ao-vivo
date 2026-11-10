@@ -27,7 +27,7 @@
   var MAX_LACUNAS_POR_DIA = 40;
 
   var LIMITES_IMPORTACAO = {
-    maxArquivos: 4,
+    maxArquivos: 5,
     maxBytesArquivo: 25 * 1024 * 1024,
     maxBytesTotal: 60 * 1024 * 1024
   };
@@ -37,8 +37,11 @@
     { id: "est1", rotulo: "Estação Meteorológica 1", tipo: "meteorologica" },
     { id: "est2", rotulo: "Estação Meteorológica 2", tipo: "meteorologica" },
     { id: "est3", rotulo: "Estação Meteorológica 3", tipo: "meteorologica" },
-    { id: "regua", rotulo: "Régua de Nível do Rio", tipo: "nivel" }
+    { id: "regua", rotulo: "Régua de Nível — Jordanésia", tipo: "nivel" },
+    { id: "regua2", rotulo: "Régua de Nível — Natura", tipo: "nivel" }
   ];
+  var IDS_NIVEL = ["regua", "regua2"];
+  function ehSlotNivel(id) { return IDS_NIVEL.indexOf(id) > -1; }
 
   // Número do CSV (decimal com vírgula ou ponto). Texto com lixo ("12abc"), infinito ou vazio vira null.
   function num(s) {
@@ -377,7 +380,8 @@
         est1: { id: "est1", rotulo: "Estação Meteorológica 1", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
         est2: { id: "est2", rotulo: "Estação Meteorológica 2", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
         est3: { id: "est3", rotulo: "Estação Meteorológica 3", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
-        regua: { id: "regua", rotulo: "Régua de Nível do Rio", tipo: "nivel", estacao: "", sn: "", dias: {} }
+        regua: { id: "regua", rotulo: "Régua de Nível — Jordanésia", tipo: "nivel", estacao: "", sn: "", dias: {} },
+        regua2: { id: "regua2", rotulo: "Régua de Nível — Natura", tipo: "nivel", estacao: "", sn: "", dias: {} }
       }
     };
   }
@@ -402,7 +406,7 @@
           if (x && typeof x.dias === "object") {
             banco.slots[s.id] = {
               id: s.id,
-              rotulo: x.rotulo || s.rotulo,
+              rotulo: (!x.rotulo || x.rotulo === "Régua de Nível do Rio") ? s.rotulo : x.rotulo,
               tipo: x.tipo || s.tipo,
               estacao: x.estacao || "",
               sn: x.sn || "",
@@ -467,7 +471,23 @@
     }
   }
 
-  // Escolhe automaticamente em qual dos 4 slots (est1, est2, est3, regua) gravar o CSV quando não foi forçado um slot.
+  // Régua de nível: casa por SN ou nome já guardado; senão pela pista no nome do arquivo (Natura/Jordanésia); senão a primeira vazia.
+  function escolherSlotNivel(banco, nome, sn, arq) {
+    for (var i = 0; i < IDS_NIVEL.length; i++) {
+      var sl = banco.slots[IDS_NIVEL[i]];
+      if (sn && sl.sn && sl.sn === sn) return sl.id;
+      if (nome && sl.estacao && sl.estacao.toLowerCase() === nome.toLowerCase()) return sl.id;
+    }
+    var pista = (String(nome || "") + " " + arq).toLowerCase();
+    if (/natura/.test(pista)) return "regua2";
+    if (/jordan/.test(pista)) return "regua";
+    for (var j = 0; j < IDS_NIVEL.length; j++) {
+      if (!Object.keys(banco.slots[IDS_NIVEL[j]].dias).length) return IDS_NIVEL[j];
+    }
+    return "regua";
+  }
+
+  // Escolhe automaticamente em qual dos 5 slots (est1, est2, est3, regua, regua2) gravar o CSV quando não foi forçado um slot.
   function escolherSlotAutomatico(banco, rows, nomeArquivo) {
     var tipo = detectarTipo(rows);
     var nome = (rows[0] && rows[0].nome) || "";
@@ -475,7 +495,7 @@
     var arq = String(nomeArquivo || "").toLowerCase();
 
     if (tipo === "nivel" || /regua|régua|nivel|nível|rio|fluv|hidro/.test(arq)) {
-      return "regua";
+      return escolherSlotNivel(banco, nome, sn, arq);
     }
     // 1) Se já existe slot com o mesmo SN ou mesmo nome de estação, atualiza-o
     var idsMet = ["est1", "est2", "est3"];
@@ -489,8 +509,10 @@
       if (!Object.keys(banco.slots[idsMet[j]].dias).length) return idsMet[j];
     }
     // 3) Se os 3 já estão ocupados e a régua está vazia e o arquivo também tem nível, usa a régua; senão, usa o ativo
-    if (tipo === "ambos" && !Object.keys(banco.slots.regua.dias).length) return "regua";
-    return banco.ativo && banco.ativo !== "regua" ? banco.ativo : "est1";
+    if (tipo === "ambos") {
+      for (var k = 0; k < IDS_NIVEL.length; k++) if (!Object.keys(banco.slots[IDS_NIVEL[k]].dias).length) return IDS_NIVEL[k];
+    }
+    return banco.ativo && !ehSlotNivel(banco.ativo) ? banco.ativo : "est1";
   }
 
   function mesclarNoSlot(banco, slotId, rows, nomeArquivo) {
@@ -512,7 +534,7 @@
     if (nome) slot.estacao = nome;
     if (rows[0].sn) slot.sn = rows[0].sn;
     var tipoDet = detectarTipo(rows);
-    if (alvo === "regua" || tipoDet === "nivel") slot.tipo = "nivel";
+    if (ehSlotNivel(alvo) || tipoDet === "nivel") slot.tipo = "nivel";
     else if (tipoDet === "ambos") slot.tipo = "ambos";
     else slot.tipo = "meteorologica";
 
@@ -1010,6 +1032,8 @@
 
   w.Estacao = {
     SLOTS_PADRAO: SLOTS_PADRAO,
+    IDS_NIVEL: IDS_NIVEL,
+    ehSlotNivel: ehSlotNivel,
     COTAS_RIO_PADRAO: COTAS_RIO_PADRAO,
     LIMITES_IMPORTACAO: LIMITES_IMPORTACAO,
     FATOR_LACUNA: FATOR_LACUNA,

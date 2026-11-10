@@ -37,7 +37,7 @@
 
   var map = null, frames = [], layers = [], cur = 0, timer = null, host = "", pastCount = 0;
   var layerFogo = null, layerPontos = null, camadaGoesGeo = null, camadaGoesIr = null, camadaViirsSnpp = null, camadaViirsNoaa20 = null, camadaTermicaNasa = null;
-  var modoMapaAtual = "radar";
+  var modoMapaAtual = "radar", extrasGibs = {};
 
   var layerLimite = null, limiteEnquadrado = false;
   function desenharLimite() {
@@ -69,8 +69,8 @@
     { nome: "Polvilho · Pluviômetro (Estação 2)", lat: -23.410408, lon: -46.845375, cor: "#c2410c", tipo: "Pluviômetro / Área Urbana", slotId: "est2" },
     { nome: "Ponunduva · Pluviômetro (Estação 3)", lat: -23.329440, lon: -46.918672, cor: "#c2410c", tipo: "Pluviômetro / Encostas e Zona Rural", slotId: "est3" },
     { nome: "KM 43 · Pluviômetro", lat: -23.314125, lon: -46.8635147, cor: "#0b6e8f", tipo: "Pluviômetro / Encostas e Mata", slotId: null },
-    { nome: "Jordanésia · Pluviométrica e Nível", lat: -23.336754, lon: -46.842581, cor: "#0284c7", tipo: "Pluviométrica e Nível do rio", slotId: null },
-    { nome: "Natura · Pluviométrica e Nível", lat: -23.400109, lon: -46.834746, cor: "#0284c7", tipo: "Pluviométrica e Nível do rio", slotId: null },
+    { nome: "Jordanésia · Pluviométrica e Nível", lat: -23.336754, lon: -46.842581, cor: "#0284c7", tipo: "Pluviométrica e Nível do rio (régua)", slotId: "regua" },
+    { nome: "Natura · Pluviométrica e Nível", lat: -23.400109, lon: -46.834746, cor: "#0284c7", tipo: "Pluviométrica e Nível do rio (régua)", slotId: "regua2" },
     { nome: "Base Defesa Civil", lat: -23.407150, lon: -46.858613, cor: "#b91c1c", tipo: "Base Operacional COMPDEC", slotId: null }
   ];
 
@@ -90,7 +90,7 @@
 
       var avDesl = null;
       var avRio = null;
-      if (pt.slotId === "regua" && dUlt && dUlt.nvMax !== null && typeof Estacao !== "undefined") {
+      if (typeof Estacao !== "undefined" && Estacao.ehSlotNivel(pt.slotId) && dUlt && dUlt.nvMax !== null && typeof Estacao !== "undefined") {
         avRio = Estacao.avaliarNivelRio(dUlt.nvMax, dUlt.nvDelta, cotas, Estacao.qualidadeNivel(dUlt));
         corPino = avRio.corFundo;
       } else if (pt.slotId && dUlt && typeof Deslizamento !== "undefined") {
@@ -169,6 +169,22 @@
     camadaViirsNoaa20 = L.tileLayer("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/default/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg", {
       opacity: 0.78, maxNativeZoom: 9, maxZoom: 14, attribution: "NASA GIBS / NOAA-20 VIIRS"
     });
+    // Camadas extras da NASA GIBS (sem chave). Todas são imagem de satélite ou estimativa por satélite, não medição local.
+    var gibs = function (id, nivel, ext, op, atrib) {
+      return L.tileLayer("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/" + id + "/default/default/GoogleMapsCompatible_Level" + nivel + "/{z}/{y}/{x}." + ext, {
+        opacity: op, maxNativeZoom: nivel, maxZoom: 14, attribution: "NASA GIBS / " + atrib
+      });
+    };
+    extrasGibs = {
+      "🌧️ Estimativa de chuva por satélite (GPM IMERG)": gibs("IMERG_Precipitation_Rate", 6, "png", 0.7, "GPM IMERG (estimativa, pixel ~10 km, atraso de horas)"),
+      "☁️ GOES-East Visível (Banda 2, 1 km, só de dia)": gibs("GOES-East_ABI_Band2_Red_Visible_1km", 7, "png", 0.8, "NOAA GOES-East ABI Banda 2"),
+      "🌫️ GOES-East Poeira e fumaça": gibs("GOES-East_ABI_Dust", 7, "png", 0.7, "NOAA GOES-East ABI Dust"),
+      "🌐 GOES-East Massas de ar": gibs("GOES-East_ABI_Air_Mass", 6, "png", 0.7, "NOAA GOES-East ABI Air Mass"),
+      "🔥 GOES-East Pontos quentes (FireTemp)": gibs("GOES-East_ABI_FireTemp", 7, "png", 0.85, "NOAA GOES-East ABI FireTemp"),
+      "🛰️ Terra MODIS (cor real, diária)": gibs("MODIS_Terra_CorrectedReflectance_TrueColor", 9, "jpg", 0.85, "Terra MODIS"),
+      "🛰️ Aqua MODIS (cor real, diária)": gibs("MODIS_Aqua_CorrectedReflectance_TrueColor", 9, "jpg", 0.85, "Aqua MODIS"),
+      "🛰️ NOAA-21 VIIRS (cor real, diária)": gibs("VIIRS_NOAA21_CorrectedReflectance_TrueColor", 9, "jpg", 0.85, "NOAA-21 VIIRS")
+    };
     camadaTermicaNasa = L.tileLayer.wms("https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi", {
       layers: "MODIS_Combined_Thermal_Anomalies_All,VIIRS_SNPP_Thermal_Anomalies_375m_All,VIIRS_NOAA20_Thermal_Anomalies_375m_All,VIIRS_NOAA21_Thermal_Anomalies_375m_All",
       format: "image/png",
@@ -186,7 +202,7 @@
 
     L.control.layers(
       { "Ruas": camadaRuas, "Satélite (Base Esri)": camadaSatelite, "Relevo/Topografia": camadaRelevo },
-      {
+      Object.assign({
         "🗺️ Limite do município (IBGE)": layerLimite,
         "📍 Estações, Rio e Encostas de Cajamar": layerPontos,
         "⚠️ Áreas dos avisos do INMET": layerAvisos,
@@ -196,7 +212,7 @@
         "🌡️ Satélite GOES-East Infravermelho (Banda 13)": camadaGoesIr,
         "🛰️ Satélite Suomi-NPP (NPP-375 TrueColor)": camadaViirsSnpp,
         "🛰️ Satélite NOAA-20 (VIIRS TrueColor)": camadaViirsNoaa20
-      },
+      }, extrasGibs),
       { position: "topright" }
     ).addTo(map);
   }

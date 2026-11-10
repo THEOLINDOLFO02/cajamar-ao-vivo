@@ -30,15 +30,15 @@
     </nav>
 <main id="conteudo">
   <div class="pagina-cab"><h1>Previsão × medido</h1><p class="sub">Compare a chuva medida com o que foi previsto</p></div>
-  <div class="aux aux-curto">🔒 Envie de <b>1 a 4 CSV</b> (estações e régua do rio) para cruzar a chuva medida com as previsões. Os arquivos são lidos só no seu navegador.
+  <div class="aux aux-curto">🔒 Envie de <b>1 a 5 CSV</b> (estações e réguas do rio) para cruzar a chuva medida com as previsões. Os arquivos são lidos só no seu navegador.
     <details><summary>Detalhes</summary>Você também pode escolher apenas <b>1 estação + a régua de nível</b> para cruzar a chuva medida e a resposta do rio com as previsões dos boletins/modelos meteorológicos (<b>Open-Meteo D-1</b>, <b>ECMWF</b> e <b>GFS</b>).</details>
   </div>
 
   <section class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-      <h2 style="margin:0">1. Arquivos CSV carregados (3 Estações + 1 Régua de Nível)</h2>
+      <h2 style="margin:0">1. Arquivos CSV carregados (3 Estações + 2 Réguas de Nível)</h2>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button id="btnImportarMulti" type="button" class="btn primary small">📂 Enviar 1 a 4 CSVs de uma vez</button>
+        <button id="btnImportarMulti" type="button" class="btn primary small">📂 Enviar 1 a 5 CSVs de uma vez</button>
         <input id="arqComp" type="file" accept=".csv,text/csv" multiple hidden>
       </div>
     </div>
@@ -61,7 +61,8 @@
             <th id="thSimEst2">🌡️ Estação 2</th>
             <th id="thSimEst3">🌡️ Estação 3</th>
             <th>Média / Maior Δ</th>
-            <th>🌊 Régua do Rio (Mín–Máx / Δ)</th>
+            <th>🌊 Régua Jordanésia (Mín–Máx / Δ)</th>
+            <th>🌊 Régua Natura (Mín–Máx / Δ)</th>
           </tr>
         </thead>
         <tbody id="tbSimultaneo"></tbody>
@@ -82,7 +83,8 @@
       </label>
       <label for="selReguaComp">Régua de Nível do Rio:
         <select id="selReguaComp">
-          <option value="sim">🌊 Incluir Régua de Nível do Rio (Chuva × Nível m)</option>
+          <option value="regua">🌊 Régua Jordanésia (Chuva × Nível m)</option>
+          <option value="regua2">🌊 Régua Natura (Chuva × Nível m)</option>
           <option value="nao">Somente estação meteorológica (sem régua)</option>
         </select>
       </label>
