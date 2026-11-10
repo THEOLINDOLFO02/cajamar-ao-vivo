@@ -15,7 +15,7 @@ Correções: branch `auditoria-calculos` (sem commit/push/deploy). Este document
 | CEMADEN | `resources.cemaden.gov.br/.../getJson2.php?uf=SP` via Worker e robô | `worker/cemaden-proxy.js`, `scripts/coletar-cemaden.mjs`, `cemaden.js` | observado (pluviômetros), repassado sem recálculo |
 | INPE BDQueimadas | `dataserver-coids.inpe.br/.../diario/Brasil/` e `/10min/` | `queimadas.js`, `painel-fogo.js`, `publicar.js` | detecção por satélite |
 | NASA GIBS / RainViewer | tiles WMTS/WMS e `weather-maps.json` | `painel-mapa.js` | imagem (sem cálculo; só rótulo de horário) |
-| Windy | Worker `/windy` | `worker/cemaden-proxy.js`, `windy.js` | previsão GFS |
+| Windy | (removida em 10/11/2026: a Windy não entrega mais o que o sistema precisava) | — | — |
 | Estações locais / régua | CSV do usuário → `localStorage` | `estacao.js`, `historico.js`, `comparar.js`, `publicar.js` | **observado (local)** |
 | Observações manuais | formulário | `observacoes.js` | observado (humano) |
 
@@ -26,7 +26,7 @@ Fluxo: **fonte → `Fontes.consultar` (cache validado, timeout, 2 tentativas) �
 * **Open-Meteo, documentação oficial (open-meteo.com/en/docs, consultada em 30/10/2026):** `precipitation` horária = "soma da hora **anterior**"; `wind_gusts_10m` horária = máximo da hora anterior; `current` é baseado em dados de 15 min e `precipitation` em `current` é a soma do `interval` (segundos) anterior.
 * **Resposta real (30/10/2026 13:00 BRT):** `current.interval = 900`, `current.precipitation = 0,1 mm` (= 15 min, não 1 h); `daily.precipitation_sum` de 29/10 = **17,6** = soma dos valores horários rotulados em 29/10 (00:00…23:00) = 17,6 ⇒ o "dia" do Open-Meteo cobre 23:00 do dia anterior a 23:00 do dia (deslocado 1 h do dia civil da estação).
 * **CEMADEN, feed real coletado às 16:03 UTC (30/10/2026):** Ponunduva (Cajamar) = `30/10/26 16:00` (3 min antes ⇒ horário coerente com **UTC**), mas várias estações da rede = `30/10/26 16:40 … 17:00` (**até 57 min à frente** do relógio da coleta). O `data/cemaden.json` publicado trazia `referenciaRede = 16:20` com coleta às 15:18 UTC.
-* **Windy (código):** K→°C (−273,15), `past3hprecip` m→mm (×1000), m/s→km/h (×3,6), direção `(270 − atan2(v,u)·180/π) mod 360` — **corretos** (testes existentes confirmam).
+* **Windy (código, removido em 10/11/2026; registro histórico):** K→°C (−273,15), `past3hprecip` m→mm (×1000), m/s→km/h (×3,6), direção `(270 − atan2(v,u)·180/π) mod 360` — **corretos** (testes existentes confirmam).
 
 ## 3. Auditoria matemática por variável (resumo)
 
@@ -64,7 +64,7 @@ Legenda: P0 enganoso/decisão insegura · P1 erro relevante · P2 moderado · P3
 | A-15 | P2 | `painel-base.js` L8–10; `resumo.js` L9; `cemaden.js` L7; `painel-mapa.js` L208; `climatologia.js` L108 | Horários formatados no fuso do aparelho, não em America/Sao_Paulo. | Corrigido |
 | A-16 | P2 | `estacao.js` `lerCsv` | Nenhuma checagem de faixa física (UR 150 %, 300 °C, 101300 "hPa"…). | Corrigido (limites físicos absolutos, valor vira ausente e é contado em `foraFaixa`) |
 | A-17 | P3 | `worker/cemaden-proxy.js` L139 | Byte NUL cru no código-fonte (git/ferramentas tratam como binário). | Corrigido (`"\u0000"`) |
-| A-18 | P3 | `worker/cemaden-proxy.js` L95 | `Math.max(0, c)` esconde chuva negativa (inválida) da Windy. | Pendência |
+| A-18 | P3 | `worker/cemaden-proxy.js` L95 | `Math.max(0, c)` esconde chuva negativa (inválida) da Windy. | Sem efeito: a rota da Windy foi removida |
 | A-19 | P2 | CEMADEN | Horários sem fuso; UTC é **hipótese sustentada por evidência**, não confirmada pela fonte. | Documentado; `fusoConfirmado` no JSON |
 | A-20 | P2 | `comparar.js`, Open-Meteo `daily` | Dia do Open-Meteo deslocado 1 h do dia civil da estação (verificado: 17,6 = 17,6). Comparação "previsto × medido" tem essa defasagem. | Pendência documentada |
 | A-21 | P2 | `estacao.js` (`BRT_MS` fixo −3 h) | Arquivos anteriores a 2019 (horário de verão) com `data_hora_brt` em −2 h seriam descartados por "timestamp não corresponde" (não somados errado). | Pendência documentada |

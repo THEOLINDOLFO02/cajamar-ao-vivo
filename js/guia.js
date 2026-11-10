@@ -45,6 +45,7 @@
     saida.appendChild(el("p", "guia-faixa", "Faixa: " + r.banda.faixa));
     if (id === "pressao" && r.extras.nivelDoMar !== undefined) saida.appendChild(el("p", "", "Equivale a " + String(r.extras.nivelDoMar).replace(".", ",") + " hPa ao nível do mar (conversão aproximada)."));
     if (id === "direcao" && r.extras.ponto) saida.appendChild(el("p", "", "O vento vem do " + r.extras.ponto.nome + " (" + r.extras.ponto.sigla + ") e sopra para o lado oposto."));
+    if (id === "chuva" && r.extras.intensidade) saida.appendChild(el("p", "", "Escala de intensidade (informada, varia por fonte): " + r.extras.intensidade + "."));
     if (id === "vento" && r.extras.sensacao !== undefined) saida.appendChild(el("p", "", "Sensação térmica pelo vento: cerca de " + String(r.extras.sensacao).replace(".", ",") + " °C."));
     saida.appendChild(el("p", "", r.banda.efeitos));
     saida.appendChild(el("h4", "", "O que fazer"));
@@ -82,7 +83,7 @@
     if (id === "vento") c.temp = campo("Temperatura (°C), opcional:", { placeholder: "Para a sensação térmica" });
     if (id === "chuva") {
       var l = el("label"); l.appendChild(document.createTextNode("Janela de tempo:"));
-      var s = el("select"); [["1h", "Acumulado em 1 hora (mm/h)"], ["24h", "Acumulado em 24 horas (mm)"]].forEach(function (p) { var o = el("option", "", p[1]); o.value = p[0]; s.appendChild(o); });
+      var s = el("select"); [["1h", "Acumulado em 1 hora (mm/h)"], ["24h", "Acumulado em 24 horas (mm)"], ["72h", "Acumulado em 72 horas (mm)"], ["168h", "Acumulado em 7 dias / 168 horas (mm)"]].forEach(function (p) { var o = el("option", "", p[1]); o.value = p[0]; s.appendChild(o); });
       l.appendChild(s); linha.appendChild(l); c.janela = s;
     }
     card.appendChild(linha);

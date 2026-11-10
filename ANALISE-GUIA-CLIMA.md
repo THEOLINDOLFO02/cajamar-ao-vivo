@@ -7,7 +7,8 @@ Data: 10/11/2026. Objetivo: conferir o que a pesquisa entregou, apontar o que es
 Busca na web (resultados de reportagens, sites de meteorologia e páginas da OMS e do Cemaden), cálculo à mão de fórmulas e comparação com os seus CSVs reais. Nem tudo tem fonte primária:
 
 * **Fonte primária consultada:** OMS (escala do Índice UV). A página do INMET sobre avisos foi aberta, mas **não traz números** de severidade.
-* **Fonte secundária (reportagens que citam o INMET):** critérios de chuva, vento e baixa umidade. Os números são consistentes entre várias reportagens, mas **ainda não foram conferidos na tabela oficial do INMET**.
+* **Conferido em avisos publicados pelo INMET (avisos.inmet.gov.br):** critérios de chuva em 1 h e 24 h (perigo potencial 20–30 mm/h ou até 50 mm/dia; perigo 30–60 mm/h ou 50–100 mm/dia; grande perigo acima de 60 mm/h ou acima de 100 mm/dia), com vento de 40–60, 60–100 e acima de 100 km/h nos avisos de chuva intensa e tempestade.
+* **Fonte secundária (reportagens que citam o INMET):** vendaval isolado e baixa umidade. Os avisos do INMET listam "Baixa Umidade" e "Onda de Calor", mas **sem números**.
 * **Sem fonte encontrada:** as tabelas de 72 h e 168 h do segundo texto.
 
 Cada faixa do guia mostra a sua origem na tela: `inmet` (critério divulgado do INMET), `oms`, `beaufort` ou `referência geral` (não oficial).
@@ -94,14 +95,14 @@ Falta: rosa dos ventos de 16 pontos, média circular (não se faz média simples
 
 | Trecho | Veredito |
 |---|---|
-| INMET 1 h: amarelo 20–30 mm/h, laranja 30–60, vermelho acima de 60 | ✔ Consistente em várias reportagens que citam o INMET. A tabela oficial do INMET não foi aberta; recomenda-se conferir antes de usar em aviso formal. |
-| INMET 24 h: amarelo até 50 mm/dia, laranja 50–100, vermelho acima de 100 | ✔ Mesma ressalva. Os avisos do INMET combinam chuva e vento no mesmo nível. |
+| INMET 1 h: amarelo 20–30 mm/h, laranja 30–60, vermelho acima de 60 | ✔ Confirmado em avisos publicados em avisos.inmet.gov.br (10/11/2026). |
+| INMET 24 h: amarelo até 50 mm/dia, laranja 50–100, vermelho acima de 100 | ✔ Confirmado nos mesmos avisos. Os avisos do INMET combinam chuva e vento no mesmo nível. |
 | "Escala geral de intensidade" (fraca, moderada, forte) por hora e por dia | ⚠ Essas escalas variam por fonte e não são um padrão único. O texto mistura duas definições de "chuva forte" (20–60 mm/h e 25–50 mm/dia). Não usei como classificação. |
 | **Tabela de 72 h (80, 120, 200 mm) atribuída à Defesa Civil/Cemaden** | ✖ **Sem fonte.** O Cemaden usa limiares **por município** (exemplos citados pelo próprio órgão: cerca de 100 mm em 72 h para Campos do Jordão e cerca de 60 mm em outras regiões). Não há um número único nacional. |
 | **Tabela de 168 h (120, 180, 250 mm)** | ✖ **Sem fonte.** Além disso diverge do indicador referencial do site (50, 100, 150 e 210 mm em 168 h; Pinheiro et al., 2005 e AlertaRio, 2013, feitos para o Rio de Janeiro). |
 | "Acumulado crítico equivale à média de um mês inteiro" | ✖ Sem comprovação; depende da climatologia local. |
 
-Por regra do projeto (não inventar limiar nem homologação para Cajamar), **as tabelas de 72 h e 168 h não foram usadas**. O guia mostra apenas 1 h e 24 h, com a fonte "critério do INMET", e avisa que o aviso oficial só vale quando o INMET o emite.
+**Decisão da Defesa Civil de Cajamar (10/11/2026):** incluir as tabelas de 72 h e 168 h e a escala de intensidade no guia, mesmo sem fonte verificada. Elas entraram **rotuladas como "limiar informado pela Defesa Civil de Cajamar: sem fonte técnica verificada e não homologado"**, e esse rótulo aparece na tela, no texto copiado e no aviso ao inserir na publicação. As faixas de 1 h e 24 h continuam com a fonte "critério dos avisos do INMET". Os limiares informados **não alimentam** o indicador referencial de deslizamento do painel.
 
 ## 4. O que falta no manual
 
@@ -133,12 +134,12 @@ Nova página **"Guia de valores"** (`guia.html`), no menu de todas as páginas:
 
 1. Os textos de procedimento são orientações gerais de saúde e proteção civil. A Defesa Civil de Cajamar deve **revisar e aprovar** antes de circular.
 2. A faixa deve aparecer com a fonte. Só chamar de "alerta" ou "aviso" o que for emitido pelo INMET ou pela Defesa Civil.
-3. Hoje o caminho é: preencher o valor no guia, copiar o texto e colar em "Gerar publicação". Um passo seguinte, se aprovado, é um seletor dentro de "Gerar publicação" que insira as linhas de orientação direto no panfleto.
+3. Há dois caminhos: copiar o texto no guia e colar em "Gerar publicação", ou usar o bloco **"Orientação do Guia"** dentro de "3. Personalizar textos e legenda" em "Gerar publicação". Ele insere as linhas e a legenda para você revisar. Se mudar o tipo de panfleto depois, o texto padrão do panfleto substitui as linhas; adicione a orientação por último.
 
 ## 7. Pendências e o que depende de você
 
-* Conferir os critérios do INMET na **tabela oficial** (chuva, vento, baixa umidade) antes de usá-los em material formal.
-* Pedir à Defesa Civil e ao Cemaden os **limiares de chuva de 72 h e 7 dias para Cajamar**.
+* Conferir os critérios de **vendaval isolado e baixa umidade** do INMET em documento oficial (os avisos publicados não trazem os números de baixa umidade e onda de calor).
+* Pedir ao Cemaden e à Defesa Estadual a **fonte técnica dos limiares de 72 h e 7 dias** de Cajamar (hoje são limiares informados, sem fonte).
 * **Revisão dos textos** de procedimento pela Defesa Civil.
 * Informar a **altitude de cada equipamento** para a pressão.
 * Verificar o sensor de radiação dos equipamentos que registraram acima de 1361 W/m².
@@ -153,3 +154,10 @@ Nova página **"Guia de valores"** (`guia.html`), no menu de todas as páginas:
 * Escala de Beaufort: [Observatório de Hong Kong](https://www.hko.gov.hk/en/education/weather/meteorology-basics/00112-beaufort-wind-scale.html)
 * Limiares do Cemaden: [JICA/Cemaden, volume 2](https://www.jica.go.jp/brazil/portuguese/office/publications/c8h0vm000001w9k8-att/volume2.pdf)
 * Altitude de Cajamar: [Wikipedia](https://en.wikipedia.org/wiki/Cajamar,_S%C3%A3o_Paulo) (cita o IBGE; fontes variam entre 734 e 760 m)
+
+## 9. Atualização de 10/11/2026
+
+* Limiares de 72 h e 7 dias e escala de intensidade incluídos no guia como "limiar informado", com o rótulo de que não há fonte técnica verificada.
+* Critérios de chuva do INMET (1 h e 24 h) conferidos em avisos publicados pelo INMET.
+* Bloco "Orientação do Guia" criado em "Gerar publicação".
+* Windy removida do sistema (site, rota do Worker e documentação).

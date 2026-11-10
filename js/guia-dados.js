@@ -2,7 +2,8 @@
 // o que isso significa e o que fazer. Textos em um só lugar para a Defesa Civil poder revisar.
 //
 // Origem de cada faixa (campo "fonte"), sempre mostrada na tela:
-//   "inmet"      critério dos avisos do INMET, conforme divulgado pela imprensa; conferir na tabela oficial do INMET
+//   "inmet"      critério dos avisos do INMET (chuva em 1 h e 24 h conferida em avisos publicados em avisos.inmet.gov.br)
+//   "informado"  limiar informado pela Defesa Civil de Cajamar, SEM fonte técnica verificada e não homologado
 //   "oms"        escala do Índice UV da OMS
 //   "beaufort"   escala de Beaufort (limites aproximados, em km/h)
 //   "referencia" referência geral de conforto/meteorologia: NÃO é limiar oficial e não foi homologada pela Defesa Civil de Cajamar
@@ -11,7 +12,8 @@
   "use strict";
 
   var FONTES = {
-    inmet: "Critério dos avisos do INMET (divulgado pela imprensa; confira na tabela oficial)",
+    inmet: "Critério dos avisos do INMET (conferido em avisos publicados em avisos.inmet.gov.br)",
+    informado: "Limiar informado pela Defesa Civil de Cajamar: sem fonte técnica verificada e não homologado",
     oms: "Escala do Índice UV da OMS",
     beaufort: "Escala de Beaufort (limites aproximados)",
     referencia: "Referência geral, não é limiar oficial nem homologado pela Defesa Civil de Cajamar"
@@ -161,7 +163,7 @@
     },
 
     chuva: {
-      titulo: "Chuva (critérios do INMET)", unidade: "mm", icone: "🌧️", min: 0, max: 500, passo: 0.1, janelas: true,
+      titulo: "Chuva acumulada", unidade: "mm", icone: "🌧️", min: 0, max: 500, passo: 0.1, janelas: true,
       explica: "Volume de água por metro quadrado: 1 mm = 1 litro por m². Os avisos de chuva intensa do INMET usam 1 hora e 24 horas. Acumulados maiores (72 h, 7 dias) medem o encharcamento do solo, mas o limiar de risco é diferente em cada município.",
       bandas: [],
       bandasPorJanela: {
@@ -182,9 +184,35 @@
             efeitos: "Chuva intensa, com risco de alagamentos, transbordamento de pequenos córregos e deslizamentos em encostas.", procedimentos: ["Evite sair; não atravesse áreas alagadas.", "Afaste-se de encostas e córregos.", "Se notar rachaduras, estalos ou lama, saia do local e ligue 199.", "Evacuação e interdição só por decisão da Defesa Civil."] },
           { de: 100.0001, nome: "Vermelho — grande perigo", tom: 3, fonte: "inmet", faixa: "mais de 100 mm em 24 horas",
             efeitos: "Chuva extrema, com grande potencial de enchentes e deslizamentos.", procedimentos: ["Procure abrigo seguro em local alto.", "Siga a orientação da Defesa Civil.", "Em emergência, ligue 199 ou 193."] }
+        ],
+        "72h": [
+          { de: -Infinity, nome: "Abaixo do limiar de atenção informado", tom: 0, fonte: "informado", faixa: "menos de 80 mm em 72 horas",
+            efeitos: "Abaixo do primeiro limiar informado para 72 horas.", procedimentos: ["Acompanhe a chuva e os avisos."] },
+          { de: 80, nome: "Observação / Atenção (amarelo)", tom: 1, fonte: "informado", faixa: "80 a 120 mm em 72 horas",
+            efeitos: "O solo começa a ficar saturado. Atenção em encostas e no nível dos rios.", procedimentos: ["Monitore encostas e o nível dos rios.", "Observe trincas, estalos, lama ou água barrenta saindo do barranco.", "Acompanhe os avisos da Defesa Civil e do INMET."] },
+          { de: 120, nome: "Alerta (laranja)", tom: 2, fonte: "informado", faixa: "120 a 200 mm em 72 horas",
+            efeitos: "Solo encharcado: alto risco de deslizamentos, queda de muros e transbordamento de rios.", procedimentos: ["Afaste-se de encostas, barrancos e margens de rio.", "Se notar rachaduras, estalos, lama ou movimento do terreno, saia do local e ligue 199 (Defesa Civil).", "Evacuação e interdição só por decisão da Defesa Civil."] },
+          { de: 200.0001, nome: "Alerta máximo (vermelho)", tom: 3, fonte: "informado", faixa: "mais de 200 mm em 72 horas",
+            efeitos: "Saturação crítica do terreno: risco iminente de deslizamentos generalizados, enxurradas e grandes inundações.", procedimentos: ["Procure abrigo seguro em local alto e longe de encostas e rios.", "Siga a orientação da Defesa Civil.", "Em emergência, ligue 199 (Defesa Civil) ou 193 (Bombeiros)."] }
+        ],
+        "168h": [
+          { de: -Infinity, nome: "Abaixo do limiar de atenção informado", tom: 0, fonte: "informado", faixa: "menos de 120 mm em 7 dias",
+            efeitos: "Abaixo do primeiro limiar informado para 7 dias.", procedimentos: ["Acompanhe a chuva e os avisos."] },
+          { de: 120, nome: "Observação / Atenção (amarelo)", tom: 1, fonte: "informado", faixa: "120 a 180 mm em 7 dias",
+            efeitos: "Solo bastante úmido. Atenção em encostas, barrancos e na subida gradual dos rios.", procedimentos: ["Monitore encostas, barrancos e o nível dos rios.", "Observe trincas, estalos, lama ou água barrenta saindo do barranco.", "Acompanhe os avisos da Defesa Civil e do INMET."] },
+          { de: 180, nome: "Alerta (laranja)", tom: 2, fonte: "informado", faixa: "180 a 250 mm em 7 dias",
+            efeitos: "Solo saturado: alto risco de deslizamentos, queda de muros, erosão e cheia de rios principais.", procedimentos: ["Afaste-se de encostas, barrancos e margens de rio.", "Se notar rachaduras, estalos, lama ou movimento do terreno, saia do local e ligue 199 (Defesa Civil).", "Evacuação e interdição só por decisão da Defesa Civil."] },
+          { de: 250.0001, nome: "Alerta máximo (vermelho)", tom: 3, fonte: "informado", faixa: "mais de 250 mm em 7 dias",
+            efeitos: "Encharcamento extremo do terreno: risco iminente de deslizamentos graves e inundações extensas.", procedimentos: ["Procure abrigo seguro em local alto e longe de encostas e rios.", "Siga a orientação da Defesa Civil.", "Em emergência, ligue 199 (Defesa Civil) ou 193 (Bombeiros)."] }
         ]
       },
-      nota: "Acumulados de 72 horas e 7 dias NÃO são classificados aqui: o Cemaden e a Defesa Civil usam limiares próprios por município (por exemplo, o Cemaden cita cerca de 100 mm em 72 h para Campos do Jordão e cerca de 60 mm em outras regiões). Para Cajamar, veja o indicador referencial (não homologado) no painel e os avisos oficiais."
+      escalaPorJanela: {
+        "1h": [{ de: -Infinity, nome: "Chuva fraca" }, { de: 5, nome: "Chuva moderada" }, { de: 20, nome: "Chuva forte" }, { de: 60.0001, nome: "Chuva muito forte ou torrencial" }],
+        "24h": [{ de: -Infinity, nome: "Chuva fraca" }, { de: 5, nome: "Chuva moderada" }, { de: 25, nome: "Chuva forte" }, { de: 50.0001, nome: "Chuva muito forte ou extrema (crítica acima de 100 mm)" }],
+        "72h": [{ de: -Infinity, nome: "Acumulado baixo" }, { de: 30, nome: "Acumulado moderado" }, { de: 80, nome: "Acumulado elevado" }, { de: 150.0001, nome: "Acumulado crítico ou extremo" }],
+        "168h": [{ de: -Infinity, nome: "Acumulado baixo" }, { de: 50, nome: "Acumulado moderado" }, { de: 120, nome: "Acumulado elevado" }, { de: 200.0001, nome: "Acumulado crítico ou extremo" }]
+      },
+      nota: "Chuva em 1 h e 24 h: critério dos avisos do INMET (o aviso só vale quando o INMET o emite). Chuva em 72 h e 7 dias: limiares informados pela Defesa Civil de Cajamar, SEM fonte técnica verificada e não homologados; o Cemaden usa limiares próprios por município (por exemplo, cerca de 100 mm em 72 h para Campos do Jordão e cerca de 60 mm em outras regiões), então valide estes números antes de usá-los como critério de decisão. A escala de intensidade (fraca, moderada, forte) também é informada e varia por fonte. Veja também o indicador referencial (não homologado) no painel."
     }
   };
 
@@ -243,9 +271,11 @@
       r.extras.ponto = pontoCardeal(valor);
       v = quadranteDe(valor);
     } else if (id === "chuva") {
-      var j = o.janela === "24h" ? "24h" : "1h";
+      var j = ["1h", "24h", "72h", "168h"].indexOf(o.janela) > -1 ? o.janela : "1h";
       r.extras.janela = j;
       r.banda = achar(el.bandasPorJanela[j], valor);
+      var esc = achar(el.escalaPorJanela[j], valor);
+      if (esc) r.extras.intensidade = esc.nome;
       return r;
     } else if (id === "vento") {
       var s = sensacaoVento(o.temperatura, valor);

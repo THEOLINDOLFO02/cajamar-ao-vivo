@@ -110,6 +110,36 @@
     <details class="colapso" id="detEditarPub">
       <summary><span>3. Personalizar textos e legenda (opcional)<small>Edite título, faixa de status, orientações, telefone e legenda da rede social</small></span></summary>
       <div class="colapso-corpo">
+        <fieldset class="campo" style="border:1px solid var(--line);border-radius:10px;padding:10px;margin:0 0 12px">
+          <legend>📋 Orientação do Guia de valores (opcional)</legend>
+          <p class="mut" style="margin:0 0 8px;font-size:.84rem">Escolha o elemento e o valor: a faixa e as orientações entram nas linhas e na legenda para você revisar. Orientação geral, não é aviso oficial.</p>
+          <div class="filtro-periodo" style="margin:0 0 8px">
+            <label for="gpElemento">Elemento:
+              <select id="gpElemento">
+                <option value="temperatura">🌡️ Temperatura (°C)</option>
+                <option value="umidade">💧 Umidade (%)</option>
+                <option value="pressao">🧭 Pressão (hPa)</option>
+                <option value="uv">☀️ Índice UV</option>
+                <option value="radiacao">🔆 Radiação solar (W/m²)</option>
+                <option value="vento">💨 Velocidade do vento (km/h)</option>
+                <option value="direcao">🧭 Direção do vento (°)</option>
+                <option value="chuva">🌧️ Chuva (mm)</option>
+              </select>
+            </label>
+            <label for="gpValor">Valor:<input id="gpValor" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex.: 33"></label>
+            <label id="gpExtraRot" for="gpExtra">Complemento:<input id="gpExtra" type="text" inputmode="decimal" autocomplete="off"></label>
+            <label id="gpJanelaRot" for="gpJanela" hidden>Janela de tempo:
+              <select id="gpJanela">
+                <option value="1h">1 hora</option>
+                <option value="24h">24 horas</option>
+                <option value="72h">72 horas</option>
+                <option value="168h">7 dias (168 h)</option>
+              </select>
+            </label>
+          </div>
+          <button id="gpAdicionar" type="button" class="btn small">➕ Adicionar orientação ao panfleto</button>
+          <p id="gpMsg" class="mut" style="margin:8px 0 0;font-size:.84rem" aria-live="polite"></p>
+        </fieldset>
         <label class="campo">Texto da faixa superior de status<input id="textoFaixa" maxlength="80" placeholder="Ex.: 🟢 CONDIÇÃO NORMAL · TEMPO SEM ALERTAS SEVEROS"></label>
         <label class="campo">Justificativa da faixa (obrigatória se a cor e o texto da faixa forem incoerentes; fica visível na arte)<input id="justificativaFaixa" maxlength="120" placeholder="Ex.: decisão do coordenador após vistoria"></label>
         <label class="campo">Título<input id="titulo" maxlength="90"></label>
@@ -129,6 +159,8 @@
 <script src="js/queimadas.js"></script>
 <script src="js/publicacao.js"></script>
 <script src="js/publicar.js"></script>
+<script src="js/guia-dados.js"></script>
+<script src="js/guia-publicar.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() { navigator.serviceWorker.register('./sw.js').catch(function(){}); });

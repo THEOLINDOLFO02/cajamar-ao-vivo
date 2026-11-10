@@ -91,14 +91,30 @@ test("direção: ponto cardeal de onde o vento vem e quadrante", () => {
   assert.equal(nome("direcao", 330), "Quadrante Norte (NO a NE)");
 });
 
-test("chuva: critérios do INMET em 1 h e 24 h; 72 h e 7 dias não são classificados", () => {
+test("chuva: critérios do INMET em 1 h e 24 h e limiares informados em 72 h e 7 dias", () => {
   assert.equal(nome("chuva", 10, { janela: "1h" }), "Abaixo dos critérios do INMET");
   assert.equal(nome("chuva", 25, { janela: "1h" }), "Amarelo — perigo potencial");
   assert.equal(nome("chuva", 30, { janela: "1h" }), "Laranja — perigo");
   assert.equal(nome("chuva", 61, { janela: "1h" }), "Vermelho — grande perigo");
   assert.equal(nome("chuva", 75, { janela: "24h" }), "Laranja — perigo");
   assert.equal(nome("chuva", 120, { janela: "24h" }), "Vermelho — grande perigo");
-  assert.match(Guia.ELEMENTOS.chuva.nota, /72 horas e 7 dias NÃO são classificados/);
+  // 72 h e 168 h: limiares informados pela Defesa Civil (sem fonte técnica), sempre rotulados como tal
+  assert.equal(nome("chuva", 50, { janela: "72h" }), "Abaixo do limiar de atenção informado");
+  assert.equal(nome("chuva", 80, { janela: "72h" }), "Observação / Atenção (amarelo)");
+  assert.equal(nome("chuva", 120, { janela: "72h" }), "Alerta (laranja)");
+  assert.equal(nome("chuva", 200, { janela: "72h" }), "Alerta (laranja)");
+  assert.equal(nome("chuva", 200.5, { janela: "72h" }), "Alerta máximo (vermelho)");
+  assert.equal(nome("chuva", 119, { janela: "168h" }), "Abaixo do limiar de atenção informado");
+  assert.equal(nome("chuva", 150, { janela: "168h" }), "Observação / Atenção (amarelo)");
+  assert.equal(nome("chuva", 250, { janela: "168h" }), "Alerta (laranja)");
+  assert.equal(nome("chuva", 251, { janela: "168h" }), "Alerta máximo (vermelho)");
+  assert.equal(Guia.avaliar("chuva", 100, { janela: "72h" }).banda.fonte, "informado");
+  assert.equal(Guia.avaliar("chuva", 100, { janela: "24h" }).banda.fonte, "inmet");
+  assert.match(Guia.FONTES.informado, /sem fonte técnica verificada e não homologado/);
+  // escala descritiva informada
+  assert.equal(Guia.avaliar("chuva", 35, { janela: "1h" }).extras.intensidade, "Chuva forte");
+  assert.equal(Guia.avaliar("chuva", 90, { janela: "72h" }).extras.intensidade, "Acumulado elevado");
+  assert.equal(Guia.avaliar("chuva", 210, { janela: "168h" }).extras.intensidade, "Acumulado crítico ou extremo");
 });
 
 test("texto para publicação traz valor, faixa, procedimentos, fonte e o aviso de que é orientação geral", () => {
