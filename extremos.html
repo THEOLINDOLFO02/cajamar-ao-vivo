@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light dark">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Recordes e Extremos</title>
+<meta name="theme-color" content="#0b6e8f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cajamar Clima">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/logo-dc-cajamar.jpg">
+<link rel="stylesheet" href="css/estilo.css">
+<script src="js/ui.js" defer></script>
+</head>
+<body>
+<a class="pular" href="#conteudo">Pular para o conteúdo</a>
+<header class="topo">
+  <a class="marca" href="index.html"><img src="assets/logo-dc-cajamar.jpg" alt="" width="46" height="46"><span><strong>Cajamar ao Vivo</strong><small>Defesa Civil · acompanhamento auxiliar</small></span></a>
+  <div class="topo-acoes"><button id="btnTema" type="button" class="btn-icone" aria-label="Alternar tema: automático, claro ou escuro" title="Tema: automático">◐</button></div>
+</header>
+<nav class="nav-bar" aria-label="Navegação principal">
+      <a href="index.html">Painel ao vivo</a>
+      <a href="quadro.html">Quadro de ocorrências</a>
+      <a href="observacoes.html">Observações manuais</a>
+      <a href="historico.html">Histórico da estação</a>
+      <a href="publicar.html">Gerar publicação</a>
+      <a href="comparar.html">Previsão × medido</a>
+      <a href="extremos.html" class="ativo" aria-current="page">Recordes e extremos</a>
+    </nav>
+<main id="conteudo">
+  <div class="pagina-cab"><h1>Recordes e extremos</h1><p class="sub">Os dias que mais choveram, o mais quente e o mais frio, vento, pressão, radiação e nível dos rios</p></div>
+  <div class="aux aux-curto">🔒 Calculado <b>só no seu navegador</b> a partir dos CSV importados em “Histórico da estação”. Dados auxiliares: não substituem INMET e CEMADEN, e não classificam risco.</div>
+  <section class="card">
+    <div class="filtro-periodo" style="margin:0">
+      <label for="selPeriodoExt">Período:
+        <select id="selPeriodoExt">
+          <option value="7">Últimos 7 dias com dado</option>
+          <option value="30">Últimos 30 dias com dado</option>
+          <option value="90">Últimos 90 dias com dado</option>
+          <option value="todos" selected>Todo o histórico importado</option>
+        </select>
+      </label>
+      <label for="selEquipExt">Equipamento:
+        <select id="selEquipExt"><option value="todas">Todos os equipamentos</option></select>
+      </label>
+      <label for="selCompletosExt">Dias:
+        <select id="selCompletosExt">
+          <option value="todos" selected>Todos (⚠ marca os incompletos)</option>
+          <option value="sim">Somente dias completos</option>
+        </select>
+      </label>
+    </div>
+  </section>
+  <div id="conteudoExt" class="mut carregando">Carregando…</div>
+</main>
+<script src="js/estacao.js"></script>
+<script src="js/extremos.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() { navigator.serviceWorker.register('./sw.js').catch(function(){}); });
+}
+</script>
+</body>
+</html>

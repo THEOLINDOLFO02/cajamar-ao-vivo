@@ -556,3 +556,9 @@ body.modo-tv #btnSairTv:hover,body.modo-tv #btnSairTv:focus{opacity:1}
 /* Filtros com listas longas (ex.: comparar.html, parte 2): a lista nunca passa da largura do cartão */
 .filtro-periodo label:has(select){min-width:0}
 .filtro-periodo label select{width:100%;max-width:100%;min-width:0;text-overflow:ellipsis}
+
+/* Recordes e extremos */
+.ext-grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
+.ext-bloco{min-width:0}
+.ext-bloco h3{margin:0 0 6px;font-size:.95rem}
+.ext-bloco table{font-size:.88rem}
