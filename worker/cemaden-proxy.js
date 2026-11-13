@@ -84,6 +84,63 @@ export function montar(bruto, agora = new Date()) {
   return { coletadoEm: agora.toISOString(), fonte: URL_FONTE, referenciaRede: refTexto, fusoConfirmado, leiturasFuturas, estacoes };
 }
 
+// ---- Estações do CGE (Prefeitura de São Paulo), lidas por raspagem de página (o CGE não oferece API nem CORS) ----
+// Só postos desta lista são consultados (o Worker não vira um proxy aberto). Santana de Parnaíba é o mais próximo de Cajamar.
+export const POSTOS_CGE = { "1000880": "Santana de Parnaíba", "504": "Perus", "515": "Pirituba" };
+const URL_CGE = "https://www.cgesp.org/v3/estacao.jsp?POSTO=";
+const ENTIDADES = { aacute: "á", eacute: "é", iacute: "í", oacute: "ó", uacute: "ú", atilde: "ã", otilde: "õ", ccedil: "ç", acirc: "â", ecirc: "ê", deg: "°", nbsp: " ", amp: "&" };
+
+function numeroCge(txt, min, max) {
+  if (txt === undefined || txt === null) return null;
+  const n = parseFloat(String(txt).replace(",", "."));
+  return Number.isFinite(n) && n >= min && n <= max ? n : null; // fora do plausível = sem dado (nunca vira zero)
+}
+
+// Lê o texto da página estacao.jsp do CGE. Campo ausente ou fora do intervalo plausível fica null.
+export function lerPostoCge(html) {
+  if (typeof html !== "string" || html.length < 200) throw new Error("página do CGE vazia ou em formato inesperado");
+  const t = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ")
+    .replace(/&([a-z]+);/gi, (m, e) => (ENTIDADES[e.toLowerCase()] !== undefined ? ENTIDADES[e.toLowerCase()] : " ")).replace(/\s+/g, " ");
+  const N = "(-?\\d+(?:[.,]\\d+)?)";
+  const trio = (unid) => new RegExp("Atual:\\s*" + N + "\\s*" + unid + "\\s*M.xima:\\s*" + N + "\\s*" + unid + "\\s*M.nima:\\s*" + N + "\\s*" + unid, "i").exec(t);
+  const temp = trio("°C"), umid = trio("%"), pres = trio("hPa");
+  const chuva = new RegExp("Per\\. Atual:\\s*" + N + "\\s*mm\\s*Per\\. Anterior:\\s*" + N + "\\s*mm(?:\\s*Zeramento:\\s*(\\d{2}:\\d{2}))?", "i").exec(t);
+  const vento = new RegExp("Dire..o:\\s*([A-Z]{1,3})\\s*Velocidade:\\s*" + N + "\\s*km/h\\s*Rajada:\\s*" + N + "\\s*km/h", "i").exec(t);
+  const g = (m, i, a, b) => (m ? numeroCge(m[i], a, b) : null);
+  const r = {
+    chuva: { atual: g(chuva, 1, 0, 600), anterior: g(chuva, 2, 0, 600), zeramento: chuva && chuva[3] ? chuva[3] : null },
+    temperatura: { atual: g(temp, 1, -15, 55), max: g(temp, 2, -15, 55), min: g(temp, 3, -15, 55) },
+    umidade: { atual: g(umid, 1, 0, 100), max: g(umid, 2, 0, 100), min: g(umid, 3, 0, 100) },
+    pressao: { atual: g(pres, 1, 800, 1100), max: g(pres, 2, 800, 1100), min: g(pres, 3, 800, 1100) },
+    vento: { direcao: vento ? vento[1].toUpperCase() : null, velocidade: g(vento, 2, 0, 300), rajada: g(vento, 3, 0, 300) }
+  };
+  const algum = [r.chuva.atual, r.chuva.anterior, r.temperatura.atual, r.umidade.atual, r.pressao.atual, r.vento.velocidade].some((v) => v !== null);
+  if (!algum) throw new Error("não encontrei nenhuma medição na página do CGE (o layout pode ter mudado)");
+  return r;
+}
+
+async function rotaCge(request, env, cors) {
+  const json = { ...cors, "Content-Type": "application/json; charset=utf-8" };
+  const posto = new URL(request.url).searchParams.get("posto") || "1000880";
+  if (!Object.prototype.hasOwnProperty.call(POSTOS_CGE, posto)) {
+    return new Response(JSON.stringify({ erro: "posto não autorizado" }), { status: 400, headers: { ...json, "Cache-Control": "no-store" } });
+  }
+  const buscar = env && typeof env.buscar === "function" ? env.buscar : fetch;
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 10000);
+  try {
+    const r = await buscar(URL_CGE + posto, { signal: ctl.signal, headers: { "User-Agent": USER_AGENT }, cf: { cacheTtl: 300, cacheEverything: true } });
+    if (!r.ok) throw new Error("CGE respondeu HTTP " + r.status);
+    const dados = lerPostoCge(await r.text());
+    // A página do CGE NÃO informa a hora da leitura: "consultadoEm" é a hora desta consulta, não a da medição.
+    const corpo = JSON.stringify({ posto, nome: POSTOS_CGE[posto], fonte: URL_CGE + posto, consultadoEm: new Date().toISOString(), horaDaLeituraInformada: false, ...dados });
+    return new Response(request.method === "HEAD" ? null : corpo, { headers: { ...json, "Cache-Control": "public, max-age=120, stale-while-revalidate=300", "X-Content-Type-Options": "nosniff" } });
+  } catch (e) {
+    const msg = e && e.name === "AbortError" ? "CGE não respondeu em 10 s" : String(e && e.message ? e.message : e);
+    return new Response(JSON.stringify({ erro: msg }), { status: 502, headers: { ...json, "Cache-Control": "no-store" } });
+  } finally { clearTimeout(t); }
+}
+
 export default {
   async fetch(request, env = {}) {
     const origem = request.headers.get("Origin");
@@ -96,6 +153,7 @@ export default {
     if (request.method !== "GET" && request.method !== "HEAD") {
       return new Response("Método não permitido", { status: 405, headers: cors });
     }
+    if (new URL(request.url).pathname === "/cge") return rotaCge(request, env, cors);
     try {
       // A Cloudflare guarda a resposta do CEMADEN por 5 min: protege o CEMADEN e acelera o painel.
       const opcoesBusca = {

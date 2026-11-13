@@ -59,6 +59,7 @@ test("scripts usados por uma página são carregados antes de quem depende deles
     "climatologia.js": ["fontes.js"],
     "extremos.js": ["estacao.js"],
     "guia.js": ["guia-dados.js"],
+    "externas.js": ["config.js"],
     "guia-publicar.js": ["publicar.js", "guia-dados.js"],
     "publicar.js": ["fontes.js", "inmet.js", "estacao.js", "queimadas.js", "deslizamento.js", "publicacao.js"],
     "historico.js": ["estacao.js", "deslizamento.js"],
@@ -178,7 +179,7 @@ test("toda página tem a mesma estrutura: atalho de pular, cabeçalho e menu ant
 });
 
 test("os elementos que cada script procura pelo id existem na página dele", () => {
-  const pares = { "guia-publicar.js": "publicar.html", "guia.js": "guia.html", "extremos.js": "extremos.html", "painel.js": "index.html", "painel-base.js": "index.html", "painel-deslizamento.js": "index.html", "painel-fogo.js": "index.html", "painel-mapa.js": "index.html", "painel-clima.js": "index.html", "quadro.js": "quadro.html", "observacoes.js": "observacoes.html", "historico.js": "historico.html", "comparar.js": "comparar.html", "publicar.js": "publicar.html" };
+  const pares = { "externas.js": "externas.html", "guia-publicar.js": "publicar.html", "guia.js": "guia.html", "extremos.js": "extremos.html", "painel.js": "index.html", "painel-base.js": "index.html", "painel-deslizamento.js": "index.html", "painel-fogo.js": "index.html", "painel-mapa.js": "index.html", "painel-clima.js": "index.html", "quadro.js": "quadro.html", "observacoes.js": "observacoes.html", "historico.js": "historico.html", "comparar.js": "comparar.html", "publicar.js": "publicar.html" };
   // ids criados pelo próprio script (não precisam estar no HTML)
   const criadosPeloJs = /\.id\s*=\s*["']([^"']+)["']|\bid=\\?"([^"\\]+)\\?"/g;
   for (const [js, pagina] of Object.entries(pares)) {

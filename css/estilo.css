@@ -573,3 +573,9 @@ body.modo-tv #btnSairTv:hover,body.modo-tv #btnSairTv:focus{opacity:1}
 .guia-saida[data-tom="2"]{border-left-color:#f97316}
 .guia-saida[data-tom="3"]{border-left-color:#dc2626}
 .guia-faixa,.guia-fonte,.guia-nota{font-size:.85rem}
+
+/* Aba "Outras fontes" */
+.ext-grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px}
+.ext-bloco{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--card)}
+.ext-bloco h3{margin:0 0 6px;font-size:.95rem}
+.ext-bloco p{margin:2px 0;font-size:.9rem}

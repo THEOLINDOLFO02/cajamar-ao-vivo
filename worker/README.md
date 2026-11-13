@@ -22,3 +22,6 @@ O painel volta sozinho para o arquivo do robô do GitHub (`data/cemaden.json`) e
 ## Windy
 
 A rota `/windy` foi removida em 10/11/2026: a Windy deixou de entregar o que o sistema precisava (a chave gratuita só devolve dados de teste). Se o secret `WINDY_POINT_KEY` ainda existir no Worker, pode apagá-lo em **Settings → Variables and Secrets**.
+
+## Rota `/cge` (estação do CGE por raspagem)
+O Worker também lê a página pública do CGE (posto 1000880 Santana de Parnaíba; 504 Perus; 515 Pirituba) e devolve JSON em `/cge?posto=1000880`. Para ativar: cole o `cemaden-proxy.js` atualizado no editor do Worker e publique. Não precisa de chave. Chaves de outros serviços, se um dia forem usadas, ficam só em *Settings > Variables and Secrets* do Worker, nunca no repositório.

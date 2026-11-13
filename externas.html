@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light dark">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Outras Fontes</title>
+<meta name="theme-color" content="#0b6e8f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cajamar Clima">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/logo-dc-cajamar.jpg">
+<link rel="stylesheet" href="css/estilo.css">
+<script src="js/ui.js" defer></script>
+</head>
+<body>
+<a class="pular" href="#conteudo">Pular para o conteúdo</a>
+<header class="topo">
+  <a class="marca" href="index.html"><img src="assets/logo-dc-cajamar.jpg" alt="" width="46" height="46"><span><strong>Cajamar ao Vivo</strong><small>Defesa Civil · acompanhamento auxiliar</small></span></a>
+  <div class="topo-acoes"><button id="btnTema" type="button" class="btn-icone" aria-label="Alternar tema: automático, claro ou escuro" title="Tema: automático">◐</button></div>
+</header>
+<nav class="nav-bar" aria-label="Navegação principal">
+      <a href="index.html">Painel ao vivo</a>
+      <a href="quadro.html">Quadro de ocorrências</a>
+      <a href="observacoes.html">Observações manuais</a>
+      <a href="historico.html">Histórico da estação</a>
+      <a href="publicar.html">Gerar publicação</a>
+      <a href="comparar.html">Previsão × medido</a>
+      <a href="extremos.html">Recordes e extremos</a>
+      <a href="guia.html">Guia de valores</a>
+      <a href="externas.html" class="ativo" aria-current="page">Outras fontes</a>
+    </nav>
+<main id="conteudo">
+  <div class="pagina-cab"><h1>Outras fontes</h1><p class="sub">Estação vizinha do CGE e atalhos para radar e satélite</p></div>
+  <div class="aux aux-curto">ⓘ Dados de <b>outras instituições</b>, para comparar com Cajamar. Não substituem os equipamentos e os avisos oficiais.
+    <details><summary>Como funciona</summary>O CGE (Prefeitura de São Paulo) não tem API: o Worker da Cloudflare lê a página pública do posto e entrega só os números. Nenhuma chave de acesso fica neste site.</details>
+  </div>
+
+  <section class="card" id="secCge">
+    <h2>🌦️ Estação do CGE mais próxima</h2>
+    <div class="filtro-periodo" style="margin:0 0 8px">
+      <label for="cgePosto">Posto:
+        <select id="cgePosto">
+          <option value="1000880">Santana de Parnaíba (mais próxima)</option>
+          <option value="504">Perus</option>
+          <option value="515">Pirituba</option>
+        </select>
+      </label>
+      <button id="cgeAtualizar" type="button" class="btn small">🔄 Atualizar</button>
+    </div>
+    <p id="cgeMsg" class="mut" aria-live="polite"></p>
+    <div id="cgeSaida"></div>
+  </section>
+
+  <section class="card" id="secLinks">
+    <h2>🛰️ Radar e satélite (abre em outra aba)</h2>
+    <p class="mut" style="margin:0 0 8px;font-size:.88rem">Sites de terceiros: o conteúdo e a disponibilidade são deles. Os links só abrem a página; este sistema não copia nem republica as imagens.</p>
+    <div class="barra-acoes">
+      <a class="btn" href="https://www.ipmetradar.com.br/2radarCidades.php" target="_blank" rel="noopener noreferrer">📡 IPMet · Radar por cidade</a>
+      <a class="btn" href="https://www.ipmetradar.com.br/2mobileGis.php" target="_blank" rel="noopener noreferrer">🗺️ IPMet · Radar em mapa</a>
+      <a class="btn" href="https://www.ipmetradar.com.br/2animRadar.php" target="_blank" rel="noopener noreferrer">🎞️ IPMet · Animação do radar</a>
+      <a class="btn" href="https://www.ipmetradar.com.br/2satGis.php" target="_blank" rel="noopener noreferrer">🛰️ IPMet · Satélite em mapa</a>
+      <a class="btn" href="https://www.ipmetradar.com.br/2satelite.php" target="_blank" rel="noopener noreferrer">☁️ IPMet · Satélite</a>
+      <a class="btn" href="https://www.meteored.com.br/radar/" target="_blank" rel="noopener noreferrer">📡 Meteored · Radar de chuva</a>
+      <a class="btn" href="https://www.meteored.com.br/cajamar.htm" target="_blank" rel="noopener noreferrer">🌦️ Meteored · Previsão de Cajamar</a>
+      <a class="btn" href="https://www.cgesp.org/v3/estacoes-meteorologicas.jsp" target="_blank" rel="noopener noreferrer">🌧️ CGE · Todas as estações</a>
+      <a class="btn" href="https://avisos.inmet.gov.br/" target="_blank" rel="noopener noreferrer">⚠️ INMET · Mapa de avisos</a>
+    </div>
+  </section>
+</main>
+<script src="js/config.js"></script>
+<script src="js/externas.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() { navigator.serviceWorker.register('./sw.js').catch(function(){}); });
+}
+</script>
+</body>
+</html>
