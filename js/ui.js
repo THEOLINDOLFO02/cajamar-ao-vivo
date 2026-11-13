@@ -21,9 +21,20 @@
       aplicarTema(prox);
     };
 
-    // ---------- menu: deixa o item da página atual visível no celular ----------
-    var ativo = document.querySelector(".nav-bar a.ativo");
-    if (ativo && ativo.scrollIntoView) { try { ativo.scrollIntoView({ inline: "center", block: "nearest" }); } catch (e) {} }
+    // ---------- menu principal: grupos recolhidos atrás do botão "Menu" (sem JavaScript, ficam todos visíveis) ----------
+    var navBar = document.querySelector(".nav-bar"), navBtn = document.getElementById("navToggle"), navGrupos = document.getElementById("navGrupos");
+    if (navBar && navBtn && navGrupos) {
+      navBar.classList.add("nav-js");
+      var fecharMenu = function () { navGrupos.classList.remove("aberto"); navBtn.setAttribute("aria-expanded", "false"); };
+      navBtn.onclick = function (e) {
+        e.stopPropagation();
+        var abrir = !navGrupos.classList.contains("aberto");
+        navGrupos.classList.toggle("aberto", abrir); navBtn.setAttribute("aria-expanded", String(abrir));
+        if (abrir) { var a1 = navGrupos.querySelector("a.ativo") || navGrupos.querySelector("a"); if (a1) a1.focus(); }
+      };
+      document.addEventListener("click", function (e) { if (!navBar.contains(e.target)) fecharMenu(); });
+      document.addEventListener("keydown", function (e) { if (e.key === "Escape" && navGrupos.classList.contains("aberto")) { fecharMenu(); navBtn.focus(); } });
+    }
 
     // ---------- textos explicativos: ficam atrás de um botão ⓘ ----------
     document.querySelectorAll(".card > .card-sub").forEach(function (sub) {
@@ -50,7 +61,7 @@
     abrirAlvo();
 
     // ---------- atalhos de seção: destaca a seção visível e mostra "voltar ao topo" ----------
-    var links = document.querySelectorAll(".atalhos a[href^='#']");
+    var links = document.querySelectorAll(".atalhos:not([data-abas]) a[href^='#']");
     var btnTopo = document.getElementById("btnTopo");
     if (links.length && "IntersectionObserver" in window) {
       var porId = {};

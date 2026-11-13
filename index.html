@@ -5,7 +5,7 @@
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Cajamar ao Vivo</title>
-<meta name="theme-color" content="#0b6e8f">
+<meta name="theme-color" content="#0a3d86">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Cajamar Clima">
@@ -24,20 +24,38 @@
   <div class="topo-acoes"><button id="btnTema" type="button" class="btn-icone" aria-label="Alternar tema: automático, claro ou escuro" title="Tema: automático">◐</button></div>
 </header>
 <nav class="nav-bar" aria-label="Navegação principal">
+  <button type="button" class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="navGrupos"><span class="nav-ic" aria-hidden="true">☰</span> Menu <small>· Painel ao vivo</small></button>
+  <div class="nav-grupos" id="navGrupos">
+    <div class="nav-grupo" role="group" aria-label="Monitoramento"><span class="nav-rot">Monitoramento</span>
       <a href="index.html" class="ativo" aria-current="page">Painel ao vivo</a>
+      <a href="comparar.html">Previsão × medido</a>
+      <a href="externas.html">Outras fontes</a>
+    </div>
+    <div class="nav-grupo" role="group" aria-label="Registros"><span class="nav-rot">Registros</span>
       <a href="quadro.html">Quadro de ocorrências</a>
       <a href="observacoes.html">Observações manuais</a>
       <a href="historico.html">Histórico da estação</a>
-      <a href="publicar.html">Gerar publicação</a>
-      <a href="comparar.html">Previsão × medido</a>
+    </div>
+    <div class="nav-grupo" role="group" aria-label="Análise e divulgação"><span class="nav-rot">Análise e divulgação</span>
       <a href="extremos.html">Recordes e extremos</a>
       <a href="guia.html">Guia de valores</a>
-      <a href="externas.html">Outras fontes</a>
-    </nav>
+      <a href="publicar.html">Gerar publicação</a>
+    </div>
+  </div>
+</nav>
 <main id="conteudo">
   <div class="pagina-cab"><h1>Painel ao vivo</h1><p class="sub">Tempo, avisos oficiais, chuva e risco em Cajamar</p></div>
+  <nav class="atalhos abas" data-abas="1" aria-label="Seções do painel">
+    <a href="#situacao" data-aba="resumo">Resumo</a>
+    <a href="#chuva" data-aba="chuva">Chuva e encostas</a>
+    <a href="#previsao" data-aba="previsao">Previsão</a>
+    <a href="#mapaCard" data-aba="mapa">Mapa e satélite</a>
+    <a href="#fogoCard" data-aba="fogo">Fogo</a>
+    <a href="#ar-sec" data-aba="ar">Ar e UV</a>
+    <a href="#fontes-det" data-aba="dados">Dados e fontes</a>
+  </nav>
 
-  <section class="hero" id="situacao" data-nivel="incerto" aria-labelledby="heroTitulo">
+  <section class="hero" id="situacao" data-aba="resumo" data-nivel="incerto" aria-labelledby="heroTitulo">
     <div>
       <p class="hero-rotulo">Situação agora · Cajamar</p>
       <h2 class="hero-titulo" id="heroTitulo" aria-live="polite">Consultando as fontes oficiais…</h2>
@@ -52,34 +70,32 @@
       <button id="btnModoTv" type="button" class="btn" title="Tela cheia com letras maiores, para telão ou TV">📺 Modo TV</button>
       <button id="btnAlertaSom" type="button" class="btn" title="Ativar aviso sonoro para emergências meteorológicas e focos de fogo">🔔 Alerta sonoro: desligado</button>
     </div>
+    <details class="hero-detalhes" id="agora-sec"><summary>Mais condições agora (sensação, umidade, rajadas)</summary><div id="agora" class="mut carregando">Carregando…</div></details>
     <details class="hero-nota mut"><summary>ⓘ Sobre estes dados</summary><p>Dados auxiliares: não substituem INMET, CEMADEN, INPE e CENSIPAM. Confirme na fonte oficial antes de decidir.</p></details>
   </section>
 
-  <nav class="atalhos" aria-label="Ir para uma seção desta página">
-    <a href="#avisos">Avisos</a><a href="#agora-sec">Agora</a><a href="#ar-sec">Ar e UV</a><a href="#chuva">Chuva</a><a href="#deslizamentoCard">Deslizamento</a><a href="#mapaCard">Mapa</a><a href="#previsao">Previsão</a><a href="#fogoCard">Fogo</a>
-  </nav>
+  
 
-  <section class="card" id="avisos"><h2>Avisos oficiais do INMET</h2><div id="alertas" class="mut carregando">Carregando…</div></section>
+  <section class="card" id="avisos" data-aba="resumo"><h2>Avisos oficiais do INMET</h2><div id="alertas" class="mut carregando">Carregando…</div></section>
 
-  <section class="card" id="agora-sec"><h2>Agora em Cajamar</h2><div id="agora" class="mut carregando">Carregando…</div></section>
-
-  <section class="card" id="ar-sec">
+    <section class="card" id="ar-sec" data-aba="ar">
     <h2>Qualidade do ar e UV</h2>
     <p class="card-sub">Índice do ar (US AQI) e radiação ultravioleta para Cajamar</p>
     <div id="ar" class="mut carregando">Carregando…</div>
   </section>
 
-  <section class="card" id="chuva"><h2>Chuva observada</h2>
-    <p class="card-sub">Pluviômetros do CEMADEN em Cajamar e região</p><div id="cemaden" class="mut carregando">Carregando…</div></section>
+  <section class="card" id="chuva" data-aba="chuva"><h2>Chuva observada</h2>
+    <p class="card-sub">Pluviômetros do CEMADEN em Cajamar e região</p>
+    <div class="barra-acoes"><button type="button" class="btn small" data-ir-aba="mapa" data-modo="radar">🌧️ Ver radar de chuva no mapa</button></div><div id="cemaden" class="mut carregando">Carregando…</div></section>
 
-  <details class="colapso" id="normal-sec">
+  <details class="colapso" id="normal-sec" data-aba="chuva">
     <summary><span>Chuva recente × normal<small>Comparação com a média de 30 anos (1991-2020)</small></span></summary>
     <div class="colapso-corpo">
     <div id="normal" class="mut carregando">Carregando…</div>
     </div>
   </details>
 
-  <section class="card" id="deslizamentoCard">
+  <section class="card" id="deslizamentoCard" data-aba="chuva">
     <div class="card-head"><h2>⛰️ Indicador pluviométrico de encostas (referencial)</h2></div>
     <p class="card-sub">Critério REFERENCIAL de chuva em 1 h, 24 h e 168 h (Pinheiro et al., 2005; AlertaRio, 2013) — não homologado pela Defesa Civil de Cajamar e não é classificação oficial de risco</p>
     <p class="mut" style="margin:4px 0 8px;font-size:.85rem"><strong>Indicadores pluviométricos de referência. Não substituem vistoria técnica, avaliação de campo ou decisão da autoridade competente.</strong></p>
@@ -136,7 +152,7 @@
     </details>
   </section>
 
-  <section class="card" id="mapaCard">
+  <section class="card" id="mapaCard" data-aba="mapa">
     <div class="card-head">
       <h2>Mapa: radar, satélite e focos de fogo</h2>
       <div class="card-ferramentas">
@@ -165,30 +181,31 @@
     </details>
   </section>
 
-  <section class="card" id="previsao"><h2>Previsão oficial do INMET</h2><div id="prevInmet" class="mut carregando">Carregando…</div></section>
+  <section class="card" id="previsao" data-aba="previsao"><h2>Previsão oficial do INMET</h2><div id="prevInmet" class="mut carregando">Carregando…</div></section>
 
-  <details class="colapso" id="horas-sec">
+  <details class="colapso" id="horas-sec" data-aba="previsao">
     <summary><span>Chuva prevista nas próximas 24 h<small>Milímetros por hora, modelo Open-Meteo (não é medição)</small></span></summary>
     <div class="colapso-corpo">
     <div id="horas" class="mut carregando">Carregando…</div><p id="tot24" class="mut" style="margin:8px 0 0"></p>
     </div>
   </details>
 
-  <details class="colapso" id="modelos-sec">
+  <details class="colapso" id="modelos-sec" data-aba="previsao">
     <summary><span>Incerteza da previsão de chuva<small>Os principais modelos comparados para Cajamar</small></span></summary>
     <div class="colapso-corpo">
     <div id="modelos" class="mut carregando">Carregando…</div>
     </div>
   </details>
 
-  <details class="colapso" id="dias-sec">
+  <details class="colapso" id="dias-sec" data-aba="previsao">
     <summary><span>Próximos 7 dias<small>Mínima, máxima e chuva prevista por dia</small></span></summary>
     <div class="colapso-corpo"><div class="tw mut carregando" id="dias">Carregando…</div></div>
   </details>
 
-  <section class="card" id="fogoCard">
+  <section class="card" id="fogoCard" data-aba="fogo">
     <div class="card-head"><h2>🔥 Fogo e queimadas</h2></div>
     <p class="card-sub">Focos de calor por satélite (INPE, NASA, CENSIPAM) e condição do tempo para fogo</p>
+    <div class="barra-acoes"><button type="button" class="btn small" data-ir-aba="mapa" data-modo="fogo_sat">🛰️ Ver satélite e focos no mapa</button></div>
     <details class="mais-acoes"><summary>⚙ Filtros: satélite e raio</summary>
     <div class="filtro-periodo">
         <label for="fSatelite">Satélite:</label>
@@ -216,12 +233,12 @@
     <div id="fogo" class="mut carregando">Consultando satélites de queimadas (INPE BDQueimadas)…</div>
   </section>
 
-  <details class="colapso" id="fontes-det">
+  <details class="colapso" id="fontes-det" data-aba="dados">
     <summary><span>Estado das fontes<small id="fontesResumo">Consultando…</small></span></summary>
     <div class="colapso-corpo"><ul class="fontes" id="fontes" aria-live="polite"></ul></div>
   </details>
 
-  <details class="colapso" id="backup">
+  <details class="colapso" id="backup" data-aba="dados">
     <summary><span>💾 Backup dos dados deste aparelho<small>Ocorrências, observações, estações e cotas do rio</small></span></summary>
     <div class="colapso-corpo">
     <p class="mut" style="margin:0 0 8px;font-size:.84rem">Exporte ou restaure em 1 clique todos os dados salvos neste navegador (histórico das 5 estações meteorológicas, régua do rio, cotas de cheia, ocorrências do plantão e observações manuais) para transferir entre computadores ou celulares da equipe.</p>
@@ -234,7 +251,7 @@
   </div>
   </details>
 
-  <details class="colapso links" id="links"><summary><span>Fontes oficiais para conferir<small>INMET, SAISP, RainViewer, INPE, CENSIPAM e outras</small></span></summary><div class="colapso-corpo">
+  <details class="colapso links" id="links" data-aba="mapa"><summary><span>Fontes de chuva, radar e satélite<small>INMET, SAISP, RainViewer, GOES e outras</small></span></summary><div class="colapso-corpo">
     <div class="links-grupo">
       <strong>🌧️ Clima, Chuva e Radar:</strong>
       <a href="https://previsao.inmet.gov.br/3509205" target="_blank" rel="noopener">INMET Cajamar</a>
@@ -244,17 +261,19 @@
       <a href="https://sma.fundacaoabc.org/monitoramento/satelite/goes_16_cptec" target="_blank" rel="noopener">Satélite GOES-16 / CPTEC</a>
       <a href="https://www.accuweather.com/pt/br/cajamar/36484/satellite/36484" target="_blank" rel="noopener">Satélite AccuWeather Cajamar</a>
     </div>
-    <div class="links-grupo" style="margin-top:8px">
+  </div></details>
+
+  <details class="colapso links" id="links-fogo" data-aba="fogo"><summary><span>Fontes de fogo e área queimada<small>CENSIPAM, INPE, ALARMES e NASA</small></span></summary><div class="colapso-corpo">
+    <div class="links-grupo">
       <strong>🔥 Monitoramento de Fogo e Área Queimada:</strong>
       <a href="https://panorama.sipam.gov.br/painel-do-fogo" target="_blank" rel="noopener">Painel do Fogo (CENSIPAM)</a>
       <a href="https://data.inpe.br/queimadas/bdqueimadas/#" target="_blank" rel="noopener">BDQueimadas (INPE)</a>
       <a href="https://alarmes.lasa.ufrj.br/area-queimada/" target="_blank" rel="noopener">ALARMES Área Queimada (LASA/UFRJ)</a>
       <a href="https://www.earthdata.nasa.gov/data/catalog/lpcloud-mcd64a1-061" target="_blank" rel="noopener">NASA Burned Area (MCD64A1)</a>
     </div>
-    </div>
-  </details>
+  </div></details>
 
-  <details class="mut creditos"><summary>Créditos e fontes de dados</summary><p style="font-size:.8rem">Previsão: Open-Meteo (modelo, não é medição). Avisos: API oficial do INMET (reserva: radarmeteorologico.com.br, terceiro, só se a oficial falhar). Radar: RainViewer. Satélites e Focos de Calor: INPE BDQueimadas (GOES-19, NPP-375 Manhã/Tarde, NOAA-20, NOAA-21, METOP-B/C, MSG-03, AQUA/TERRA) e camadas NASA GIBS (GOES-East / VIIRS / MODIS). Veja o README para créditos e licenças.</p></details>
+  <details class="mut creditos" data-aba="dados"><summary>Créditos e fontes de dados</summary><p style="font-size:.8rem">Previsão: Open-Meteo (modelo, não é medição). Avisos: API oficial do INMET (reserva: radarmeteorologico.com.br, terceiro, só se a oficial falhar). Radar: RainViewer. Satélites e Focos de Calor: INPE BDQueimadas (GOES-19, NPP-375 Manhã/Tarde, NOAA-20, NOAA-21, METOP-B/C, MSG-03, AQUA/TERRA) e camadas NASA GIBS (GOES-East / VIIRS / MODIS). Veja o README para créditos e licenças.</p></details>
 </main>
 <button id="btnTopo" type="button" class="btn-topo" aria-label="Voltar ao topo" hidden>↑</button>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -278,6 +297,7 @@
 <script src="js/painel-mapa.js"></script>
 <script src="js/painel-clima.js"></script>
 <script src="js/painel.js"></script>
+<script src="js/painel-abas.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() { navigator.serviceWorker.register('./sw.js').catch(function(){}); });

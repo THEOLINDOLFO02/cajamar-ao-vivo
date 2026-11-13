@@ -27,16 +27,12 @@
       var j = r.dados, c = j.current, a = $("agora");
       a.textContent = ""; a.className = "";
       aviso(a, r);
-      var n = el("div", "now");
-      n.appendChild(el("b", "", typeof c.temperature_2m === "number" ? Math.round(c.temperature_2m) + "°C" : "—"));
+      // temperatura, chuva e vento já aparecem no resumo do topo: aqui ficam só os detalhes que ele não mostra
       var descWmo = wmoTexto(c.weather_code);
-      n.appendChild(el("span", "mut", "em Cajamar" + (descWmo ? " · " + descWmo : "") + " · dado do modelo das " + String(c.time).slice(11, 16)));
-      a.appendChild(n);
+      a.appendChild(el("p", "mut now-linha", (descWmo ? descWmo + " · " : "") + "dado do modelo das " + String(c.time).slice(11, 16) + ". A temperatura, a chuva e o vento estão no resumo acima."));
       var k = el("div", "k"); a.appendChild(k);
       var intervaloMin = SerieOM.intervaloCurrentMin(c);
-      var textoVento = typeof c.wind_speed_10m === "number" ? num(c.wind_speed_10m, 0) + " km/h" : "—";
       if (typeof c.wind_gusts_10m === "number" && c.wind_gusts_10m > 0) {
-        textoVento += " (rajadas " + num(c.wind_gusts_10m, 0) + " km/h)";
         if (c.wind_gusts_10m >= 50) {
           notificarRisco("💨 Rajada de Vento Elevada", "Rajada prevista de " + Math.round(c.wind_gusts_10m) + " km/h para Cajamar. Risco de queda de árvores.");
         }
@@ -44,8 +40,7 @@
       var itens = [
         ["Sensação", (typeof c.apparent_temperature === "number" ? Math.round(c.apparent_temperature) + "°C" : "—")],
         ["Umidade", num(c.relative_humidity_2m, 0) + "%"],
-        [intervaloMin ? "Chuva (últimos " + intervaloMin + " min)" : "Chuva (intervalo não informado)", typeof c.precipitation === "number" ? num(c.precipitation) + " mm" : "—"],
-        ["Vento e rajadas", textoVento]
+        ["Rajadas", typeof c.wind_gusts_10m === "number" && c.wind_gusts_10m > 0 ? num(c.wind_gusts_10m, 0) + " km/h" : "sem rajadas"]
       ];
       itens.forEach(function (p) {
         var d = el("div"); d.appendChild(el("span", "", p[0])); d.appendChild(el("strong", "", p[1])); k.appendChild(d);

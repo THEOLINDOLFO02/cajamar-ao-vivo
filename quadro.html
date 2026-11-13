@@ -5,7 +5,7 @@
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Quadro de Ocorrências</title>
-<meta name="theme-color" content="#0b6e8f">
+<meta name="theme-color" content="#0a3d86">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Cajamar Clima">
@@ -21,16 +21,25 @@
   <div class="topo-acoes"><button id="btnTema" type="button" class="btn-icone" aria-label="Alternar tema: automático, claro ou escuro" title="Tema: automático">◐</button></div>
 </header>
 <nav class="nav-bar" aria-label="Navegação principal">
+  <button type="button" class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="navGrupos"><span class="nav-ic" aria-hidden="true">☰</span> Menu <small>· Quadro de ocorrências</small></button>
+  <div class="nav-grupos" id="navGrupos">
+    <div class="nav-grupo" role="group" aria-label="Monitoramento"><span class="nav-rot">Monitoramento</span>
       <a href="index.html">Painel ao vivo</a>
+      <a href="comparar.html">Previsão × medido</a>
+      <a href="externas.html">Outras fontes</a>
+    </div>
+    <div class="nav-grupo" role="group" aria-label="Registros"><span class="nav-rot">Registros</span>
       <a href="quadro.html" class="ativo" aria-current="page">Quadro de ocorrências</a>
       <a href="observacoes.html">Observações manuais</a>
       <a href="historico.html">Histórico da estação</a>
-      <a href="publicar.html">Gerar publicação</a>
-      <a href="comparar.html">Previsão × medido</a>
+    </div>
+    <div class="nav-grupo" role="group" aria-label="Análise e divulgação"><span class="nav-rot">Análise e divulgação</span>
       <a href="extremos.html">Recordes e extremos</a>
       <a href="guia.html">Guia de valores</a>
-      <a href="externas.html">Outras fontes</a>
-    </nav>
+      <a href="publicar.html">Gerar publicação</a>
+    </div>
+  </div>
+</nav>
 <main class="wrap" id="conteudo">
   <div class="pagina-cab"><h1>Quadro de ocorrências</h1><p class="sub">Registro rápido da equipe, salvo só neste aparelho</p></div>
   

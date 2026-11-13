@@ -269,3 +269,24 @@ test("regressão: observacoes.js e quadro.js não referenciam KEY indefinida em 
   assert.match(mapaSrc, /focarFoco\s*:\s*focarFocoNoMapa/, "painel-mapa.js deve expor focarFoco em P.mapa");
   assert.match(fogoSrc, /P\.mapa\.focarFoco\b/, "painel-fogo.js deve acionar P.mapa.focarFoco");
 });
+
+test("painel em abas: cada aba tem link com destino existente e todo bloco pertence a uma aba conhecida", () => {
+  const html = readFileSync(join(RAIZ, "index.html"), "utf8");
+  const barra = /<nav class="atalhos abas"[\s\S]*?<\/nav>/.exec(html);
+  assert.ok(barra, "index.html deve ter a barra de abas");
+  const abas = [...barra[0].matchAll(/<a href="#([^"]+)" data-aba="([^"]+)"/g)].map((m) => ({ alvo: m[1], aba: m[2] }));
+  assert.ok(abas.length >= 6, "deveria haver ao menos 6 abas");
+  for (const a of abas) {
+    assert.ok(html.includes(`id="${a.alvo}"`), `a aba ${a.aba} aponta para #${a.alvo}, que não existe`);
+    const tag = new RegExp(`<[a-z]+[^>]*id="${a.alvo}"[^>]*>`).exec(html)[0];
+    assert.ok(tag.includes(`data-aba="${a.aba}"`), `#${a.alvo} deveria pertencer à aba ${a.aba}`);
+  }
+  const nomes = new Set(abas.map((a) => a.aba));
+  const blocos = [...html.matchAll(/<(?:section|details)[^>]*data-aba="([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(blocos.length > 10);
+  for (const b of blocos) assert.ok(nomes.has(b), `bloco com aba desconhecida: ${b}`);
+  // ids que o JavaScript do painel preenche continuam existindo
+  for (const id of ["agora", "alertas", "cemaden", "fogo", "mapa", "deslizamentoPainel", "prevInmet"]) assert.ok(html.includes(`id="${id}"`), `perdeu #${id}`);
+  // o resumo do topo e o card "Agora" não repetem mais temperatura, chuva e vento
+  assert.ok(!html.includes('<section class="card" id="agora-sec">'));
+});
