@@ -54,13 +54,23 @@ test("a rota padrão do Worker continua sendo o CEMADEN", async () => {
   assert.match(pedida, /cemaden/);
 });
 
-test("Externas.validar avisa quando o Worker publicado é antigo (devolve o JSON do CEMADEN)", () => {
+test("Externas.validar: arquivo ausente, posto ausente e posto lido", () => {
   const win = carregarScript("js/externas.js");
-  assert.match(win.Externas.validar({ estacoes: [], coletadoEm: "x" }), /rota \/cge/);
-  assert.match(win.Externas.validar({ erro: "HTTP 500" }), /não respondeu/);
-  assert.equal(win.Externas.validar({ posto: "1", temperatura: {}, chuva: {} }), null);
+  assert.match(win.Externas.validar(null, "1000880"), /Ainda não há leitura/);
+  assert.match(win.Externas.validar({ postos: {}, falhas: { 1000880: "HTTP 503" } }, "1000880"), /HTTP 503/);
+  assert.equal(win.Externas.validar({ postos: { 1000880: {} } }, "1000880"), null);
   assert.equal(win.Externas.fmt(null, "mm"), "sem dado");
   assert.equal(win.Externas.fmt(5.4, "mm"), "5,4 mm");
+});
+
+test("robô do CGE: grava os postos lidos, tolera um posto com falha e recusa quando todos falham", async () => {
+  const { coletar } = await import("../scripts/coletar-cge.mjs");
+  const ok = await coletar({ buscar: async (u) => (u.endsWith("=504") ? new Response("x", { status: 503 }) : new Response(html, { status: 200 })) });
+  assert.deepEqual(Object.keys(ok.postos).sort(), ["1000880", "515"]);
+  assert.match(ok.falhas["504"], /503/);
+  assert.equal(ok.horaDaLeituraInformada, false);
+  assert.equal(ok.postos["1000880"].temperatura.atual, 25);
+  await assert.rejects(coletar({ buscar: async () => new Response("x", { status: 503 }) }), /nenhum posto/);
 });
 
 test("segurança: nenhum arquivo do site contém chave de API (sequência longa em hexadecimal ou appid/apikey com valor)", () => {

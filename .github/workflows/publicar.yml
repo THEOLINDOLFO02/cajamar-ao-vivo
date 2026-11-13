@@ -45,6 +45,10 @@ jobs:
       - name: Coletar CEMADEN
         continue-on-error: ${{ github.event_name != 'schedule' }}
         run: node scripts/coletar-cemaden.mjs data/cemaden.json
+      # CGE (estações vizinhas): se falhar, o site é publicado sem esse arquivo e a aba avisa que não há leitura.
+      - name: Coletar CGE
+        continue-on-error: true
+        run: node scripts/coletar-cge.mjs data/cge.json
       - name: Montar site
         run: |
           mkdir _site
@@ -53,6 +57,7 @@ jobs:
           if [ -f manifest.json ]; then cp manifest.json _site/; fi
           if [ -f sw.js ]; then cp sw.js _site/; fi
           if [ -f data/cemaden.json ]; then mkdir -p _site/data && cp data/cemaden.json _site/data/; fi
+          if [ -f data/cge.json ]; then mkdir -p _site/data && cp data/cge.json _site/data/; fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

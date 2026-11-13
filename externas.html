@@ -34,7 +34,7 @@
 <main id="conteudo">
   <div class="pagina-cab"><h1>Outras fontes</h1><p class="sub">Estação vizinha do CGE e atalhos para radar e satélite</p></div>
   <div class="aux aux-curto">ⓘ Dados de <b>outras instituições</b>, para comparar com Cajamar. Não substituem os equipamentos e os avisos oficiais.
-    <details><summary>Como funciona</summary>O CGE (Prefeitura de São Paulo) não tem API: o Worker da Cloudflare lê a página pública do posto e entrega só os números. Nenhuma chave de acesso fica neste site.</details>
+    <details><summary>Como funciona</summary>O CGE (Prefeitura de São Paulo) não tem API: um robô do GitHub lê a página pública dos postos a cada poucos minutos e guarda só os números. Nenhuma chave de acesso fica neste site.</details>
   </div>
 
   <section class="card" id="secCge">
@@ -69,7 +69,6 @@
     </div>
   </section>
 </main>
-<script src="js/config.js"></script>
 <script src="js/externas.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
