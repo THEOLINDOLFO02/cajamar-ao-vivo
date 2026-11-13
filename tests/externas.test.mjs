@@ -89,3 +89,30 @@ test("segurança: nenhum arquivo do site contém chave de API (sequência longa 
   ler(RAIZ);
   assert.deepEqual(achados, []);
 });
+
+test("PubTextos: edita qualquer texto da arte, guarda por modelo e nunca aplica edição a texto diferente", async () => {
+  const mem = {}; const arm = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = v; } };
+  const win = carregarScript("js/publicar-textos.js");
+  const pt = win.PubTextos.criar(arm);
+  pt.iniciar("flyer_dia", ["Título do campo"]);
+  assert.equal(pt.aplicar("DEFESA CIVIL DE CAJAMAR"), "DEFESA CIVIL DE CAJAMAR");
+  assert.equal(pt.aplicar("Título do campo"), "Título do campo");          // já tem campo próprio: não entra na lista
+  assert.equal(pt.aplicar("—"), "—");                                       // sem letra/número: não entra
+  assert.equal(JSON.stringify(pt.vistos()), JSON.stringify(["DEFESA CIVIL DE CAJAMAR"]));
+  assert.equal(pt.definir("DEFESA CIVIL DE CAJAMAR", "DEFESA CIVIL · CAJAMAR/SP"), true);
+  pt.iniciar("flyer_dia", []);
+  assert.equal(pt.aplicar("DEFESA CIVIL DE CAJAMAR"), "DEFESA CIVIL · CAJAMAR/SP");
+  assert.equal(pt.aplicar("DEFESA CIVIL DE CAJAMAR "), "DEFESA CIVIL DE CAJAMAR ");  // texto diferente: não aplica
+  // outro modelo de panfleto não herda a edição
+  pt.iniciar("flyer_fogo", []);
+  assert.equal(pt.aplicar("DEFESA CIVIL DE CAJAMAR"), "DEFESA CIVIL DE CAJAMAR");
+  // persistência: um núcleo novo lê o que foi gravado
+  const pt2 = win.PubTextos.criar(arm); pt2.iniciar("flyer_dia", []);
+  assert.equal(pt2.aplicar("DEFESA CIVIL DE CAJAMAR"), "DEFESA CIVIL · CAJAMAR/SP");
+  // edição sem uso (o texto original não apareceu neste desenho) é listada e pode ser descartada
+  pt2.iniciar("flyer_dia", []); pt2.aplicar("outro texto");
+  assert.equal(JSON.stringify(pt2.semUso()), JSON.stringify(["DEFESA CIVIL DE CAJAMAR"]));
+  pt2.descartarSemUso(); assert.equal(pt2.total(), 0);
+  // vazio ou igual ao original remove a edição
+  pt2.definir("x1", "y"); assert.equal(pt2.total(), 1); pt2.definir("x1", ""); assert.equal(pt2.total(), 0);
+});

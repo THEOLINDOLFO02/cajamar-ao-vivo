@@ -159,6 +159,19 @@
         <label class="campo" style="margin-bottom:0">Legenda para redes sociais (Instagram / WhatsApp / Facebook)<textarea id="legenda" rows="7"></textarea></label>
       </div>
     </details>
+    <details class="colapso" id="detTextosArte">
+      <summary><span>4. Editar qualquer texto da arte<small>Todos os textos desenhados no panfleto, um por um</small></span></summary>
+      <div class="colapso-corpo">
+        <p class="mut" style="margin:0 0 8px;font-size:.86rem">Cada texto que aparece na imagem está listado abaixo (cabeçalho, indicadores, avisos, orientações, rodapé). Mude o que quiser: a arte atualiza na hora e a edição fica guardada neste aparelho para este modelo de panfleto. Os dados automáticos continuam chegando; se um texto original mudar, a sua edição não é aplicada ao texto novo.</p>
+        <div class="filtro-periodo" style="margin:0 0 8px">
+          <label for="txBusca">Buscar texto:<input id="txBusca" type="search" autocomplete="off" placeholder="Ex.: tempestade"></label>
+          <button id="txRestaurar" type="button" class="btn small">↺ Restaurar todos os textos originais</button>
+        </div>
+        <p id="txResumo" class="mut" style="margin:0 0 8px;font-size:.86rem" aria-live="polite"></p>
+        <div id="txSemUso" style="margin:0 0 8px"></div>
+        <div id="txLista"></div>
+      </div>
+    </details>
   </div>
   <details class="mut creditos"><summary>ⓘ Sobre as dicas e exportação de imagem</summary><p style="font-size:.8rem">Os textos de “dicas de prevenção” são gerais: revise e ajuste conforme o protocolo da sua Defesa Civil. Para a imagem poder ser baixada ou compartilhada, abra a página por um endereço http(s), não direto do arquivo.</p></details>
 </main>
@@ -168,6 +181,7 @@
 <script src="js/deslizamento.js"></script>
 <script src="js/queimadas.js"></script>
 <script src="js/publicacao.js"></script>
+<script src="js/publicar-textos.js"></script>
 <script src="js/publicar.js"></script>
 <script src="js/guia-dados.js"></script>
 <script src="js/guia-publicar.js"></script>

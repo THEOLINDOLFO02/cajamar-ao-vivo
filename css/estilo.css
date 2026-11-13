@@ -615,3 +615,11 @@ section[id],details[id]{scroll-margin-top:130px}
 .hero-detalhes>summary{cursor:pointer;padding:10px 14px;font-weight:600;font-size:.92rem;min-height:44px;display:flex;align-items:center}
 .hero-detalhes>div{padding:0 14px 12px}
 .now-linha{margin:0 0 8px;font-size:.88rem}
+
+/* Editor de textos da arte */
+.tx-item{display:grid;gap:4px;margin:0 0 10px;padding-left:10px;border-left:3px solid var(--line)}
+.tx-item.tx-editado{border-left-color:var(--laranja)}
+.tx-orig{overflow-wrap:anywhere}
+.tx-campo{display:flex;gap:8px;align-items:center}
+.tx-campo input{flex:1;min-width:0}
+.tx-sem{margin:4px 0 8px;padding-left:18px;font-size:.84rem}

@@ -8,6 +8,9 @@
   var $ = function (i) { return document.getElementById(i); };
   var cv = $("tela"), ctx = cv.getContext("2d");
   var CHAVE_CONTATO = "cajamar:contato";
+  // Edição de qualquer texto da arte (js/publicar-textos.js): ov() devolve o texto editado, se houver. Sem o módulo, devolve o original.
+  var PT = window.PubTextos || null;
+  function ov(t) { return PT ? PT.aplicar(t) : String(t); }
 
   // Estado dos dados carregados
   var avisos = null, previsao = null, climaOM = null, historico = null, bancoEstacoes = null, focosInpe = null;
@@ -1145,7 +1148,7 @@
   }
   // Escreve o texto sem sair do espaço: reduz a fonte no máximo 18% e, se ainda não couber, corta com reticências.
   function fillTextFit(txt, x, y, maxW) {
-    txt = String(txt);
+    txt = ov(txt);
     var lim = maxW || limiteLargura || larguraDisponivel(x);
     var m = /(\d+)px/.exec(ctx.font);
     if (m && medirTexto(txt) > lim) {
@@ -1166,7 +1169,7 @@
       var disp = Math.floor((yLimite - y) / altLinha);
       var reserva = i === linhas.length - 1 ? 0 : 1;
       if (disp - reserva < 1) { ocultos = linhas.length - i; break; }
-      var enc = Publicacao.encaixarTexto("• " + linhas[i], larg, medirTexto, Math.min(maxPorItem, disp - reserva));
+      var enc = Publicacao.encaixarTexto("• " + ov(linhas[i]), larg, medirTexto, Math.min(maxPorItem, disp - reserva));
       enc.linhas.forEach(function (ql) { ctx.fillText(ql, x, y); y += altLinha; });
       y += passo;
     }
@@ -1237,7 +1240,7 @@
     var tamRodape = fmtKey === "feed" ? 18 : 22;
     ctx.font = "500 " + tamRodape + "px " + FONTE;
     var txt1 = (modelo.rodape || "Fonte: Defesa Civil de Cajamar") + " · Emitido em " + agora() + " (SP)";
-    var encRod = Publicacao.encaixarTexto(txt1, W - 120, medirTexto, 3);
+    var encRod = Publicacao.encaixarTexto(ov(txt1), W - 120, medirTexto, 3);
     var passoRod = tamRodape * 1.28;
     encRod.linhas.forEach(function (l, i) { ctx.fillText(l, 60, yy + i * passoRod); });
   }
@@ -1771,7 +1774,7 @@
     ctx.fillStyle = "#9db0e0";
     ctx.textAlign = "center";
     ctx.font = "500 34px " + FONTE;
-    var enc = Publicacao.encaixarTexto(texto, W - 200, medirTexto, 9);
+    var enc = Publicacao.encaixarTexto(ov(texto), W - 200, medirTexto, 9);
     enc.linhas.forEach(function (l, i) { ctx.fillText(l, W / 2, H / 2 - 40 + i * 46); });
     ctx.textAlign = "left";
   }
@@ -1796,6 +1799,7 @@
     var t = ajustarTela(), fmtKey = t.fmtKey, cfg = t.cfg;
     fundoDaArte();
     limiteLargura = null;
+    if (PT) PT.iniciar($("tipo").value, [$("titulo").value, $("subtitulo").value, $("textoFaixa") && $("textoFaixa").value, $("justificativaFaixa") && $("justificativaFaixa").value].concat(String($("linhas").value || "").split(String.fromCharCode(10))));
     var yBase = desenharCabecalhoInstitucional(cfg, fmtKey);
 
     if (modelo.tipoFlyer === "dia" && modelo.dadosDia) desenharFlyerDia(cfg, fmtKey, yBase);
@@ -1808,6 +1812,7 @@
     limiteLargura = null;
     desenharRodapeInstitucional(cfg, fmtKey);
     if (modelo.simulado) desenharMarcaDagua();
+    if (PT) PT.terminou();
   }
 
   // Layout padrão (Avisos, Chuva da estação, Semana, Dicas, Previsão INMET)
