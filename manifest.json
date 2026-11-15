@@ -9,6 +9,12 @@
   "theme_color": "#0b6e8f",
   "icons": [
     {
+      "src": "assets/icone-tempo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
       "src": "assets/logo-dc-cajamar.jpg",
       "sizes": "any",
       "type": "image/jpeg",
