@@ -73,12 +73,36 @@
       uso: "Vigilância contínua de radiação térmica e sistemas atmosféricos"
     },
     {
-      id: "MODIS",
-      aliases: ["AQUA_M-T", "AQUA_M-M", "TERRA_M-M", "TERRA_M-T", "AQUA", "TERRA"],
-      nome: "AQUA & TERRA (MODIS 1 km / Área Queimada MCD64A1)",
-      orgao: "NASA Earthdata / LASA-UFRJ",
-      orbita: "Polar manhã (Terra ~10h30) e tarde (Aqua ~13h30)",
-      uso: "Série histórica de focos e mapeamento de cicatrizes de área queimada"
+      id: "AQUA_M-M",
+      aliases: ["AQUA_M-M"],
+      nome: "AQUA_M-M (MODIS Manhã)",
+      orgao: "NASA Earthdata / INPE",
+      orbita: "Polar descendente (manhã/noite)",
+      uso: "Detecção termal de focos de calor pelo sensor MODIS a bordo do satélite Aqua"
+    },
+    {
+      id: "AQUA_M-T",
+      aliases: ["AQUA_M-T", "AQUA"],
+      nome: "AQUA_M-T (MODIS Tarde ~13h30)",
+      orgao: "NASA Earthdata / INPE",
+      orbita: "Polar ascendente · passagem ~13h30 local",
+      uso: "Detecção de queimadas no período crítico da tarde e cicatrizes de área queimada"
+    },
+    {
+      id: "TERRA_M-M",
+      aliases: ["TERRA_M-M", "TERRA"],
+      nome: "TERRA_M-M (MODIS Manhã ~10h30)",
+      orgao: "NASA Earthdata / INPE",
+      orbita: "Polar descendente · passagem ~10h30 local",
+      uso: "Monitoramento matinal de focos ativos e fumaça pelo sensor MODIS (Terra)"
+    },
+    {
+      id: "TERRA_M-T",
+      aliases: ["TERRA_M-T"],
+      nome: "TERRA_M-T (MODIS Tarde/Noite)",
+      orgao: "NASA Earthdata / INPE",
+      orbita: "Polar ascendente (tarde/noite)",
+      uso: "Passagem complementar do satélite Terra para detecção térmica de queimadas"
     }
   ];
 
@@ -104,10 +128,10 @@
     var s = String(satBruto || "").trim().toUpperCase();
     if (s === "NPP-375D") return "Manhã NPP-375";
     if (s === "NPP-375") return "NPP-375 (Tarde)";
-    if (s === "AQUA_M-T") return "AQUA (Tarde)";
-    if (s === "AQUA_M-M") return "AQUA (Manhã)";
-    if (s === "TERRA_M-M") return "TERRA (Manhã)";
-    if (s === "TERRA_M-T") return "TERRA (Tarde)";
+    if (s === "AQUA_M-T") return "AQUA_M-T (Tarde)";
+    if (s === "AQUA_M-M") return "AQUA_M-M (Manhã)";
+    if (s === "TERRA_M-M") return "TERRA_M-M (Manhã)";
+    if (s === "TERRA_M-T") return "TERRA_M-T (Tarde)";
     return s || "Desconhecido";
   }
 

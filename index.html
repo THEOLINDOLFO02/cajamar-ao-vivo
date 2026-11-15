@@ -164,7 +164,6 @@
       <button type="button" class="btn small modo-mapa ativo-modo" data-modo="radar">🌧️ Radar Chuva</button>
       <button type="button" class="btn small modo-mapa" data-modo="goes_geocolor">🛰️ Satélite GOES (GeoColor)</button>
       <button type="button" class="btn small modo-mapa" data-modo="goes_ir">🌡️ Satélite GOES IR (Tempestades)</button>
-      <button type="button" class="btn small modo-mapa" data-modo="fogo_sat">🔥 Satélite + Focos de Fogo</button>
       <button type="button" class="btn small modo-mapa" data-modo="pontos_cajamar">📍 Estações, Rio e Encostas</button>
     </div>
     <div id="mapa"></div>
@@ -204,22 +203,41 @@
 
   <section class="card" id="fogoCard" data-aba="fogo">
     <div class="card-head"><h2>🔥 Fogo e queimadas</h2></div>
-    <p class="card-sub">Focos de calor por satélite (INPE, NASA, CENSIPAM) e condição do tempo para fogo</p>
-    <div class="barra-acoes"><button type="button" class="btn small" data-ir-aba="mapa" data-modo="fogo_sat">🛰️ Ver satélite e focos no mapa</button></div>
+    <p class="card-sub">Focos de calor e imagens por satélite (INPE, NASA, EUMETSAT, NOAA) e condição do tempo para fogo</p>
+    <div id="satFogoWrap" style="margin-bottom:14px">
+      <div class="barra-modos-mapa" role="group" aria-label="Imagem de satélite de fogo">
+        <button type="button" class="btn small modo-sat-fogo ativo-modo" data-sat-img="termica_todos">🔥 Todos os Focos + Anomalias Térmicas</button>
+        <button type="button" class="btn small modo-sat-fogo" data-sat-img="AQUA_M-M">🛰️ AQUA_M-M</button>
+        <button type="button" class="btn small modo-sat-fogo" data-sat-img="AQUA_M-T">🛰️ AQUA_M-T</button>
+        <button type="button" class="btn small modo-sat-fogo" data-sat-img="TERRA_M-M">🛰️ TERRA_M-M</button>
+        <button type="button" class="btn small modo-sat-fogo" data-sat-img="TERRA_M-T">🛰️ TERRA_M-T</button>
+        <button type="button" class="btn small modo-sat-fogo" data-sat-img="GOES-19">🛰️ GOES-19</button>
+        <button type="button" class="btn small modo-sat-fogo" data-sat-img="NOAA-20">🛰️ NOAA-20</button>
+        <button type="button" class="btn small modo-sat-fogo" data-sat-img="NOAA-21">🛰️ NOAA-21</button>
+        <button type="button" class="btn small modo-sat-fogo" data-sat-img="METOP-B">🛰️ METOP-B</button>
+        <button type="button" class="btn small modo-sat-fogo" data-sat-img="METOP-C">🛰️ METOP-C</button>
+        <button type="button" class="btn small modo-sat-fogo" data-sat-img="MSG-03">🛰️ MSG-03</button>
+      </div>
+      <div id="mapaFogo" style="height:clamp(300px,52vh,460px);border-radius:var(--r);border:1px solid var(--line);z-index:0"></div>
+      <p id="fogoSatMsg" class="mut" style="margin:6px 0 0;font-size:.82rem">Satélite de Fogo ativo: Anomalias Térmicas NASA (VIIRS/MODIS/GOES) + Focos INPE BDQueimadas.</p>
+    </div>
     <details class="mais-acoes"><summary>⚙ Filtros: satélite e raio</summary>
     <div class="filtro-periodo">
         <label for="fSatelite">Satélite:</label>
         <select id="fSatelite" aria-label="Filtrar focos por satélite">
           <option value="todos">Todos os satélites</option>
+          <option value="AQUA_M-M">AQUA_M-M (MODIS Manhã)</option>
+          <option value="AQUA_M-T">AQUA_M-T (MODIS Tarde)</option>
           <option value="GOES-19">GOES-19 / GOES-16</option>
-          <option value="NPP-375">NPP-375 (Tarde)</option>
-          <option value="NPP-375D">Manhã NPP-375</option>
-          <option value="NOAA-20">NOAA-20</option>
-          <option value="NOAA-21">NOAA-21</option>
           <option value="METOP-B">METOP-B</option>
           <option value="METOP-C">METOP-C</option>
           <option value="MSG-03">MSG-03</option>
-          <option value="MODIS">AQUA / TERRA (MODIS)</option>
+          <option value="NOAA-20">NOAA-20</option>
+          <option value="NOAA-21">NOAA-21</option>
+          <option value="TERRA_M-M">TERRA_M-M (MODIS Manhã)</option>
+          <option value="TERRA_M-T">TERRA_M-T (MODIS Tarde)</option>
+          <option value="NPP-375">NPP-375 (Tarde)</option>
+          <option value="NPP-375D">Manhã NPP-375</option>
         </select>
         <label for="fRaioFogo">Raio:</label>
         <select id="fRaioFogo" aria-label="Raio de busca de focos de calor">

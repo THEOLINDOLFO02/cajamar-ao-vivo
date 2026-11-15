@@ -5,13 +5,17 @@ import { carregarScript } from "./util.mjs";
 
 const { Queimadas } = carregarScript("js/queimadas.js");
 
-test("SATELITES: inclui GOES-19, MSG-03, METOP-B, METOP-C, NOAA-20, NOAA-21, NPP-375 (Tarde) e Manhã NPP-375", () => {
+test("SATELITES: inclui AQUA_M-M, AQUA_M-T, GOES-19, METOP-B, METOP-C, MSG-03, NOAA-20, NOAA-21, TERRA_M-M, TERRA_M-T, NPP-375 (Tarde) e Manhã NPP-375", () => {
   const ids = Queimadas.SATELITES.map((s) => s.id);
-  for (const esperado of ["GOES-19", "MSG-03", "METOP-B", "METOP-C", "NOAA-20", "NOAA-21", "NPP-375", "NPP-375D"]) {
+  for (const esperado of ["AQUA_M-M", "AQUA_M-T", "GOES-19", "METOP-B", "METOP-C", "MSG-03", "NOAA-20", "NOAA-21", "TERRA_M-M", "TERRA_M-T", "NPP-375", "NPP-375D"]) {
     assert.ok(ids.includes(esperado), `Catálogo deveria conter o satélite ${esperado}`);
   }
   assert.equal(Queimadas.rotuloSatelite("NPP-375D"), "Manhã NPP-375");
   assert.equal(Queimadas.rotuloSatelite("NPP-375"), "NPP-375 (Tarde)");
+  assert.equal(Queimadas.grupoSatelite("AQUA_M-M"), "AQUA_M-M");
+  assert.equal(Queimadas.grupoSatelite("AQUA_M-T"), "AQUA_M-T");
+  assert.equal(Queimadas.grupoSatelite("TERRA_M-M"), "TERRA_M-M");
+  assert.equal(Queimadas.grupoSatelite("TERRA_M-T"), "TERRA_M-T");
 });
 
 test("lerCsvFocos: lê formato diário do INPE, calcula distância a Cajamar e identifica foco no município", () => {

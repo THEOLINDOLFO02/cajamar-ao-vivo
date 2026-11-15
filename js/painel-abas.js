@@ -27,7 +27,14 @@
     });
     guardar(nome);
     // o mapa (Leaflet) precisa recalcular o tamanho quando sai de uma aba escondida
-    if (nome === "mapa") setTimeout(function () { try { w.dispatchEvent(new Event("resize")); } catch (e) {} }, 60);
+    if (nome === "mapa" || nome === "fogo") {
+      setTimeout(function () {
+        try { w.dispatchEvent(new Event("resize")); } catch (e) {}
+        if (nome === "fogo" && w.Painel && w.Painel.fogo && w.Painel.fogo.redimensionarMapa) {
+          w.Painel.fogo.redimensionarMapa();
+        }
+      }, 60);
+    }
   }
 
   function abaDoAlvo(id) {
