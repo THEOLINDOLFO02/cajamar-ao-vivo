@@ -587,22 +587,27 @@ details.colapso>summary{border-left:4px solid var(--laranja)}
 
 /* ---------- Menu principal agrupado ---------- */
 .nav-bar{position:sticky;top:0;z-index:40;padding-block:8px;background:var(--card);border-bottom:1px solid var(--line);box-shadow:0 2px 8px rgba(10,40,90,.07)}
-.nav-toggle{display:none;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--acc);background:var(--acc);color:var(--on-acc);font-weight:650}
-.nav-toggle small{font-size:.84rem;font-weight:500;opacity:.9}
-.nav-ic{font-size:1.1rem;line-height:1}
 .nav-grupos{display:flex;flex-wrap:wrap;gap:10px 28px}
 .nav-grupo{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .nav-rot{flex-basis:100%;font-size:.7rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--laranja-esc)}
 .nav-bar a{display:inline-flex;align-items:center;min-height:38px;padding:0 14px;border-radius:999px;text-decoration:none;font-size:.9rem;font-weight:560;color:var(--fg);background:var(--bg);border:1px solid var(--line);white-space:nowrap;transition:background .15s,color .15s,border-color .15s}
 .nav-bar a:hover{border-color:var(--acc);color:var(--acc)}
 .nav-bar a.ativo{background:var(--laranja-esc);color:var(--on-laranja);border-color:var(--laranja-esc);font-weight:750}
-/* com JavaScript: o menu fica recolhido atrás do botão (celular e computador) */
-.nav-bar.nav-js .nav-toggle{display:inline-flex}
-.nav-bar.nav-js .nav-grupos{display:none}
-.nav-bar.nav-js .nav-grupos.aberto{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 24px;position:absolute;left:var(--lado);right:var(--lado);top:100%;margin-top:6px;padding:16px;background:var(--card);border:1px solid var(--line);border-top:4px solid var(--laranja);border-radius:var(--r);box-shadow:0 12px 32px rgba(10,40,90,.2);max-height:calc(100vh - 80px);overflow:auto}
-.nav-bar.nav-js .nav-grupo{display:grid;gap:6px;align-content:start}
-.nav-bar.nav-js .nav-grupo a{justify-content:flex-start;min-height:44px;border-radius:var(--r-sm);white-space:normal}
-@media (max-width:759px){.nav-bar.nav-js .nav-grupos.aberto{grid-template-columns:minmax(0,1fr);left:0;right:0;margin-top:0;border-radius:0 0 var(--r) var(--r)}}
+/* com JavaScript: 3 botões lado a lado (Monitoramento, Registros, Análise e divulgação); ao clicar abre as opções */
+.nav-bar.nav-js .nav-grupos{display:flex;flex-wrap:wrap;gap:8px;align-items:center;position:relative}
+.nav-bar.nav-js .nav-grupo{position:relative;display:inline-flex}
+.nav-bar.nav-js .nav-grupo-btn{display:inline-flex;align-items:center;gap:6px;min-height:42px;padding:0 16px;border-radius:999px;border:1px solid var(--line-strong);background:var(--bg);color:var(--fg);font-size:.92rem;font-weight:650;cursor:pointer;white-space:nowrap}
+.nav-bar.nav-js .nav-grupo-btn:hover{border-color:var(--acc);color:var(--acc);background:var(--acc-soft)}
+.nav-bar.nav-js .nav-grupo-btn.ativo-grupo{border-color:var(--acc);background:var(--acc);color:var(--on-acc)}
+.nav-bar.nav-js .nav-grupo.aberto .nav-grupo-btn{border-color:var(--laranja-esc);background:var(--laranja-esc);color:var(--on-laranja)}
+.nav-bar.nav-js .nav-sub{display:none}
+.nav-bar.nav-js .nav-grupo.aberto .nav-sub{display:grid;gap:6px;position:absolute;left:0;top:calc(100% + 6px);min-width:220px;padding:10px;background:var(--card);border:1px solid var(--line);border-top:4px solid var(--laranja);border-radius:var(--r);box-shadow:0 12px 28px rgba(10,40,90,.22);z-index:50}
+.nav-bar.nav-js .nav-sub a{justify-content:flex-start;min-height:42px;border-radius:var(--r-sm);white-space:nowrap}
+@media (max-width:600px){
+  .nav-bar.nav-js .nav-grupo{position:static}
+  .nav-bar.nav-js .nav-grupo-btn{padding:0 12px;font-size:.86rem;min-height:38px}
+  .nav-bar.nav-js .nav-grupo.aberto .nav-sub{left:0;right:0;min-width:0}
+}
 
 /* ---------- Abas do painel ---------- */
 .atalhos.abas{position:sticky;top:60px;z-index:20;margin:-4px calc(var(--lado) * -1) 0;padding:8px var(--lado);background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}

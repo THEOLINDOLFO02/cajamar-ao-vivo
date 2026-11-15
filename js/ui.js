@@ -21,19 +21,58 @@
       aplicarTema(prox);
     };
 
-    // ---------- menu principal: grupos recolhidos atrás do botão "Menu" (sem JavaScript, ficam todos visíveis) ----------
-    var navBar = document.querySelector(".nav-bar"), navBtn = document.getElementById("navToggle"), navGrupos = document.getElementById("navGrupos");
-    if (navBar && navBtn && navGrupos) {
-      navBar.classList.add("nav-js");
-      var fecharMenu = function () { navGrupos.classList.remove("aberto"); navBtn.setAttribute("aria-expanded", "false"); };
-      navBtn.onclick = function (e) {
-        e.stopPropagation();
-        var abrir = !navGrupos.classList.contains("aberto");
-        navGrupos.classList.toggle("aberto", abrir); navBtn.setAttribute("aria-expanded", String(abrir));
-        if (abrir) { var a1 = navGrupos.querySelector("a.ativo") || navGrupos.querySelector("a"); if (a1) a1.focus(); }
-      };
-      document.addEventListener("click", function (e) { if (!navBar.contains(e.target)) fecharMenu(); });
-      document.addEventListener("keydown", function (e) { if (e.key === "Escape" && navGrupos.classList.contains("aberto")) { fecharMenu(); navBtn.focus(); } });
+    // ---------- menu principal: 3 botões lado a lado (Monitoramento, Registros, Análise e divulgação) com submenus ao clicar ----------
+    var navBar = document.querySelector(".nav-bar"), navGrupos = document.getElementById("navGrupos");
+    if (navBar && navGrupos) {
+      var grupos = Array.prototype.slice.call(navGrupos.querySelectorAll(".nav-grupo"));
+      if (grupos.length) {
+        navBar.classList.add("nav-js");
+        var fecharTodos = function () {
+          grupos.forEach(function (g) {
+            g.classList.remove("aberto");
+            var btn = g.querySelector(".nav-grupo-btn");
+            if (btn) btn.setAttribute("aria-expanded", "false");
+          });
+        };
+        grupos.forEach(function (g) {
+          var rot = g.querySelector(".nav-rot");
+          if (!rot) return;
+          var texto = rot.textContent.trim();
+          var ativo = g.querySelector("a.ativo");
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "nav-grupo-btn" + (ativo ? " ativo-grupo" : "");
+          btn.setAttribute("aria-expanded", "false");
+          btn.textContent = texto + " ▾";
+          var sub = document.createElement("div");
+          sub.className = "nav-sub";
+          Array.prototype.slice.call(g.querySelectorAll("a")).forEach(function (a) { sub.appendChild(a); });
+          rot.replaceWith(btn);
+          g.appendChild(sub);
+          btn.onclick = function (e) {
+            e.stopPropagation();
+            var abrir = !g.classList.contains("aberto");
+            fecharTodos();
+            if (abrir) {
+              g.classList.add("aberto");
+              btn.setAttribute("aria-expanded", "true");
+              var a1 = sub.querySelector("a.ativo") || sub.querySelector("a");
+              if (a1) a1.focus();
+            }
+          };
+        });
+        document.addEventListener("click", function (e) { if (!navBar.contains(e.target)) fecharTodos(); });
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape") {
+            var gAberto = navGrupos.querySelector(".nav-grupo.aberto");
+            if (gAberto) {
+              var b = gAberto.querySelector(".nav-grupo-btn");
+              fecharTodos();
+              if (b) b.focus();
+            }
+          }
+        });
+      }
     }
 
     // ---------- textos explicativos: ficam atrás de um botão ⓘ ----------
