@@ -25,3 +25,15 @@ A rota `/windy` foi removida em 10/11/2026: a Windy deixou de entregar o que o s
 
 ## Rota `/cge` (estação do CGE por raspagem)
 O Worker também lê a página pública do CGE (posto 1000880 Santana de Parnaíba; 504 Perus; 515 Pirituba) e devolve JSON em `/cge?posto=1000880`. Para ativar: cole o `cemaden-proxy.js` atualizado no editor do Worker e publique. Não precisa de chave. Chaves de outros serviços, se um dia forem usadas, ficam só em *Settings > Variables and Secrets* do Worker, nunca no repositório.
+
+## Rota `/sync` (Sincronização em Tempo Real entre Celulares e Computadores — Item 2.6)
+Permite que todos os aparelhos da equipe da Defesa Civil compartilhem ocorrências, observações manuais, cotas do rio e resumo das estações usando um **Código da Equipe** (`X-Equipe-Chave` ou `?sala=`).
+- Funciona imediatamente em memória de borda do Worker e, para persistência permanente, basta criar um namespace gratuito no **Cloudflare KV** chamado `CAJAMAR_SYNC` e vinculá-lo em **Settings → Bindings → KV Namespace (`CAJAMAR_SYNC`)**.
+- Opcionalmente, defina o secret `SYNC_SECRET` caso queira travar o Worker para aceitar apenas uma senha única da equipe.
+
+## Rota `/alerta-telegram` e Robô GitHub Actions (Alertas em Segundo Plano — Item 2.7)
+- O script `scripts/alertas-telegram.mjs` roda automaticamente a cada 10 minutos no GitHub Actions (`.github/workflows/publicar.yml`), verificando avisos do INMET, chuva forte no CEMADEN ($\ge 20\text{ mm/h}$ ou $\ge 50\text{ mm/24h}$) e focos de calor em Cajamar.
+- Para ativar o envio automático em segundo plano no GitHub, adicione em **Settings → Secrets and variables → Actions** do repositório:
+  - `TELEGRAM_BOT_TOKEN`: token gerado pelo `@BotFather` no Telegram;
+  - `TELEGRAM_CHAT_ID`: ID do grupo ou canal da Defesa Civil (ex.: `-1001234567890`).
+- No Cloudflare Worker, você também pode configurar `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID` em **Settings → Variables and Secrets** para disparar boletins pelo botão **"📲 Enviar Boletim Atual para o Telegram"** direto da aba *Dados e fontes* do painel.

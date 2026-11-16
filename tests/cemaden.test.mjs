@@ -2,7 +2,8 @@
 // Os dados abaixo são FICTÍCIOS, criados só para testar o código.
 import test from "node:test";
 import assert from "node:assert/strict";
-import worker, { montar, IBGE, buscarBruto, origemPermitida } from "../worker/cemaden-proxy.js";
+import worker, { montar, IBGE, buscarBruto, origemPermitida, mesclarPacotesSync } from "../worker/cemaden-proxy.js";
+import { avaliarGatilhosAlerta, formatarMensagemTelegram } from "../scripts/alertas-telegram.mjs";
 
 function estacao(ibge, cidade, nome, leitura, extra) {
   return Object.assign({
@@ -142,4 +143,56 @@ test("Worker responde OPTIONS, GET, HEAD, rejeita POST (405) e trata falha da fo
   const resHead = await worker.fetch(reqHead, { buscar: buscarOk });
   assert.equal(resHead.status, 200);
   assert.equal(await resHead.text(), "");
+});
+
+test("2.6 Worker /sync: sincroniza e mescla ocorrências e observações entre dispositivos da equipe", async () => {
+  const pacotePC = {
+    dispositivo: "PC-Base",
+    ocorrencias: [{ id: "oc1", tipo: "Incêndios", subtipo: "Vegetação", local: "Jordanésia", status: "aberta", quando: "2026-11-16T10:00:00Z", atualizadoEm: "2026-11-16T10:00:00Z" }],
+    observacoes: [{ id: "ob1", local: "Polvilho", quando: "2026-11-16T09:00" }]
+  };
+  const reqPost1 = new Request("https://proxy.exemplo/sync?sala=equipe199", {
+    method: "POST",
+    headers: { Origin: "https://theolindolfo02.github.io", "Content-Type": "application/json" },
+    body: JSON.stringify(pacotePC)
+  });
+  const res1 = await worker.fetch(reqPost1);
+  assert.equal(res1.status, 200);
+  const j1 = await res1.json();
+  assert.equal(j1.ok, true);
+  assert.equal(j1.dados.ocorrencias.length, 1);
+
+  // Viatura atualiza status da oc1 e adiciona oc2
+  const pacoteViatura = {
+    dispositivo: "Viatura-01",
+    ocorrencias: [
+      { id: "oc1", tipo: "Incêndios", subtipo: "Vegetação", local: "Jordanésia", status: "concluida", quando: "2026-11-16T10:00:00Z", atualizadoEm: "2026-11-16T11:30:00Z" },
+      { id: "oc2", tipo: "Ocorrências com Árvores", subtipo: "Poda", local: "Ponunduva", status: "aberta", quando: "2026-11-16T11:00:00Z", atualizadoEm: "2026-11-16T11:00:00Z" }
+    ]
+  };
+  const reqPost2 = new Request("https://proxy.exemplo/sync?sala=equipe199", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(pacoteViatura)
+  });
+  const res2 = await worker.fetch(reqPost2);
+  const j2 = await res2.json();
+  assert.equal(j2.dados.ocorrencias.length, 2);
+  const oc1Atualizada = j2.dados.ocorrencias.find((x) => x.id === "oc1");
+  assert.equal(oc1Atualizada.status, "concluida", "deve prevalecer a atualização mais recente da viatura");
+  assert.equal(j2.dados.observacoes.length, 1, "preserva observações enviadas antes pelo PC");
+});
+
+test("2.7 Alertas automáticos (Telegram): avalia gatilhos de INMET, CEMADEN >= 20 mm/h e focos de calor em Cajamar", () => {
+  const gatilhos = avaliarGatilhosAlerta({
+    avisosInmet: [{ evento: "Tempestade", severidade: "Perigo", inicio: "16/11 14:00", fim: "16/11 21:00" }],
+    cemaden: { estacoes: [{ ibge: 3509205, nome: "Jordanésia", leitura: "16/11/26 15:00", acc: { h1: 24.6, h24: 42.0 } }] },
+    focosRecentes: [{ satelite: "GOES-19", lat: -23.35, lon: -46.87 }]
+  });
+  assert.equal(gatilhos.length, 3);
+  const msg = formatarMensagemTelegram(gatilhos, "16/11/2026 15:05");
+  assert.match(msg, /ALERTA AUTOMÁTICO — DEFESA CIVIL DE CAJAMAR/);
+  assert.match(msg, /AVISO INMET/);
+  assert.match(msg, /24,6 mm/);
+  assert.match(msg, /GOES-19/);
 });

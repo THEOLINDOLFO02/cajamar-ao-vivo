@@ -304,6 +304,9 @@
     }
     salvar();
     if (idAlvo) salvarFotosNoDb(idAlvo, fotosParaSalvar);
+    if (typeof SyncNuvem !== "undefined" && SyncNuvem.lerConfig && SyncNuvem.lerConfig().sala) {
+      SyncNuvem.sincronizarAgora().catch(function () {});
+    }
     fotosPendentes = [];
     desenharPreviaFotosForm();
     $("form").reset(); subs(); $("form").hidden = true; $("boxStatus").hidden = true; render();

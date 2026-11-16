@@ -141,19 +141,152 @@ async function rotaCge(request, env, cors) {
   } finally { clearTimeout(t); }
 }
 
+// ---- 2.6 Sincronização em Nuvem entre Celulares e Computadores da Equipe (/sync) ----
+// Armazena o estado operacional (ocorrências, observações, cotas do rio e resumo das estações) em Cloudflare KV
+// (binding CAJAMAR_SYNC) ou em memória de borda (fallback imediato se o KV ainda não estiver vinculado).
+const MEMORIA_SYNC = new Map();
+
+function chaveSalaValida(chave) {
+  return typeof chave === "string" && /^[A-Za-z0-9_-]{4,64}$/.test(chave.trim());
+}
+
+async function lerEstadoSync(env, sala) {
+  const k = "sync:" + sala;
+  if (env && env.CAJAMAR_SYNC && typeof env.CAJAMAR_SYNC.get === "function") {
+    const txt = await env.CAJAMAR_SYNC.get(k);
+    return txt ? JSON.parse(txt) : null;
+  }
+  return MEMORIA_SYNC.get(k) || null;
+}
+
+async function gravarEstadoSync(env, sala, obj) {
+  const k = "sync:" + sala;
+  const txt = JSON.stringify(obj);
+  if (env && env.CAJAMAR_SYNC && typeof env.CAJAMAR_SYNC.put === "function") {
+    await env.CAJAMAR_SYNC.put(k, txt);
+    return "kv";
+  }
+  MEMORIA_SYNC.set(k, obj);
+  return "memoria_edge";
+}
+
+export function mesclarPacotesSync(atual, novo) {
+  const base = atual && typeof atual === "object" ? atual : { ocorrencias: [], observacoes: [], cotasRio: null, estacoesResumo: null };
+  const inc = novo && typeof novo === "object" ? novo : {};
+
+  // Mescla ocorrências por id (mantém a versão mais recente por atualizadoEm / criadoEm)
+  const mapaOc = new Map();
+  (Array.isArray(base.ocorrencias) ? base.ocorrencias : []).forEach((o) => { if (o && o.id) mapaOc.set(o.id, o); });
+  (Array.isArray(inc.ocorrencias) ? inc.ocorrencias : []).forEach((o) => {
+    if (!o || !o.id) return;
+    const ex = mapaOc.get(o.id);
+    if (!ex) { mapaOc.set(o.id, o); return; }
+    const tNovo = Date.parse(o.atualizadoEm || o.criadoEm || o.quando || 0) || 0;
+    const tEx = Date.parse(ex.atualizadoEm || ex.criadoEm || ex.quando || 0) || 0;
+    if (tNovo >= tEx) mapaOc.set(o.id, o);
+  });
+  const ocorrencias = [...mapaOc.values()].sort((a, b) => (Date.parse(b.quando || 0) || 0) - (Date.parse(a.quando || 0) || 0)).slice(0, 500);
+
+  // Mescla observações manuais por id
+  const mapaOb = new Map();
+  (Array.isArray(base.observacoes) ? base.observacoes : []).forEach((o) => { if (o && o.id) mapaOb.set(o.id, o); });
+  (Array.isArray(inc.observacoes) ? inc.observacoes : []).forEach((o) => { if (o && o.id) mapaOb.set(o.id, o); });
+  const observacoes = [...mapaOb.values()].sort((a, b) => String(b.quando || "").localeCompare(String(a.quando || ""))).slice(0, 500);
+
+  return {
+    atualizadoEm: new Date().toISOString(),
+    dispositivo: String(inc.dispositivo || base.dispositivo || "equipe").slice(0, 60),
+    ocorrencias,
+    observacoes,
+    cotasRio: inc.cotasRio || base.cotasRio || null,
+    areasRiscoCustom: inc.areasRiscoCustom || base.areasRiscoCustom || null,
+    estacoesResumo: inc.estacoesResumo || base.estacoesResumo || null
+  };
+}
+
+async function rotaSync(request, env, cors) {
+  const json = { ...cors, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" };
+  const url = new URL(request.url);
+  const sala = (request.headers.get("X-Equipe-Chave") || url.searchParams.get("sala") || "").trim();
+  if (!chaveSalaValida(sala)) {
+    return new Response(JSON.stringify({ erro: "Informe um código da equipe válido (4 a 64 letras/números)." }), { status: 400, headers: json });
+  }
+  if (env && env.SYNC_SECRET && sala !== env.SYNC_SECRET) {
+    return new Response(JSON.stringify({ erro: "Código da equipe não autorizado neste servidor." }), { status: 403, headers: json });
+  }
+  if (request.method === "GET") {
+    const estado = await lerEstadoSync(env, sala);
+    return new Response(JSON.stringify({
+      ok: true,
+      sala,
+      dados: estado || { atualizadoEm: null, ocorrencias: [], observacoes: [], cotasRio: null, estacoesResumo: null }
+    }), { status: 200, headers: json });
+  }
+  if (request.method === "POST") {
+    try {
+      const texto = await request.text();
+      if (texto.length > 1500000) {
+        return new Response(JSON.stringify({ erro: "Pacote excede 1,5 MB." }), { status: 413, headers: json });
+      }
+      const pacote = JSON.parse(texto);
+      const atual = await lerEstadoSync(env, sala);
+      const mesclado = mesclarPacotesSync(atual, pacote);
+      const backend = await gravarEstadoSync(env, sala, mesclado);
+      return new Response(JSON.stringify({ ok: true, backend, dados: mesclado }), { status: 200, headers: json });
+    } catch (e) {
+      return new Response(JSON.stringify({ erro: "JSON inválido no envio de sincronização." }), { status: 400, headers: json });
+    }
+  }
+  return new Response(JSON.stringify({ erro: "Método não permitido em /sync" }), { status: 405, headers: json });
+}
+
+// ---- 2.7 Disparo de Alertas para o Telegram (/alerta-telegram) ----
+async function rotaTelegram(request, env, cors) {
+  const json = { ...cors, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" };
+  if (request.method !== "POST") {
+    return new Response(JSON.stringify({ erro: "Use POST para enviar alerta ao Telegram." }), { status: 405, headers: json });
+  }
+  try {
+    const body = await request.json();
+    const botToken = (body.botToken || (env && env.TELEGRAM_BOT_TOKEN) || "").trim();
+    const chatId = (body.chatId || (env && env.TELEGRAM_CHAT_ID) || "").trim();
+    const texto = String(body.texto || "").trim();
+    if (!botToken || !chatId || !texto) {
+      return new Response(JSON.stringify({ erro: "Informe botToken, chatId e texto." }), { status: 400, headers: json });
+    }
+    const buscar = env && typeof env.buscar === "function" ? env.buscar : fetch;
+    const r = await buscar("https://api.telegram.org/bot" + botToken + "/sendMessage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text: texto, parse_mode: "Markdown", disable_web_page_preview: true })
+    });
+    const respJson = await r.json().catch(() => ({}));
+    if (!r.ok || respJson.ok === false) {
+      return new Response(JSON.stringify({ erro: respJson.description || ("Telegram HTTP " + r.status) }), { status: 502, headers: json });
+    }
+    return new Response(JSON.stringify({ ok: true, messageId: respJson.result && respJson.result.message_id }), { status: 200, headers: json });
+  } catch (e) {
+    return new Response(JSON.stringify({ erro: String(e && e.message ? e.message : e) }), { status: 500, headers: json });
+  }
+}
+
 export default {
   async fetch(request, env = {}) {
     const origem = request.headers.get("Origin");
     const cors = { "Vary": "Origin" };
     if (origemPermitida(origem)) {
       cors["Access-Control-Allow-Origin"] = origem;
-      cors["Access-Control-Allow-Methods"] = "GET, HEAD, OPTIONS";
+      cors["Access-Control-Allow-Methods"] = "GET, HEAD, POST, OPTIONS";
+      cors["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Equipe-Chave";
     }
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+    const urlReq = new URL(request.url);
+    if (urlReq.pathname === "/sync") return rotaSync(request, env, cors);
+    if (urlReq.pathname === "/alerta-telegram") return rotaTelegram(request, env, cors);
     if (request.method !== "GET" && request.method !== "HEAD") {
       return new Response("Método não permitido", { status: 405, headers: cors });
     }
-    if (new URL(request.url).pathname === "/cge") return rotaCge(request, env, cors);
+    if (urlReq.pathname === "/cge") return rotaCge(request, env, cors);
     try {
       // A Cloudflare guarda a resposta do CEMADEN por 5 min: protege o CEMADEN e acelera o painel.
       const opcoesBusca = {

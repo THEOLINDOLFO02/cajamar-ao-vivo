@@ -65,12 +65,19 @@
     <pre id="textoPassagemPlantao" style="white-space:pre-wrap;font:inherit;font-size:.9rem;background:var(--bg);padding:12px;border-radius:var(--r-sm);border:1px solid var(--line);margin:0"></pre>
   </section>
   <details class="mais-acoes">
-    <summary>Backup (.json)</summary>
-    <div class="barra-acoes">
-      <button class="btn small" id="exportar" type="button">💾 Exportar backup</button>
-      <button class="btn small" id="importar" type="button">📂 Importar backup</button>
-      <input id="arquivo" type="file" accept="application/json,.json" hidden>
+    <summary>☁️ Sincronização em Nuvem da Equipe e Backup (.json)</summary>
+    <div class="row2" style="margin:8px 0">
+      <label for="inpSyncSala">Código da Equipe (sincroniza entre celulares e PC):
+        <input id="inpSyncSala" type="text" maxlength="64" placeholder="Ex.: plantao-cajamar-199">
+      </label>
+      <div style="display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;padding-bottom:2px">
+        <button class="btn primary small" id="btnSyncAgora" type="button">☁️ Sincronizar Equipe Agora</button>
+        <button class="btn small" id="exportar" type="button">💾 Exportar backup</button>
+        <button class="btn small" id="importar" type="button">📂 Importar backup</button>
+        <input id="arquivo" type="file" accept="application/json,.json" hidden>
+      </div>
     </div>
+    <p id="msgSyncNuvem" class="mut" style="font-size:.84rem;margin:4px 0 0"></p>
   </details>
   <form id="form" class="card" hidden>
     <h2 id="formTitulo" style="margin:0;font-size:1.1rem">Nova ocorrência</h2>
@@ -112,6 +119,8 @@
 </main>
 <script src="js/estacao.js"></script>
 <script src="js/deslizamento.js"></script>
+<script src="js/config.js"></script>
+<script src="js/sync-nuvem.js"></script>
 <script src="js/quadro.js"></script>
 <script>
 if ('serviceWorker' in navigator) {

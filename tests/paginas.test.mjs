@@ -46,12 +46,13 @@ test("toda página carrega o menu completo e cada link do menu leva a uma págin
 
 test("scripts usados por uma página são carregados antes de quem depende deles", () => {
   const ordem = {
-    "painel.js": ["fontes.js", "geo.js", "inmet.js", "municipio.js", "ar.js", "modelos.js", "climatologia.js", "cemaden.js", "estacao.js", "queimadas.js", "deslizamento.js", "config.js", "painel-base.js", "painel-deslizamento.js", "painel-fogo.js", "painel-vento.js", "painel-mapa.js", "painel-clima.js"],
+    "painel.js": ["fontes.js", "geo.js", "inmet.js", "municipio.js", "ar.js", "modelos.js", "climatologia.js", "cemaden.js", "estacao.js", "queimadas.js", "deslizamento.js", "config.js", "painel-base.js", "painel-deslizamento.js", "painel-fogo.js", "painel-vento.js", "painel-mapa.js", "painel-clima.js", "sync-nuvem.js"],
     // os módulos do painel dependem do painel-base.js (cria window.Painel) e das bibliotecas de dados
     "painel-base.js": ["fontes.js"],
     "painel-deslizamento.js": ["painel-base.js", "deslizamento.js", "estacao.js"],
     "painel-fogo.js": ["painel-base.js", "queimadas.js"],
     "painel-vento.js": ["painel-base.js", "serie-om.js"],
+    "sync-nuvem.js": ["config.js", "estacao.js"],
     "painel-mapa.js": ["painel-base.js", "geo.js", "municipio.js"],
     "painel-clima.js": ["painel-base.js", "inmet.js", "serie-om.js"],
     "municipio.js": ["fontes.js", "geo.js"],

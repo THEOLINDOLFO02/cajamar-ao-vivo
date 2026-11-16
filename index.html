@@ -318,6 +318,48 @@
     <div class="colapso-corpo"><ul class="fontes" id="fontes" aria-live="polite"></ul></div>
   </details>
 
+  <details class="colapso" id="syncNuvemCard" data-aba="dados" open>
+    <summary><span>☁️ Sincronização em Tempo Real da Equipe (Celulares ↔ Computadores)<small>Compartilhe ocorrências, observações, cotas do rio e estações via Cloudflare Worker</small></span></summary>
+    <div class="colapso-corpo">
+      <p class="mut" style="margin:0 0 10px;font-size:.85rem">Digite o mesmo <b>Código da Equipe</b> nos celulares e computadores do plantão para sincronizar automaticamente ocorrências, observações manuais, cotas do rio e os últimos 14 dias das estações locais.</p>
+      <div class="row2" style="margin-bottom:10px">
+        <label for="inpSyncSala">Código da Equipe (sala compartilhada)
+          <input id="inpSyncSala" type="text" maxlength="64" placeholder="Ex.: plantao-cajamar-199">
+        </label>
+        <label for="inpSyncUrl">Servidor Cloudflare Worker
+          <input id="inpSyncUrl" type="url" placeholder="https://cajamar-cemaden.theolindolfo02.workers.dev">
+        </label>
+      </div>
+      <div class="barra-acoes" style="align-items:center">
+        <button id="btnSyncAgora" type="button" class="btn primary small">☁️ Sincronizar Agora</button>
+        <button id="btnSalvarConfigNuvem" type="button" class="btn small">💾 Salvar Código</button>
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:.86rem;cursor:pointer">
+          <input id="chkSyncAuto" type="checkbox" checked> Sincronizar automaticamente a cada 2 min
+        </label>
+        <span id="msgSyncNuvem" class="mut" style="font-size:.84rem"></span>
+      </div>
+    </div>
+  </details>
+
+  <details class="colapso" id="telegramAlertasCard" data-aba="dados" open>
+    <summary><span>🤖 Alertas Automáticos em Segundo Plano (Bot do Telegram)<small>Avisos automáticos 24h de INMET, Chuva Forte CEMADEN (≥ 20 mm/h) e Focos de Calor</small></span></summary>
+    <div class="colapso-corpo">
+      <p class="mut" style="margin:0 0 10px;font-size:.85rem">O robô do GitHub Actions (<code>scripts/alertas-telegram.mjs</code>) roda sozinho a cada 10 minutos mesmo com os celulares bloqueados. Você também pode configurar ou disparar um boletim imediato para o grupo do Telegram da Defesa Civil abaixo:</p>
+      <div class="row2" style="margin-bottom:10px">
+        <label for="inpTgChatId">Chat ID do Grupo / Canal do Telegram
+          <input id="inpTgChatId" type="text" placeholder="Ex.: -1001234567890">
+        </label>
+        <label for="inpTgBotToken">Bot Token do Telegram (opcional se já configurado no Worker/GitHub)
+          <input id="inpTgBotToken" type="password" autocomplete="off" placeholder="Ex.: 123456789:ABCdefGHIjklMNOpqrSTUvwxYZ">
+        </label>
+      </div>
+      <div class="barra-acoes" style="align-items:center">
+        <button id="btnTestarTelegram" type="button" class="btn primary small">📲 Enviar Boletim Atual para o Telegram</button>
+        <span id="msgTelegramBot" class="mut" style="font-size:.84rem"></span>
+      </div>
+    </div>
+  </details>
+
   <details class="colapso" id="backup" data-aba="dados">
     <summary><span>💾 Backup dos dados deste aparelho<small>Ocorrências, observações, estações e cotas do rio</small></span></summary>
     <div class="colapso-corpo">
@@ -378,6 +420,7 @@
 <script src="js/painel-vento.js"></script>
 <script src="js/painel-mapa.js"></script>
 <script src="js/painel-clima.js"></script>
+<script src="js/sync-nuvem.js"></script>
 <script src="js/painel.js"></script>
 <script src="js/painel-abas.js"></script>
 <script>
