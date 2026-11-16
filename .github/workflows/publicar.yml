@@ -52,6 +52,9 @@ jobs:
       # Catavento-Surya (estações e réguas municipais de Cajamar por raspagem): se falhar, segue sem interromper o deploy.
       - name: Coletar Catavento-Surya
         continue-on-error: true
+        env:
+          CATAVENTO_USER: ${{ secrets.CATAVENTO_USER }}
+          CATAVENTO_PASS: ${{ secrets.CATAVENTO_PASS }}
         run: node scripts/coletar-catavento.mjs data/catavento.json
       # 2.7 Robô de alertas automáticos (Telegram). O estado "o que já foi avisado" é restaurado e salvo pelo cache do Actions
       # (cada execução cria uma entrada nova e restaura a mais recente): a mesma mensagem não se repete a cada 10 minutos.

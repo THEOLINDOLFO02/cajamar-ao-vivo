@@ -141,8 +141,10 @@ async function rotaCge(request, env, cors) {
   } finally { clearTimeout(t); }
 }
 
-// ---- Portal Municipal Catavento-Surya de Cajamar (https://cajamar.catavento-surya.com/) ----
+// ---- Portal Municipal Catavento-Surya de Cajamar (https://cajamar.catavento-surya.com/ e https://cajamar-meteorologia.catavento-surya.com/) ----
 export const URL_CATAVENTO = "https://cajamar.catavento-surya.com/";
+export const URL_CATAVENTO_LOGIN = "https://cajamar-meteorologia.catavento-surya.com/login";
+export const URL_CATAVENTO_PAINEL = "https://cajamar-meteorologia.catavento-surya.com/";
 
 function normalizarItemCatavento(raw, idx = 0) {
   if (!raw || typeof raw !== "object") return null;

@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { avaliarGatilhosAlerta, avaliarEstacoesCatavento, decidirEnvio, formatarMensagemTelegram, normalizarAvisosInmet, enviarTelegram, nivelDaSeveridade, msBrt, lerCsvFocosCajamar, AUSENCIAS_PARA_ENCERRAR } from "../scripts/alertas-telegram.mjs";
 import { lerCatavento } from "../worker/cemaden-proxy.js";
+import { autenticarCatavento, coletar as coletarCatavento } from "../scripts/coletar-catavento.mjs";
 
 const AGORA = Date.UTC(2026, 10, 16, 18, 0);   // 16/11/2026 15:00 em Brasília
 const aviso = (o = {}) => ({ id_aviso: 1, id_sequencia: 1, geocodes: "3509205,3500105", descricao: "Tempestade", severidade: "Perigo", inicio: "2026-11-16 08:00", fim: "2026-11-16 23:59", riscos: JSON.stringify(["Chuva forte & vento <60 km/h"]), encerrado: false, ...o });
@@ -180,4 +181,30 @@ test("Fogo em Cajamar: filtra focos no território de Cajamar e avisa no Telegra
   const a2 = avaliarGatilhosAlerta({ focosRecentes: focos2 });
   d = decidirEnvio(estado, a2, { agoraMs: AGORA, fontesOk: { fogo: true } });
   assert.equal(d.agravados.length, 1, "novo foco adicional em Cajamar gera alerta no Telegram");
+});
+
+test("Catavento-Surya login: autentica em cajamar-meteorologia.catavento-surya.com/login e repassa cookie/token na coleta", async () => {
+  const chamadas = [];
+  const buscarFalso = async (url, init = {}) => {
+    chamadas.push({ url, method: init.method || "GET", headers: init.headers || {} });
+    if (url.endsWith("/login") && (!init.method || init.method === "GET")) {
+      return { ok: true, headers: { get: (k) => (k === "set-cookie" ? "sess=abc; Path=/" : null) }, text: async () => '<input name="_token" value="csrf123">' };
+    }
+    if (url.endsWith("/login") && init.method === "POST") {
+      return { ok: true, headers: { get: (k) => (k === "set-cookie" ? "auth=logado; Path=/" : null) }, json: async () => ({ token: "jwt999" }) };
+    }
+    return {
+      ok: true,
+      headers: { get: () => null },
+      text: async () => JSON.stringify({ estacoes: [{ sn: "1", alias: "EMEB Karine", chuva1h: 12, temperature_c: 24 }] })
+    };
+  };
+  const res = await coletarCatavento({ buscar: buscarFalso, usuario: "defesacivil", senha: "123" });
+  assert.equal(res.autenticado, true);
+  assert.equal(res.estacoes.length, 1);
+  assert.equal(res.estacoes[0].nome, "EMEB Karine");
+  const reqPainel = chamadas.find((c) => c.url === "https://cajamar-meteorologia.catavento-surya.com/");
+  assert.ok(reqPainel);
+  assert.match(reqPainel.headers.Cookie, /auth=logado/);
+  assert.equal(reqPainel.headers.Authorization, "Bearer jwt999");
 });
