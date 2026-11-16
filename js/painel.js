@@ -5,6 +5,7 @@
 
   P.desliz.iniciar();
   P.fogo.iniciar();
+  if (P.vento) P.vento.iniciar();
 
   // ---------- Backup Unificado do Sistema ----------
   if ($("btnExportarTudo") && typeof Estacao !== "undefined" && Estacao.gerarBackupCompleto) {
@@ -48,7 +49,7 @@
     if (atualizando) return;
     atualizando = true;
     $("reload").disabled = true; $("reload").classList.add("girando"); $("reloadTxt").textContent = "Atualizando…";
-    Promise.all([P.clima.carregarClima(), P.clima.carregarAlertas(), P.clima.carregarPrevisaoInmet(), Cemaden.carregar(), P.fogo.carregar(), P.mapa.carregarRadar(), Ar.carregar(), Modelos.carregar(), Clim.carregar(), Municipio.carregar()].map(function (p) { return p.then(P.desenharFontes); })).then(function () { atualizando = false; $("reload").disabled = false; $("reload").classList.remove("girando"); $("reloadTxt").textContent = "Atualizar agora"; P.desenharFontes(); });
+    Promise.all([P.clima.carregarClima(), P.clima.carregarAlertas(), P.clima.carregarPrevisaoInmet(), Cemaden.carregar(), P.fogo.carregar(), P.vento ? P.vento.carregar() : Promise.resolve(), P.mapa.carregarRadar(), Ar.carregar(), Modelos.carregar(), Clim.carregar(), Municipio.carregar()].map(function (p) { return p.then(P.desenharFontes); })).then(function () { atualizando = false; $("reload").disabled = false; $("reload").classList.remove("girando"); $("reloadTxt").textContent = "Atualizar agora"; P.desenharFontes(); });
     P.desenharFontes();
   }
   var atualizando = false;

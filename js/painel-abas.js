@@ -27,11 +27,14 @@
     });
     guardar(nome);
     // o mapa (Leaflet) precisa recalcular o tamanho quando sai de uma aba escondida
-    if (nome === "mapa" || nome === "fogo") {
+    if (nome === "mapa" || nome === "fogo" || nome === "ventos") {
       setTimeout(function () {
         try { w.dispatchEvent(new Event("resize")); } catch (e) {}
         if (nome === "fogo" && w.Painel && w.Painel.fogo && w.Painel.fogo.redimensionarMapa) {
           w.Painel.fogo.redimensionarMapa();
+        }
+        if (nome === "ventos" && w.Painel && w.Painel.vento && w.Painel.vento.redimensionarMapa) {
+          w.Painel.vento.redimensionarMapa();
         }
       }, 60);
     }

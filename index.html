@@ -50,6 +50,7 @@
     <a href="#chuva" data-aba="chuva">Chuva e encostas</a>
     <a href="#previsao" data-aba="previsao">Previsão</a>
     <a href="#mapaCard" data-aba="mapa">Mapa e satélite</a>
+    <a href="#ventoCard" data-aba="ventos">Ventos</a>
     <a href="#fogoCard" data-aba="fogo">Fogo</a>
     <a href="#ar-sec" data-aba="ar">Ar e UV</a>
     <a href="#fontes-det" data-aba="dados">Dados e fontes</a>
@@ -201,6 +202,52 @@
     <div class="colapso-corpo"><div class="tw mut carregando" id="dias">Carregando…</div></div>
   </details>
 
+  <section class="card" id="ventoCard" data-aba="ventos">
+    <div class="card-head"><h2>💨 Direção e velocidade dos ventos (Satélites e Altitude)</h2></div>
+    <p class="card-sub">Vetores de movimento atmosférico por satélite (GOES-19, Meteosat MSG-03, ADM-Aeolus, QuikSCAT SeaWinds, MetOp ASCAT, CYGNSS, Sentinel-1 e WindSat) e correntes de vento em Cajamar</p>
+    <div class="filtro-periodo" style="margin-bottom:10px">
+      <label for="fNivelVento">Nível de altitude / pressão atmosférica:
+        <select id="fNivelVento" aria-label="Escolher nível de altitude do vento">
+          <option value="10m">Superfície (10 m) — Estações / MetOp ASCAT / QuikSCAT</option>
+          <option value="80m">80 m de altura — Camada Limite Planetária</option>
+          <option value="850hPa">850 hPa (~1.500 m) — GOES-19 / Meteosat Nuvens Baixas</option>
+          <option value="500hPa">500 hPa (~5.500 m) — GOES-19 Vapor d'Água / ADM-Aeolus</option>
+          <option value="250hPa">250 hPa (~10.500 m) — Corrente de Jato / GOES Topo</option>
+        </select>
+      </label>
+    </div>
+    <div class="barra-modos-mapa" role="group" aria-label="Satélite de vento">
+      <button type="button" class="btn small modo-sat-vento ativo-modo" data-sat-vento="GOES">🛰️ GOES-19 / GOES-16 (DMVs)</button>
+      <button type="button" class="btn small modo-sat-vento" data-sat-vento="METEOSAT">🛰️ Meteosat / MSG-03 (AMVs)</button>
+      <button type="button" class="btn small modo-sat-vento" data-sat-vento="ADM-AEOLUS">🛰️ ADM-Aeolus (ALADIN Lidar)</button>
+      <button type="button" class="btn small modo-sat-vento" data-sat-vento="QUIKSCAT">🛰️ QuikSCAT (SeaWinds)</button>
+      <button type="button" class="btn small modo-sat-vento" data-sat-vento="METOP-ASCAT">🛰️ MetOp-B/C (ASCAT)</button>
+      <button type="button" class="btn small modo-sat-vento" data-sat-vento="CYGNSS">🛰️ CYGNSS (NASA)</button>
+      <button type="button" class="btn small modo-sat-vento" data-sat-vento="SENTINEL-1">🛰️ Sentinel-1 (SAR)</button>
+      <button type="button" class="btn small modo-sat-vento" data-sat-vento="WINDSAT">🛰️ WindSat</button>
+    </div>
+    <div id="mapaVentoSat" style="height:clamp(280px,46vh,420px);border-radius:var(--r);border:1px solid var(--line);z-index:0"></div>
+    <p id="ventoSatMsg" class="mut" style="margin:6px 0 12px;font-size:.82rem">🛰️ GOES-19 / GOES-16 (ABI Derived Motion Winds — DMVs): deriva direção e velocidade dos ventos pelo deslocamento de nuvens e vapor d'água sobre a América do Sul.</p>
+    <div id="ventoPainel" class="mut carregando">Consultando direção e velocidade dos ventos nos diferentes níveis da atmosfera…</div>
+    <details class="mais-acoes" style="margin-top:12px" open>
+      <summary>🌐 Mapa animado de fluxo de vento em tempo real (Streamlines ECMWF / Satélite)</summary>
+      <div style="margin-top:8px">
+        <iframe id="iframeWindyVento" title="Mapa de direção e velocidade dos ventos sobre Cajamar" src="https://embed.windy.com/embed.html?type=map&amp;location=coordinates&amp;metricRain=mm&amp;metricTemp=%C2%B0C&amp;metricWind=km/h&amp;zoom=8&amp;overlay=wind&amp;product=ecmwf&amp;level=surface&amp;lat=-23.355&amp;lon=-46.876&amp;detailLat=-23.355&amp;detailLon=-46.876&amp;marker=true" style="width:100%;height:380px;border:1px solid var(--line);border-radius:var(--r)" loading="lazy"></iframe>
+      </div>
+    </details>
+  </section>
+
+  <details class="colapso links" id="links-vento" data-aba="ventos"><summary><span>Plataformas e satélites de vento em tempo real<small>Windy, Earth Nullschool, Ventusky, Meteored e Windfinder</small></span></summary><div class="colapso-corpo">
+    <div class="links-grupo">
+      <strong>💨 Plataformas Globais de Direção e Velocidade dos Ventos:</strong>
+      <a href="https://www.windy.com/?-23.442,-46.916,5" target="_blank" rel="noopener">Windy (Cajamar / SP)</a>
+      <a href="https://earth.nullschool.net/pt/#current/wind/surface/level/orthographic=-58.44,-17.19,376" target="_blank" rel="noopener">Earth Nullschool (Correntes Globais)</a>
+      <a href="https://www.meteored.com.br/mapas-do-tempo/viento-br.html" target="_blank" rel="noopener">Meteored (Mapa de Vento Brasil)</a>
+      <a href="https://www.ventusky.com/pt#p=-22.2;-49.6;4&amp;t=20261116/0000" target="_blank" rel="noopener">Ventusky (Linhas de Fluxo e Rajadas)</a>
+      <a href="https://pt.windfinder.com/#6/-23.0067/-44.3190/spot" target="_blank" rel="noopener">Windfinder (Direção e Superforecast)</a>
+    </div>
+  </div></details>
+
   <section class="card" id="fogoCard" data-aba="fogo">
     <div class="card-head"><h2>🔥 Fogo e queimadas</h2></div>
     <p class="card-sub">Focos de calor e imagens por satélite (INPE, NASA, EUMETSAT, NOAA) e condição do tempo para fogo</p>
@@ -312,6 +359,7 @@
 <script src="js/painel-base.js"></script>
 <script src="js/painel-deslizamento.js"></script>
 <script src="js/painel-fogo.js"></script>
+<script src="js/painel-vento.js"></script>
 <script src="js/painel-mapa.js"></script>
 <script src="js/painel-clima.js"></script>
 <script src="js/painel.js"></script>

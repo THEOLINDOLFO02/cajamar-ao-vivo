@@ -44,3 +44,16 @@ test("calcularRiscoFogoLocal: avalia Regra dos 30 e índice de Angström", () =>
   const baixo = Queimadas.calcularRiscoFogoLocal({ temp: 19, umid: 85, vento: 8, rajada: 12, chuva24h: 15 });
   assert.equal(baixo.classe, "ok");
 });
+
+test("Ventos: catálogo inclui ADM-Aeolus, QuikSCAT, GOES, Meteosat, MetOp ASCAT, CYGNSS, Sentinel-1 e WindSat, e converte rosa dos ventos", () => {
+  const { Ventos } = carregarScript("js/painel-vento.js");
+  const ids = Ventos.SATELITES_VENTO.map((s) => s.id);
+  for (const esp of ["GOES", "METEOSAT", "ADM-AEOLUS", "QUIKSCAT", "METOP-ASCAT", "CYGNSS", "SENTINEL-1", "WINDSAT"]) {
+    assert.ok(ids.includes(esp), `Catálogo de ventos deveria conter ${esp}`);
+  }
+  assert.equal(Ventos.rosaDosVentos(0).sigla, "N");
+  assert.equal(Ventos.rosaDosVentos(90).sigla, "E");
+  assert.equal(Ventos.rosaDosVentos(180).sigla, "S");
+  assert.equal(Ventos.rosaDosVentos(270).sigla, "W");
+  assert.equal(Ventos.escalaBeaufort(65).forca, 8);
+});

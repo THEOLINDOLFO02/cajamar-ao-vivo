@@ -22,6 +22,7 @@
     previsao_inmet: "Previsão INMET (oficial)",
     cemaden: "Chuva observada CEMADEN",
     queimadas: "Focos de calor por satélite (INPE BDQueimadas)",
+    ventos_sat: "Direção e velocidade dos ventos (Satélites / Perfil de Altitude)",
     alertas: "Avisos via radarmeteorologico.com.br (reserva)",
     radar: "Radar e Satélite (RainViewer / NASA GIBS)",
     ar: "Qualidade do ar e UV (Open-Meteo / CAMS)",
