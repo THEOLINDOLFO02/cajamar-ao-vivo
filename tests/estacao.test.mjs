@@ -567,3 +567,31 @@ test("categoria 'nivel' é régua mesmo com chuva registrada; com temperatura vi
   const comTemp = Estacao.lerCsv([CAB_NOVO, linhaNova("Y", "nivel", "16/09/2026 16:59", "1,78959E+12", "14,0", "0", "0,5")].join("\n"));
   assert.equal(Estacao.detectarTipo(comTemp), "ambos");
 });
+
+test("continuidade incremental de CSV: une manhã do CSV antigo com tarde do novo CSV sem precisar reenviar tudo", () => {
+  const banco = Estacao.criarBancoVazio();
+  // 1º envio: 01/01/2026 até 04/01/2026 às 12:00 (84 horas = 3 dias completos + manhã do dia 04/01)
+  const csvParte1 = gerarCsvChuva({ inicio: "2026-01-01", horas: 84, nome: "EMEB Karine", sn: "101" });
+  const r1 = Estacao.mesclarNoSlot(banco, "auto", Estacao.lerCsv(csvParte1), "cajamar_emeb_karine_2026-01-01_a_2026-01-04.csv");
+  assert.equal(r1.slotId, "est1");
+  assert.equal(r1.totalDias, 4);
+  assert.equal(banco.slots.est1.dias["2026-01-04"].cobHoras, 12, "dia 04/01 começa com apenas 12 horas (manhã)");
+  assert.equal(banco.slots.est1.dias["2026-01-04"].chuvaCompleta, false);
+
+  // 2º envio (continuidade): 04/01/2026 das 12:00 até 07/01/2026 às 24:00 (tarde do dia 04/01 + dias 05, 06 e 07 completos)
+  // Omitimos as primeiras 84 horas (84 * 12 = 1008 leituras de 5 min) para simular arquivo que só tem a continuidade!
+  const csvParte2 = gerarCsvChuva({ inicio: "2026-01-01", horas: 168, nome: "EMEB Karine", sn: "101", omitir: (i) => i < 84 * 12 });
+  const r2 = Estacao.mesclarNoSlot(banco, "auto", Estacao.lerCsv(csvParte2), "cajamar_emeb_karine_2026-01-04_a_2026-01-07.csv");
+  assert.equal(r2.slotId, "est1", "cai automaticamente na mesma estação");
+  assert.equal(r2.add, 3, "adiciona os 3 dias novos (05, 06 e 07)");
+  assert.equal(r2.complementados, 1, "une o dia de transição (04/01) hora a hora");
+  assert.equal(r2.totalDias, 7, "preserva os dias anteriores e totaliza 7 dias");
+  assert.equal(banco.slots.est1.dias["2026-01-04"].cobHoras, 24, "dia 04/01 fica com 24/24 horas completas após a união");
+  assert.equal(banco.slots.est1.dias["2026-01-04"].chuvaCompleta, true);
+  assert.equal(banco.slots.est1.dias["2026-01-04"].chuva, 28.8);
+
+  // A janela de 168h (7 dias) no fim do dia 07/01 fica 100% válida e completa!
+  const j = Estacao.janelasDoDia(banco.slots.est1.dias, "2026-01-07");
+  assert.equal(j.mov168.estado, "OK");
+  assert.equal(j.mov168.valor, 201.6);
+});

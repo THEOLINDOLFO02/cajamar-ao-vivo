@@ -342,9 +342,9 @@
   </details>
 
   <details class="colapso" id="telegramAlertasCard" data-aba="dados" open>
-    <summary><span>🤖 Alertas Automáticos em Segundo Plano (Bot do Telegram)<small>Avisos automáticos 24h de INMET, Chuva Forte CEMADEN (≥ 20 mm/h) e Focos de Calor</small></span></summary>
+    <summary><span>🤖 Alertas Automáticos em Segundo Plano (Bot do Telegram)<small>Avisos automáticos 24h de INMET, CEMADEN, Estações Catavento-Surya (raspagem) e Focos de Fogo em Cajamar</small></span></summary>
     <div class="colapso-corpo">
-      <p class="mut" style="margin:0 0 10px;font-size:.85rem">O robô do GitHub Actions (<code>scripts/alertas-telegram.mjs</code>) roda sozinho a cada 10 minutos mesmo com os celulares bloqueados. Você também pode configurar ou disparar um boletim imediato para o grupo do Telegram da Defesa Civil abaixo:</p>
+      <p class="mut" style="margin:0 0 10px;font-size:.85rem">O robô do GitHub Actions (<code>scripts/alertas-telegram.mjs</code>) roda sozinho a cada 10 minutos mesmo com os celulares bloqueados e avisa automaticamente quando houver: <b>1)</b> Avisos do INMET; <b>2)</b> Chuva forte nos pluviômetros do CEMADEN (≥ 20 mm/h ou ≥ 50 mm/24h); <b>3)</b> Mudança de faixa nas estações e réguas do sistema <code>cajamar.catavento-surya.com</code> (por raspagem, seguindo os parâmetros estabelecidos de chuva, nível do rio, vento, ar seco e temperatura); e <b>4)</b> Identificação de foco de fogo no território de Cajamar (INPE BDQueimadas).</p>
       <div class="row2" style="margin-bottom:10px">
         <label for="inpTgChatId">Chat ID do Grupo / Canal do Telegram
           <input id="inpTgChatId" type="text" placeholder="Ex.: -1001234567890">

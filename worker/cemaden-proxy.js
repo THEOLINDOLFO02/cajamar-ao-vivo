@@ -141,6 +141,273 @@ async function rotaCge(request, env, cors) {
   } finally { clearTimeout(t); }
 }
 
+// ---- Portal Municipal Catavento-Surya de Cajamar (https://cajamar.catavento-surya.com/) ----
+export const URL_CATAVENTO = "https://cajamar.catavento-surya.com/";
+
+function normalizarItemCatavento(raw, idx = 0) {
+  if (!raw || typeof raw !== "object") return null;
+  const id = String(raw.sn || raw.id || raw.codigo || raw.serial || raw.alias || raw.nome || raw.name || ("est_" + (idx + 1))).trim();
+  const nome = String(raw.alias || raw.nome || raw.name || raw.estacao || id).trim();
+  const catBruta = String(raw.category || raw.tipo || "").toLowerCase();
+  const ehNivel = /nivel|nível|hidro|fluv|regua|régua/.test(catBruta) || (/natura|jordan/i.test(nome) && raw.water_level_m !== undefined && raw.temperature_c === undefined);
+  const pick = (chaves, min, max) => {
+    for (const k of chaves) {
+      if (raw[k] !== undefined && raw[k] !== null && raw[k] !== "") {
+        const v = numeroCge(raw[k], min, max);
+        if (v !== null) return v;
+      }
+    }
+    return null;
+  };
+  const chuvaObj = raw.chuva && typeof raw.chuva === "object" ? raw.chuva : (raw.acc && typeof raw.acc === "object" ? raw.acc : {});
+  const h1 = pick(["chuva1h", "acc1h", "chuva_1h", "rain_1h", "c60", "intensity_mm", "rain_interval_mm"], 0, 500) ?? numeroCge(chuvaObj.h1 ?? chuvaObj.atual, 0, 500);
+  const h24 = pick(["chuva24h", "acc24h", "chuva_24h", "rain_24h", "accumulated_mm", "chuva_dia", "chuva"], 0, 1000) ?? numeroCge(chuvaObj.h24 ?? chuvaObj.dia, 0, 1000);
+  const h72 = pick(["chuva72h", "acc72h", "chuva_72h", "rain_72h"], 0, 1500) ?? numeroCge(chuvaObj.h72, 0, 1500);
+  const h168 = pick(["chuva168h", "acc168h", "chuva_168h", "rain_168h"], 0, 2000) ?? numeroCge(chuvaObj.h168, 0, 2000);
+  const temperatura = pick(["temperatura", "temperature_c", "temp", "temperatura_c", "tmax"], -50, 60);
+  const umidade = pick(["umidade", "humidity_percent", "umid", "humidity"], 0, 100);
+  const pressao = pick(["pressao", "pressure_hpa", "pressao_hpa", "pressure"], 300, 1100);
+  const vento = pick(["vento", "wind_speed_kmh", "vento_kmh", "wind_speed", "vmax"], 0, 400);
+  const rajada = pick(["rajada", "wind_gust_kmh", "rajada_kmh", "gust_kmh"], 0, 400);
+  const direcao = pick(["direcao", "wind_direction_degrees", "wind_dir"], 0, 360);
+  const nivelRio = pick(["nivelRio", "water_level_m", "nivel_m", "water_level", "nvMax", "nivel"], 0, 30);
+  const variacaoNivelM = pick(["variacaoNivelM", "nvDelta", "water_level_delta_m", "delta_m"], 0, 20);
+  const radiacao = pick(["radiacao", "solar_radiation_wm2", "radiacao_wm2", "radmax"], 0, 2000);
+  const leitura = String(raw.leitura || raw.data_hora_brt || raw.data_hora || raw.updatedAt || raw.ultimoRegistro || "").trim() || null;
+
+  const temValor = [h1, h24, h72, h168, temperatura, umidade, pressao, vento, rajada, nivelRio, radiacao].some((v) => v !== null);
+  if (!temValor) return null;
+  return {
+    id,
+    nome,
+    tipo: ehNivel ? "nivel" : "meteorologica",
+    leitura,
+    chuva1h: h1,
+    chuva24h: h24,
+    chuva72h: h72,
+    chuva168h: h168,
+    temperatura,
+    umidade,
+    pressao,
+    vento,
+    rajada,
+    direcao,
+    nivelRio,
+    variacaoNivelM,
+    radiacao
+  };
+}
+
+function extrairListaJsonCatavento(obj) {
+  if (!obj || typeof obj !== "object") return [];
+  if (Array.isArray(obj)) return obj.map(normalizarItemCatavento).filter(Boolean);
+  for (const k of ["estacoes", "stations", "devices", "equipamentos", "dados", "data", "items"]) {
+    if (Array.isArray(obj[k])) {
+      const l = obj[k].map(normalizarItemCatavento).filter(Boolean);
+      if (l.length) return l;
+    }
+  }
+  if (obj.props && obj.props.pageProps) {
+    const sub = extrairListaJsonCatavento(obj.props.pageProps);
+    if (sub.length) return sub;
+  }
+  return [];
+}
+
+// Lê dados das estações de https://cajamar.catavento-surya.com/ (suporta JSON, CSV de exportação ou raspagem HTML).
+export function lerCatavento(conteudo) {
+  if (typeof conteudo !== "string" || conteudo.trim().length < 10) {
+    throw new Error("resposta vazia do sistema Catavento-Surya");
+  }
+  const txt = conteudo.trim();
+
+  // 1) Se for JSON direto
+  if (txt.startsWith("{") || txt.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(txt);
+      const lista = extrairListaJsonCatavento(parsed);
+      if (lista.length) return lista;
+    } catch (e) { /* segue para outros formatos */ }
+  }
+
+  // 2) Se for CSV do Catavento-Surya (delimitador ';')
+  const primeiraLinha = txt.replace(/^\uFEFF/, "").split(/\r?\n/)[0] || "";
+  if (primeiraLinha.includes(";") && (primeiraLinha.includes("data_hora_brt") || primeiraLinha.includes("rain_interval_mm") || primeiraLinha.includes("water_level_m"))) {
+    const linhas = txt.replace(/^\uFEFF/, "").split(/\r?\n/).filter((l) => l.trim() !== "");
+    const cab = linhas[0].split(";").map((c) => c.trim());
+    const idx = {};
+    cab.forEach((c, i) => { idx[c] = i; });
+    const porEst = new Map();
+    for (let i = 1; i < linhas.length; i++) {
+      const c = linhas[i].split(";");
+      const sn = (idx.sn !== undefined && c[idx.sn] ? c[idx.sn].trim() : "") || "est";
+      const alias = (idx.alias !== undefined && c[idx.alias] ? c[idx.alias].trim() : "") || sn;
+      const cat = idx.category !== undefined && c[idx.category] ? c[idx.category].trim() : "";
+      const dh = idx.data_hora_brt !== undefined && c[idx.data_hora_brt] ? c[idx.data_hora_brt].trim() : "";
+      const chave = sn + "|" + alias;
+      if (!porEst.has(chave)) porEst.set(chave, { sn, alias, category: cat, rows: [] });
+      porEst.get(chave).rows.push({
+        dh,
+        ch: idx.rain_interval_mm !== undefined ? numeroCge(c[idx.rain_interval_mm], 0, 500) : null,
+        acc: idx.accumulated_mm !== undefined ? numeroCge(c[idx.accumulated_mm], 0, 1000) : null,
+        intMm: idx.intensity_mm !== undefined ? numeroCge(c[idx.intensity_mm], 0, 500) : null,
+        t: idx.temperature_c !== undefined ? numeroCge(c[idx.temperature_c], -50, 60) : null,
+        u: idx.humidity_percent !== undefined ? numeroCge(c[idx.humidity_percent], 0, 100) : null,
+        p: idx.pressure_hpa !== undefined ? numeroCge(c[idx.pressure_hpa], 300, 1100) : null,
+        v: idx.wind_speed_kmh !== undefined ? numeroCge(c[idx.wind_speed_kmh], 0, 400) : null,
+        dir: idx.wind_direction_degrees !== undefined ? numeroCge(c[idx.wind_direction_degrees], 0, 360) : null,
+        nv: idx.water_level_m !== undefined ? numeroCge(c[idx.water_level_m], 0, 30) : null,
+        rad: idx.solar_radiation_wm2 !== undefined ? numeroCge(c[idx.solar_radiation_wm2], 0, 2000) : null
+      });
+    }
+    const saidaCsv = [];
+    for (const g of porEst.values()) {
+      const ult = g.rows[g.rows.length - 1];
+      const somaCh = g.rows.reduce((s, r) => s + (r.ch || 0), 0);
+      const nvs = g.rows.map((r) => r.nv).filter((v) => v !== null);
+      const nvMin = nvs.length ? Math.min(...nvs) : null;
+      const nvMax = nvs.length ? Math.max(...nvs) : null;
+      const item = normalizarItemCatavento({
+        sn: g.sn,
+        alias: g.alias,
+        category: g.category,
+        data_hora_brt: ult.dh,
+        chuva1h: ult.intMm !== null && ult.intMm > 0 ? ult.intMm : ult.ch,
+        chuva24h: ult.acc !== null && ult.acc > 0 ? ult.acc : Math.round(somaCh * 10) / 10,
+        temperature_c: ult.t,
+        humidity_percent: ult.u,
+        pressure_hpa: ult.p,
+        wind_speed_kmh: ult.v,
+        wind_direction_degrees: ult.dir,
+        water_level_m: nvMax !== null ? nvMax : ult.nv,
+        variacaoNivelM: nvMax !== null && nvMin !== null ? Math.round((nvMax - nvMin) * 100) / 100 : null,
+        solar_radiation_wm2: ult.rad
+      });
+      if (item) saidaCsv.push(item);
+    }
+    if (saidaCsv.length) return saidaCsv;
+  }
+
+  // 3) Raspagem de HTML: verifica primeiro JSON embutido em <script> (__NEXT_DATA__ ou estado inicial)
+  const rxScriptJson = /<script[^>]*>([\s\S]*?)<\/script>/gi;
+  let mScr;
+  while ((mScr = rxScriptJson.exec(txt)) !== null) {
+    const corpo = mScr[1].trim();
+    if (corpo.startsWith("{") || corpo.startsWith("[")) {
+      try {
+        const l = extrairListaJsonCatavento(JSON.parse(corpo));
+        if (l.length) return l;
+      } catch (e) { /* continua */ }
+    }
+    const mAssign = /(?:__INITIAL_STATE__|__NEXT_DATA__|stations|estacoes)\s*=\s*(\{[\s\S]*\}|\[[\s\S]*\])\s*;?/.exec(corpo);
+    if (mAssign) {
+      try {
+        const l2 = extrairListaJsonCatavento(JSON.parse(mAssign[1]));
+        if (l2.length) return l2;
+      } catch (e) { /* continua */ }
+    }
+  }
+
+  // 4) Raspagem direta de blocos HTML por estação (cards, linhas de tabela ou seções)
+  const limpo = txt
+    .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/&([a-z]+);/gi, (m, e) => (ENTIDADES[e.toLowerCase()] !== undefined ? ENTIDADES[e.toLowerCase()] : " "));
+
+  const NUM = "(-?\\d+(?:[.,]\\d+)?)";
+  function rasparBlocoTexto(bloco, nomePadrao, idx) {
+    const t = bloco.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const mCh1 = new RegExp("(?:chuva\\s*(?:1\\s*h|hor[aá]ria|atual|intervalo)|intensidade|1\\s*h)\\s*:?\\s*" + NUM + "\\s*mm", "i").exec(t);
+    const mCh24 = new RegExp("(?:chuva\\s*(?:24\\s*h|acumulad[ao]|dia)|acumulado(?:\\s*24\\s*h)?|24\\s*h)\\s*:?\\s*" + NUM + "\\s*mm", "i").exec(t);
+    const mCh72 = new RegExp("(?:72\\s*h)\\s*:?\\s*" + NUM + "\\s*mm", "i").exec(t);
+    const mCh168 = new RegExp("(?:168\\s*h|7\\s*d(?:ias)?)\\s*:?\\s*" + NUM + "\\s*mm", "i").exec(t);
+    const mChGen = !mCh1 && !mCh24 ? new RegExp("(?:chuva|precipita[cç][aã]o)\\s*:?\\s*" + NUM + "\\s*mm", "i").exec(t) : null;
+    const mTemp = new RegExp("(?:temp(?:eratura)?)\\s*:?\\s*" + NUM + "\\s*°?\\s*C|" + NUM + "\\s*°C", "i").exec(t);
+    const mUmid = new RegExp("(?:umid(?:ade)?(?:\\s*relativa)?)\\s*:?\\s*" + NUM + "\\s*%|" + NUM + "\\s*%\\s*(?:UR|umid)", "i").exec(t);
+    const mPres = new RegExp("(?:press[aã]o)\\s*:?\\s*" + NUM + "\\s*hPa|" + NUM + "\\s*hPa", "i").exec(t);
+    const mVento = new RegExp("(?:vento|velocidade)\\s*:?\\s*" + NUM + "\\s*km/h|" + NUM + "\\s*km/h", "i").exec(t);
+    const mRaj = new RegExp("(?:rajada)\\s*:?\\s*" + NUM + "\\s*km/h", "i").exec(t);
+    const mNivel = new RegExp("(?:n[ií]vel(?:\\s*do\\s*rio|\\s*d['’]?[aá]gua)?|r[eé]gua|cota)\\s*:?\\s*" + NUM + "\\s*m\\b", "i").exec(t);
+    const mRad = new RegExp("(?:radia[cç][aã]o)\\s*:?\\s*" + NUM + "\\s*W/m|" + NUM + "\\s*W/m", "i").exec(t);
+    const mHora = /(\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}(?::\d{2})?|\d{2}:\d{2})/.exec(t);
+
+    const valTemp = mTemp ? (mTemp[1] || mTemp[2]) : null;
+    const valUmid = mUmid ? (mUmid[1] || mUmid[2]) : null;
+    const valPres = mPres ? (mPres[1] || mPres[2]) : null;
+    const valVento = mVento ? (mVento[1] || mVento[2]) : null;
+    const valRad = mRad ? (mRad[1] || mRad[2]) : null;
+
+    return normalizarItemCatavento({
+      id: nomePadrao.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+      nome: nomePadrao,
+      tipo: mNivel && !valTemp ? "nivel" : "meteorologica",
+      leitura: mHora ? mHora[1] : null,
+      chuva1h: mCh1 ? mCh1[1] : (mChGen ? mChGen[1] : null),
+      chuva24h: mCh24 ? mCh24[1] : null,
+      chuva72h: mCh72 ? mCh72[1] : null,
+      chuva168h: mCh168 ? mCh168[1] : null,
+      temperatura: valTemp,
+      umidade: valUmid,
+      pressao: valPres,
+      vento: valVento,
+      rajada: mRaj ? mRaj[1] : null,
+      nivelRio: mNivel ? mNivel[1] : null,
+      radiacao: valRad
+    }, idx);
+  }
+
+  // Procura blocos nomeados das estações conhecidas de Cajamar ou blocos <article>/<section>/<div data-estacao>
+  const padroesEstacoes = [
+    { nome: "EMEB Karine", rx: /EMEB\s+Karine/i },
+    { nome: "EMEB Maria", rx: /EMEB\s+Maria/i },
+    { nome: "GCM Vila Nova", rx: /GCM\s+Vila\s+Nova|Vila\s+Nova|Polvilho/i },
+    { nome: "EMEB Guilhermina", rx: /EMEB\s+Guilhermina|KM\s*43/i },
+    { nome: "GCM Ponunduva", rx: /GCM\s+Ponunduva|Ponunduva/i },
+    { nome: "Régua Jordanésia", rx: /R[eé]gua\s+Jordan[eé]sia|N[ií]vel\s+Jordan[eé]sia|Jordan[eé]sia/i },
+    { nome: "Régua Natura", rx: /R[eé]gua\s+Natura|N[ií]vel\s+Natura|Natura/i }
+  ];
+
+  const estacoesHtml = [];
+  const posicoes = [];
+  for (const p of padroesEstacoes) {
+    const m = p.rx.exec(limpo);
+    if (m) posicoes.push({ nome: p.nome, pos: m.index });
+  }
+  posicoes.sort((a, b) => a.pos - b.pos);
+  for (let i = 0; i < posicoes.length; i++) {
+    const ini = posicoes[i].pos;
+    const fim = i + 1 < posicoes.length ? posicoes[i + 1].pos : Math.min(limpo.length, ini + 1500);
+    const item = rasparBlocoTexto(limpo.slice(ini, fim), posicoes[i].nome, i);
+    if (item) estacoesHtml.push(item);
+  }
+  if (estacoesHtml.length) return estacoesHtml;
+
+  // Fallback: página única com medições gerais de Cajamar
+  const unico = rasparBlocoTexto(limpo, "Estação Cajamar (Catavento-Surya)", 0);
+  if (unico) return [unico];
+
+  throw new Error("não foi possível extrair leituras da página do Catavento-Surya (verifique se exige login ou se o formato mudou)");
+}
+
+async function rotaCatavento(request, env, cors) {
+  const json = { ...cors, "Content-Type": "application/json; charset=utf-8" };
+  const buscar = env && typeof env.buscar === "function" ? env.buscar : fetch;
+  const urlAlvo = (env && env.CATAVENTO_URL) || URL_CATAVENTO;
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 12000);
+  try {
+    const r = await buscar(urlAlvo, { signal: ctl.signal, headers: { "User-Agent": USER_AGENT } });
+    if (!r.ok) throw new Error("Catavento-Surya respondeu HTTP " + r.status);
+    const estacoes = lerCatavento(await r.text());
+    const corpo = JSON.stringify({ coletadoEm: new Date().toISOString(), fonte: urlAlvo, estacoes });
+    return new Response(request.method === "HEAD" ? null : corpo, {
+      headers: { ...json, "Cache-Control": "public, max-age=120, stale-while-revalidate=300", "X-Content-Type-Options": "nosniff" }
+    });
+  } catch (e) {
+    const msg = e && e.name === "AbortError" ? "Catavento-Surya não respondeu em 12 s" : String(e && e.message ? e.message : e);
+    return new Response(JSON.stringify({ erro: msg }), { status: 502, headers: { ...json, "Cache-Control": "no-store" } });
+  } finally { clearTimeout(t); }
+}
+
 // ---- 2.6 Sincronização em Nuvem entre Celulares e Computadores da Equipe (/sync) ----
 // Armazena o estado operacional (ocorrências, observações, cotas do rio e resumo das estações) em Cloudflare KV
 // (binding CAJAMAR_SYNC) ou em memória de borda (fallback imediato se o KV ainda não estiver vinculado).
@@ -287,6 +554,7 @@ export default {
       return new Response("Método não permitido", { status: 405, headers: cors });
     }
     if (urlReq.pathname === "/cge") return rotaCge(request, env, cors);
+    if (urlReq.pathname === "/catavento") return rotaCatavento(request, env, cors);
     try {
       // A Cloudflare guarda a resposta do CEMADEN por 5 min: protege o CEMADEN e acelera o painel.
       const opcoesBusca = {

@@ -61,10 +61,10 @@
           Object.keys(b.slots).forEach(function (id) {
             var sl = b.slots[id];
             if (!sl || !sl.dias) return;
-            var ds = Object.keys(sl.dias).sort().slice(-14); // últimos 14 dias de cada estação/régua para sincronização leve
+            var ds = Object.keys(sl.dias).sort().slice(-400); // mantém histórico salvo completo (até ~400 dias por estação)
             var recorte = {};
             ds.forEach(function (d) { recorte[d] = sl.dias[d]; });
-            estacoesResumo[id] = { id: sl.id, rotulo: sl.rotulo, estacao: sl.estacao, codigo: sl.codigo, atualizadoEm: sl.atualizadoEm, dias: recorte };
+            estacoesResumo[id] = { id: sl.id, rotulo: sl.rotulo, estacao: sl.estacao, sn: sl.sn, ultimoRegistro: sl.ultimoRegistro, codigo: sl.codigo, atualizadoEm: sl.atualizadoEm, dias: recorte };
           });
         }
       } catch (e) {}
@@ -128,11 +128,17 @@
           var sl = banco.slots[id];
           if (!sl.dias) sl.dias = {};
           Object.keys(rem.dias).forEach(function (d) {
-            if (!sl.dias[d] || (rem.dias[d].n || 0) >= (sl.dias[d].n || 0)) {
+            if (!sl.dias[d]) {
+              sl.dias[d] = rem.dias[d];
+            } else if (typeof Estacao.mesclarDia === "function") {
+              sl.dias[d] = Estacao.mesclarDia(sl.dias[d], rem.dias[d]).dia;
+            } else if ((rem.dias[d].n || 0) >= (sl.dias[d].n || 0)) {
               sl.dias[d] = rem.dias[d];
             }
           });
           if (rem.estacao && !sl.estacao) sl.estacao = rem.estacao;
+          if (rem.sn && !sl.sn) sl.sn = rem.sn;
+          if (rem.ultimoRegistro && (!sl.ultimoRegistro || String(rem.ultimoRegistro) > String(sl.ultimoRegistro))) sl.ultimoRegistro = rem.ultimoRegistro;
           if (rem.atualizadoEm) sl.atualizadoEm = rem.atualizadoEm;
         });
         Estacao.salvarBanco(banco);

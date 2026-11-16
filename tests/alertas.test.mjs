@@ -2,7 +2,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { avaliarGatilhosAlerta, decidirEnvio, formatarMensagemTelegram, normalizarAvisosInmet, enviarTelegram, nivelDaSeveridade, msBrt, AUSENCIAS_PARA_ENCERRAR } from "../scripts/alertas-telegram.mjs";
+import { avaliarGatilhosAlerta, avaliarEstacoesCatavento, decidirEnvio, formatarMensagemTelegram, normalizarAvisosInmet, enviarTelegram, nivelDaSeveridade, msBrt, lerCsvFocosCajamar, AUSENCIAS_PARA_ENCERRAR } from "../scripts/alertas-telegram.mjs";
+import { lerCatavento } from "../worker/cemaden-proxy.js";
 
 const AGORA = Date.UTC(2026, 10, 16, 18, 0);   // 16/11/2026 15:00 em Brasília
 const aviso = (o = {}) => ({ id_aviso: 1, id_sequencia: 1, geocodes: "3509205,3500105", descricao: "Tempestade", severidade: "Perigo", inicio: "2026-11-16 08:00", fim: "2026-11-16 23:59", riscos: JSON.stringify(["Chuva forte & vento <60 km/h"]), encerrado: false, ...o });
@@ -109,4 +110,74 @@ test("workflow: estado dos alertas é restaurado e salvo, e os secrets só entra
   assert.match(y, /actions\/cache\/save@v4/);
   assert.match(y, /TELEGRAM_BOT_TOKEN: \$\{\{ secrets\.TELEGRAM_BOT_TOKEN \}\}/);
   assert.ok(!/\d{8,}:[A-Za-z0-9_-]{30,}/.test(y), "token do Telegram não pode aparecer no workflow");
+});
+
+test("Catavento-Surya: raspagem (HTML, JSON e CSV) e alertas no Telegram toda vez que mudar de faixa nos parâmetros", () => {
+  const htmlCatavento = `
+    <html><body>
+      <div class="card"><h3>EMEB Karine</h3><p>Chuva 1h: 24,5 mm · Chuva 24h: 55,0 mm · Temperatura: 31,2 °C · Umidade: 26% · Vento: 44,0 km/h · 16/11/2026 15:00</p></div>
+      <div class="card"><h3>Régua Jordanésia</h3><p>Nível do rio: 2,35 m · Chuva 1h: 10,0 mm · 16/11/2026 15:00</p></div>
+    </body></html>
+  `;
+  const estacoes = lerCatavento(htmlCatavento);
+  assert.equal(estacoes.length, 2);
+  assert.equal(estacoes[0].nome, "EMEB Karine");
+  assert.equal(estacoes[0].chuva1h, 24.5);
+  assert.equal(estacoes[0].chuva24h, 55);
+  assert.equal(estacoes[0].temperatura, 31.2);
+  assert.equal(estacoes[0].umidade, 26);
+  assert.equal(estacoes[0].vento, 44);
+  assert.equal(estacoes[1].nome, "Régua Jordanésia");
+  assert.equal(estacoes[1].nivelRio, 2.35);
+
+  const gatilhos = avaliarGatilhosAlerta({ catavento: { estacoes } });
+  const chavesCat = gatilhos.map((a) => a.chave);
+  assert.ok(chavesCat.includes("catavento:chuva:emeb_karine"));
+  assert.ok(chavesCat.includes("catavento:vento:emeb_karine"));
+  assert.ok(chavesCat.includes("catavento:umidade:emeb_karine"));
+  assert.ok(chavesCat.includes("catavento:temp:emeb_karine"));
+  assert.ok(chavesCat.includes("catavento:nivel:r_gua_jordan_sia"));
+
+  // Quando muda de faixa no Catavento (mesmo de Nível 2 para Nível 1 ou de 1 para 2), avisa no Telegram
+  let estado = { alertas: {} };
+  const g1 = avaliarEstacoesCatavento([{ id: "k", nome: "EMEB Karine", chuva1h: 22 }]); // Nível 1 (Atenção)
+  let d = decidirEnvio(estado, g1, { agoraMs: AGORA, fontesOk: { catavento: true } });
+  assert.equal(d.novos.length, 1);
+  estado = d.estadoNovo;
+
+  const g2 = avaliarEstacoesCatavento([{ id: "k", nome: "EMEB Karine", chuva1h: 35 }]); // Mudou para Nível 2 (Alerta)
+  d = decidirEnvio(estado, g2, { agoraMs: AGORA, fontesOk: { catavento: true } });
+  assert.equal(d.agravados.length, 1);
+  estado = d.estadoNovo;
+
+  const g3 = avaliarEstacoesCatavento([{ id: "k", nome: "EMEB Karine", chuva1h: 22 }]); // Mudou de volta para Nível 1 (Atenção)
+  d = decidirEnvio(estado, g3, { agoraMs: AGORA, fontesOk: { catavento: true } });
+  assert.equal(d.agravados.length, 1, "mudança de faixa no Catavento gera notificação");
+});
+
+test("Fogo em Cajamar: filtra focos no território de Cajamar e avisa no Telegram quando surgem novos focos", () => {
+  const csvInpeDiario = [
+    "id,lat,lon,data_hora_gmt,satelite,municipio,estado,pais,municipio_id,frp",
+    "1,-23.3510,-46.8720,2026-11-16 17:30:00,NPP-375,CAJAMAR,SAO PAULO,Brasil,3509205,18.5",
+    "2,-22.9000,-47.0600,2026-11-16 17:30:00,NPP-375,CAMPINAS,SAO PAULO,Brasil,3509502,25.0"
+  ].join("\n");
+  const focos = lerCsvFocosCajamar(csvInpeDiario, AGORA);
+  assert.equal(focos.length, 1);
+  assert.equal(focos[0].municipio, "CAJAMAR");
+  assert.equal(focos[0].satelite, "NPP-375");
+
+  let estado = { alertas: {} };
+  const a1 = avaliarGatilhosAlerta({ focosRecentes: focos });
+  assert.equal(a1.length, 1);
+  assert.match(a1[0].titulo, /FOCO\(S\) DE CALOR EM CAJAMAR \(1 registro/);
+
+  let d = decidirEnvio(estado, a1, { agoraMs: AGORA, fontesOk: { fogo: true } });
+  assert.equal(d.novos.length, 1);
+  estado = d.estadoNovo;
+
+  // Surge um 2º foco em Cajamar: deve disparar nova notificação!
+  const focos2 = [...focos, { ...focos[0], id: "outro", lat: -23.34, lon: -46.85 }];
+  const a2 = avaliarGatilhosAlerta({ focosRecentes: focos2 });
+  d = decidirEnvio(estado, a2, { agoraMs: AGORA, fontesOk: { fogo: true } });
+  assert.equal(d.agravados.length, 1, "novo foco adicional em Cajamar gera alerta no Telegram");
 });

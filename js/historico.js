@@ -40,14 +40,19 @@
       var icone = Estacao.ehSlotNivel(info.id) ? "🌊 " : "🌡️ ";
       var topo = el("div", "slot-topo");
       topo.appendChild(el("strong", "", icone + info.rotulo));
-      var badge = el("span", "slot-badge " + (chaves.length ? "ok" : "vazio"), chaves.length ? chaves.length + " dia(s)" : "Sem CSV");
+      var badge = el("span", "slot-badge " + (chaves.length ? "ok" : "vazio"), chaves.length ? "💾 " + chaves.length + " dia(s) salvos" : "Sem CSV");
       topo.appendChild(badge);
       card.appendChild(topo);
 
       var nome = sl.estacao ? sl.estacao : (chaves.length ? info.rotulo : "Nenhum arquivo enviado");
       card.appendChild(el("p", "slot-nome", nome));
       if (chaves.length) {
-        card.appendChild(el("small", "mut", fdataLonga(chaves[0]) + " a " + fdataLonga(chaves[chaves.length - 1])));
+        var txtPer = fdataLonga(chaves[0]) + " a " + fdataLonga(chaves[chaves.length - 1]);
+        if (sl.ultimoRegistro) txtPer += " · Última leitura: " + sl.ultimoRegistro;
+        card.appendChild(el("small", "mut", txtPer));
+        var dicaCont = el("small", "mut", "✔ Dados salvos: no próximo envio, anexe só a continuidade a partir de " + fdataLonga(chaves[chaves.length - 1]) + ".");
+        dicaCont.style.display = "block";
+        card.appendChild(dicaCont);
       } else {
         card.appendChild(el("small", "mut", Estacao.ehSlotNivel(info.id) ? "Leituras de nível do rio (m)" : "Chuva, temperatura, vento e umidade"));
       }
@@ -62,7 +67,7 @@
       };
       acoes.appendChild(btnVer);
 
-      var btnUp = el("button", "btn small", "📂 Enviar CSV");
+      var btnUp = el("button", "btn small", chaves.length ? "➕ Alimentar continuidade" : "📂 Enviar CSV");
       btnUp.type = "button";
       btnUp.onclick = function () {
         slotForcadoUpload = info.id;
@@ -478,11 +483,12 @@
     var partes = [];
     rel.importados.forEach(function (r) {
       var extra = [];
+      if (r.complementados) extra.push(r.complementados + " dia(s) de transição unido(s) hora a hora");
       if (r.descartadas) extra.push(r.descartadas + " linha(s) descartada(s)");
       if (r.duplicados) extra.push(r.duplicados + " duplicada(s)");
       if (r.invalidos) extra.push(r.invalidos + " valor(es) de chuva inválido(s)");
       if (r.foraDeOrdem) extra.push(r.foraDeOrdem + " fora de ordem");
-      partes.push("✔ " + r.nome + " → " + r.rotulo + " (" + r.estacao + "): +" + r.add + " dia(s) novo(s), " + r.subst + " atualizado(s), " + r.mantidos + " mantido(s)" + (extra.length ? " [" + extra.join("; ") + "]" : ""));
+      partes.push("✔ " + r.nome + " → " + r.rotulo + " (" + r.estacao + "): +" + r.add + " dia(s) novo(s), " + r.subst + " atualizado(s), " + r.mantidos + " mantido(s) (total salvo: " + r.totalDias + " dias)" + (extra.length ? " [" + extra.join("; ") + "]" : ""));
     });
     rel.rejeitados.forEach(function (r) { partes.push("✖ " + r.nome + ": " + r.motivo); });
     return "Importação — importados: " + rel.importados.length + ", rejeitados: " + rel.rejeitados.length + ". " + partes.join(" | ");

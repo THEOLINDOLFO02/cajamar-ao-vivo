@@ -42,12 +42,12 @@
 </nav>
 <main id="conteudo">
   <div class="pagina-cab"><h1>Histórico da estação</h1><p class="sub">Chuva, temperatura e vento a partir do CSV importado</p></div>
-  <div class="aux aux-curto">🔒 Os CSV são lidos <b>só no seu navegador</b>; nada vai para servidor. Dados auxiliares: não substituem INMET e CEMADEN.
-    <details><summary>Detalhes</summary>Você pode importar de <b>1 a 7 arquivos CSV</b> (as <b>5 estações meteorológicas</b> e as <b>2 réguas de nível do rio</b> de Cajamar).</details>
+  <div class="aux aux-curto">🔒 <b>Armazenamento incremental ativo:</b> os CSVs já enviados ficam salvos neste aparelho (e na Sincronização em Nuvem da equipe). Da próxima vez, <b>não é preciso exportar todo o período novamente</b> — envie apenas o arquivo com os novos dias (a continuidade a partir da última data salva).
+    <details><summary>Detalhes</summary>Você pode importar de <b>1 a 7 arquivos CSV</b> (as <b>5 estações meteorológicas</b> e as <b>2 réguas de nível do rio</b> de Cajamar). Quando o novo CSV começa no meio do último dia salvo, o sistema une automaticamente as horas da manhã (já salvas) com as horas da tarde (do novo CSV) sem perder nenhuma leitura.</details>
   </div>
   <section class="card barra-ferramentas" aria-label="Importar e exportar dados">
     <div class="barra-acoes">
-      <button id="escolher" type="button" class="btn primary">📂 Importar CSV(s) (1 a 7 arquivos)</button>
+      <button id="escolher" type="button" class="btn primary">📂 Importar / Alimentar Continuidade CSV (1 a 7 arquivos)</button>
       <button id="imprimir" type="button" class="btn" disabled>🖨️ Gerar Boletim (PDF / Imprimir)</button>
     </div>
     <label for="slotDestino" class="rotulo-inline">

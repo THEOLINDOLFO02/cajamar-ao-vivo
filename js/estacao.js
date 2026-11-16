@@ -126,6 +126,7 @@
         nv: idx.water_level_m !== undefined ? num(c[idx.water_level_m]) : null,
         rad: idx.solar_radiation_wm2 !== undefined ? lim(num(c[idx.solar_radiation_wm2]), LIMITES_FISICOS.rad) : null,
         fx: 0,
+        dhBrt: dh.trim(),
         nome: idx.alias !== undefined && c[idx.alias] ? c[idx.alias].trim() : "",
         sn: idx.sn !== undefined && c[idx.sn] ? c[idx.sn].trim() : "",
         cat: idx.category !== undefined && c[idx.category] ? c[idx.category].trim().toLowerCase() : ""
@@ -428,6 +429,7 @@
               tipo: x.tipo || s.tipo,
               estacao: x.estacao || "",
               sn: x.sn || "",
+              ultimoRegistro: x.ultimoRegistro || "",
               dias: x.dias || {}
             };
           }
@@ -491,6 +493,17 @@
     }
   }
 
+  function normalizarNomeEstacao(s) {
+    return String(s || "")
+      .toLowerCase()
+      .replace(/\.csv$/i, "")
+      .replace(/\b\d{4}[-_/\s]\d{2}[-_/\s]\d{2}\b/g, " ")
+      .replace(/\b\d{2}[-_/\s]\d{2}[-_/\s]\d{4}\b/g, " ")
+      .replace(/\b(cajamar|estacao|estação|meteorologica|meteorológica|pluviometro|pluviômetro|continuidade|parte|novo|de|ate|até|a)\b/g, " ")
+      .replace(/[^a-z0-9\u00C0-\u00FF]+/g, " ")
+      .trim();
+  }
+
   // Régua de nível: casa por SN ou nome já guardado; senão pela pista no nome do arquivo (Natura/Jordanésia); senão a primeira vazia.
   function escolherSlotNivel(banco, nome, sn, arq) {
     for (var i = 0; i < IDS_NIVEL.length; i++) {
@@ -517,22 +530,159 @@
     if (tipo === "nivel" || /regua|régua|nivel|nível|rio|fluv|hidro/.test(arq)) {
       return escolherSlotNivel(banco, nome, sn, arq);
     }
-    // 1) Se já existe slot com o mesmo SN ou mesmo nome de estação, atualiza-o
+    // 1) Se já existe slot com o mesmo SN ou mesmo nome de estação (ou mesmo nome normalizado sem as datas), atualiza-o
     var idsMet = ["est1", "est2", "est3", "est4", "est5"];
     for (var i = 0; i < idsMet.length; i++) {
       var sl = banco.slots[idsMet[i]];
       if (sn && sl.sn && sl.sn === sn) return sl.id;
       if (nome && sl.estacao && sl.estacao.toLowerCase() === nome.toLowerCase()) return sl.id;
     }
+    var normEntrada = normalizarNomeEstacao(nome || nomeArquivo);
+    if (normEntrada && normEntrada.length >= 3) {
+      for (var nIdx = 0; nIdx < idsMet.length; nIdx++) {
+        var slN = banco.slots[idsMet[nIdx]];
+        var normSl = normalizarNomeEstacao(slN.estacao);
+        if (normSl && normSl.length >= 3 && (normSl === normEntrada || normSl.indexOf(normEntrada) >= 0 || normEntrada.indexOf(normSl) >= 0)) {
+          return slN.id;
+        }
+      }
+    }
     // 2) Primeiro slot meteorológico vazio
     for (var j = 0; j < idsMet.length; j++) {
       if (!Object.keys(banco.slots[idsMet[j]].dias).length) return idsMet[j];
     }
-    // 3) Se os 3 já estão ocupados e a régua está vazia e o arquivo também tem nível, usa a régua; senão, usa o ativo
+    // 3) Se os 5 já estão ocupados e a régua está vazia e o arquivo também tem nível, usa a régua; senão, usa o ativo
     if (tipo === "ambos") {
       for (var k = 0; k < IDS_NIVEL.length; k++) if (!Object.keys(banco.slots[IDS_NIVEL[k]].dias).length) return IDS_NIVEL[k];
     }
     return banco.ativo && !ehSlotNivel(banco.ativo) ? banco.ativo : "est1";
+  }
+
+  function minVal(a, b) {
+    if (a === null || a === undefined) return b === undefined ? null : b;
+    if (b === null || b === undefined) return a;
+    return Math.min(a, b);
+  }
+  function maxVal(a, b) {
+    if (a === null || a === undefined) return b === undefined ? null : b;
+    if (b === null || b === undefined) return a;
+    return Math.max(a, b);
+  }
+
+  // Mescla dois resumos do MESMO dia civil quando um CSV de continuidade começa no meio do dia em que o CSV anterior parou.
+  // Se ambos possuem detalhe horário (hN/hMm/hNv) e horas complementares (ex.: manhã no antigo + tarde no novo),
+  // une hora a hora (0..23) para formar o dia completo sem perder nenhuma metade.
+  // Devolve { dia, acao: "subst" | "mantido" | "complementado" }.
+  function mesclarDia(antigo, novo) {
+    if (!antigo) return { dia: novo, acao: "add" };
+    if (!novo) return { dia: antigo, acao: "mantido" };
+    var temHorasAnt = Array.isArray(antigo.hN) && antigo.hN.length === 24 && Array.isArray(antigo.hMm) && antigo.hMm.length === 24;
+    var temHorasNov = Array.isArray(novo.hN) && novo.hN.length === 24 && Array.isArray(novo.hMm) && novo.hMm.length === 24;
+    if (!temHorasAnt || !temHorasNov) {
+      if ((novo.n || 0) >= (antigo.n || 0)) return { dia: novo, acao: "subst" };
+      return { dia: antigo, acao: "mantido" };
+    }
+    var hNvAnt = Array.isArray(antigo.hNv) && antigo.hNv.length === 24 ? antigo.hNv : vetor(24, 0);
+    var hNvNov = Array.isArray(novo.hNv) && novo.hNv.length === 24 ? novo.hNv : vetor(24, 0);
+    var exclusivoAnt = false, exclusivoNov = false;
+    for (var h = 0; h < 24; h++) {
+      var cA = (antigo.hN[h] || 0) + (hNvAnt[h] || 0);
+      var cN = (novo.hN[h] || 0) + (hNvNov[h] || 0);
+      if (cA > cN) exclusivoAnt = true;
+      if (cN > cA) exclusivoNov = true;
+    }
+    // Se não há horas complementares, usa a regra direta por quantidade de leituras
+    if (!exclusivoAnt || !exclusivoNov) {
+      if ((novo.n || 0) >= (antigo.n || 0)) return { dia: novo, acao: "subst" };
+      return { dia: antigo, acao: "mantido" };
+    }
+
+    // União hora a hora (0..23) de manhã + tarde (continuidade no mesmo dia)
+    var hMm = vetor(24, null), hN = vetor(24, 0), hNv = vetor(24, 0);
+    var somaChuva = 0, nChuva = 0, nNivel = 0;
+    for (var i = 0; i < 24; i++) {
+      var nA = antigo.hN[i] || 0, nN = novo.hN[i] || 0;
+      if (nN >= nA && nN > 0) {
+        hN[i] = nN;
+        hMm[i] = novo.hMm[i];
+      } else if (nA > 0) {
+        hN[i] = nA;
+        hMm[i] = antigo.hMm[i];
+      }
+      if (hN[i] > 0 && typeof hMm[i] === "number") {
+        somaChuva += hMm[i];
+        nChuva += hN[i];
+      }
+      hNv[i] = Math.max(hNvAnt[i] || 0, hNvNov[i] || 0);
+      nNivel += hNv[i];
+    }
+    var cobHoras = hN.filter(function (x) { return x > 0; }).length;
+    var cobHorasNivel = hNv.filter(function (x) { return x > 0; }).length;
+    var nvMin = minVal(antigo.nvMin, novo.nvMin);
+    var nvMax = maxVal(antigo.nvMax, novo.nvMax);
+    var nvDelta = (nvMax !== null && nvMin !== null) ? Math.round((nvMax - nvMin) * 100) / 100 : null;
+    var pesoUAnt = antigo.umid !== null && antigo.umid !== undefined ? (antigo.n || 1) : 0;
+    var pesoUNov = novo.umid !== null && novo.umid !== undefined ? (novo.n || 1) : 0;
+    var umid = (pesoUAnt + pesoUNov) > 0
+      ? Math.round(((antigo.umid || 0) * pesoUAnt + (novo.umid || 0) * pesoUNov) / (pesoUAnt + pesoUNov) * 10) / 10
+      : null;
+    var pesoNvAnt = antigo.nvMed !== null && antigo.nvMed !== undefined ? (antigo.nNivel || 1) : 0;
+    var pesoNvNov = novo.nvMed !== null && novo.nvMed !== undefined ? (novo.nNivel || 1) : 0;
+    var nvMed = (pesoNvAnt + pesoNvNov) > 0
+      ? Math.round(((antigo.nvMed || 0) * pesoNvAnt + (novo.nvMed || 0) * pesoNvNov) / (pesoNvAnt + pesoNvNov) * 100) / 100
+      : null;
+
+    // Mantém apenas lacunas cujas horas não foram preenchidas pela outra metade do dia
+    var lacunasUnidas = [];
+    function adicionarLacunas(lista, outroHN) {
+      (lista || []).forEach(function (g) {
+        if (!Array.isArray(g) || g.length < 2) return;
+        var hIni = horaDe(g[0]), hFim = horaDe(g[1]);
+        if (outroHN[hIni] > 0 && outroHN[hFim] > 0) return;
+        if (lacunasUnidas.length < MAX_LACUNAS_POR_DIA) lacunasUnidas.push([g[0], g[1]]);
+      });
+    }
+    adicionarLacunas(antigo.lacunas, novo.hN);
+    adicionarLacunas(novo.lacunas, antigo.hN);
+    var lacunaMaxMin = lacunasUnidas.length ? Math.max(antigo.lacunaMaxMin || 0, novo.lacunaMaxMin || 0) : 0;
+    var lacunasTrunc = Boolean(antigo.lacunasTrunc || novo.lacunasTrunc);
+
+    var nTotal = Math.max(nChuva, nNivel, (antigo.n || 0), (novo.n || 0));
+    var combinado = {
+      v: 3,
+      n: nTotal,
+      chuva: nChuva ? Math.round(somaChuva * 10) / 10 : null,
+      nChuva: nChuva,
+      tmin: minVal(antigo.tmin, novo.tmin),
+      tmax: maxVal(antigo.tmax, novo.tmax),
+      umid: umid,
+      pmin: minVal(antigo.pmin, novo.pmin),
+      pmax: maxVal(antigo.pmax, novo.pmax),
+      vmax: maxVal(antigo.vmax, novo.vmax),
+      radmax: maxVal(antigo.radmax, novo.radmax),
+      c10: maxVal(antigo.c10, novo.c10) || 0,
+      c60: maxVal(antigo.c60, novo.c60) || 0,
+      nvMin: nvMin,
+      nvMax: nvMax,
+      nvMed: nvMed,
+      nvDelta: nvDelta,
+      nNivel: nNivel,
+      hMm: hMm.map(function (x) { return x === null ? null : r3(x); }),
+      hN: hN,
+      hNv: hNv,
+      intMin: novo.intMin !== null && novo.intMin !== undefined ? novo.intMin : antigo.intMin,
+      lacunas: lacunasUnidas,
+      lacunasTrunc: lacunasTrunc,
+      lacunaMaxMin: lacunaMaxMin,
+      dup: (antigo.dup || 0) + (novo.dup || 0),
+      inv: (antigo.inv || 0) + (novo.inv || 0),
+      foraFaixa: (antigo.foraFaixa || 0) + (novo.foraFaixa || 0),
+      foraOrdem: (antigo.foraOrdem || 0) + (novo.foraOrdem || 0),
+      cobHoras: cobHoras,
+      cobHorasNivel: cobHorasNivel,
+      chuvaCompleta: cobHoras === 24 && !lacunasUnidas.length && !lacunasTrunc
+    };
+    return { dia: combinado, acao: "complementado" };
   }
 
   function mesclarNoSlot(banco, slotId, rows, nomeArquivo) {
@@ -541,18 +691,34 @@
     if (!banco.slots[alvo]) alvo = "est1";
     var slot = banco.slots[alvo];
     var novos = resumir(rows);
-    var add = 0, subst = 0, mantidos = 0;
+    var add = 0, subst = 0, mantidos = 0, complementados = 0;
     Object.keys(novos).forEach(function (k) {
       if (!slot.dias[k]) { slot.dias[k] = novos[k]; add++; }
-      else if (novos[k].n >= slot.dias[k].n) { slot.dias[k] = novos[k]; subst++; }
-      else mantidos++;
+      else {
+        var m = mesclarDia(slot.dias[k], novos[k]);
+        slot.dias[k] = m.dia;
+        if (m.acao === "complementado") { subst++; complementados++; }
+        else if (m.acao === "subst") subst++;
+        else mantidos++;
+      }
     });
     var nome = rows[0].nome;
-    if (!nome && nomeArquivo) {
+    if (!nome && !slot.estacao && nomeArquivo) {
       nome = String(nomeArquivo).replace(/\.csv$/i, "").replace(/[_-]+/g, " ").trim();
     }
     if (nome) slot.estacao = nome;
     if (rows[0].sn) slot.sn = rows[0].sn;
+    var maxRow = rows[0];
+    for (var rIdx = 1; rIdx < rows.length; rIdx++) {
+      if (rows[rIdx].ts > maxRow.ts) maxRow = rows[rIdx];
+    }
+    if (maxRow && maxRow.dhBrt) {
+      var chavesAtuais = Object.keys(slot.dias).sort();
+      var ultimaChave = chavesAtuais.length ? chavesAtuais[chavesAtuais.length - 1] : "";
+      if (!slot.ultimoRegistro || maxRow.dia >= ultimaChave) {
+        slot.ultimoRegistro = maxRow.dhBrt;
+      }
+    }
     var tipoDet = detectarTipo(rows);
     if (ehSlotNivel(alvo) || tipoDet === "nivel") slot.tipo = "nivel";
     else if (tipoDet === "ambos") slot.tipo = "ambos";
@@ -566,7 +732,9 @@
       linhas: rows.length,
       add: add,
       subst: subst,
+      complementados: complementados,
       mantidos: mantidos,
+      ultimoRegistro: slot.ultimoRegistro || "",
       totalDias: Object.keys(slot.dias).length
     };
   }
@@ -986,7 +1154,7 @@
     var escritas = {};
     var resumo = { estacoesRestauradas: 0, diasAdicionados: 0, diasAtualizados: 0, diasMantidos: 0, ocorrenciasNovas: 0, observacoesNovas: 0, cotas: "ausentes no backup", contato: "ausente no backup", avisos: [] };
 
-    // estações: mescla por dia (maior nº de leituras vence; empate = backup)
+    // estações: mescla por dia (une horas complementares ou maior nº de leituras vence; empate = backup)
     var bancoAtual = carregarBanco(st);
     if (bancoAtual.erroCarga) throw new Error("Os dados atuais das estações estão ilegíveis; restauração não executada para não sobrescrevê-los. Exporte/guarde o conteúdo e limpe-o manualmente.");
     var novoBanco = clonarBanco(bancoAtual);
@@ -994,8 +1162,12 @@
       var b = d.slots[id], sl = novoBanco.slots[id], tocou = false;
       Object.keys(b.dias).forEach(function (k) {
         if (!sl.dias[k]) { sl.dias[k] = b.dias[k]; resumo.diasAdicionados++; tocou = true; }
-        else if (b.dias[k].n >= sl.dias[k].n) { sl.dias[k] = b.dias[k]; resumo.diasAtualizados++; tocou = true; }
-        else resumo.diasMantidos++;
+        else {
+          var m = mesclarDia(sl.dias[k], b.dias[k]);
+          sl.dias[k] = m.dia;
+          if (m.acao === "subst" || m.acao === "complementado") { resumo.diasAtualizados++; tocou = true; }
+          else resumo.diasMantidos++;
+        }
       });
       if (tocou) {
         resumo.estacoesRestauradas++;
@@ -1071,6 +1243,7 @@
     carregarBanco: carregarBanco,
     salvarBanco: salvarBanco,
     escolherSlotAutomatico: escolherSlotAutomatico,
+    mesclarDia: mesclarDia,
     mesclarNoSlot: mesclarNoSlot,
     validarArquivoCsv: validarArquivoCsv,
     planejarImportacao: planejarImportacao,

@@ -49,6 +49,10 @@ jobs:
       - name: Coletar CGE
         continue-on-error: true
         run: node scripts/coletar-cge.mjs data/cge.json
+      # Catavento-Surya (estações e réguas municipais de Cajamar por raspagem): se falhar, segue sem interromper o deploy.
+      - name: Coletar Catavento-Surya
+        continue-on-error: true
+        run: node scripts/coletar-catavento.mjs data/catavento.json
       # 2.7 Robô de alertas automáticos (Telegram). O estado "o que já foi avisado" é restaurado e salvo pelo cache do Actions
       # (cada execução cria uma entrada nova e restaura a mais recente): a mesma mensagem não se repete a cada 10 minutos.
       - name: Restaurar estado dos alertas
@@ -62,7 +66,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: node scripts/alertas-telegram.mjs data/cemaden.json data/alertas-estado.json
+        run: node scripts/alertas-telegram.mjs data/cemaden.json data/alertas-estado.json data/catavento.json
       - name: Salvar estado dos alertas
         if: always() && hashFiles('data/alertas-estado.json') != ''
         uses: actions/cache/save@v4
@@ -78,6 +82,7 @@ jobs:
           if [ -f sw.js ]; then cp sw.js _site/; fi
           if [ -f data/cemaden.json ]; then mkdir -p _site/data && cp data/cemaden.json _site/data/; fi
           if [ -f data/cge.json ]; then mkdir -p _site/data && cp data/cge.json _site/data/; fi
+          if [ -f data/catavento.json ]; then mkdir -p _site/data && cp data/catavento.json _site/data/; fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

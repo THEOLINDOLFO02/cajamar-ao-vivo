@@ -37,7 +37,7 @@
 
         card.appendChild(el("p", "slot-nome", sl.estacao || (chaves.length ? info.rotulo : "Nenhum CSV enviado")));
         if (chaves.length) {
-          card.appendChild(el("small", "mut", fdLonga(chaves[0]) + " a " + fdLonga(chaves[chaves.length - 1])));
+          card.appendChild(el("small", "mut", "Salvo: " + fdLonga(chaves[0]) + " a " + fdLonga(chaves[chaves.length - 1]) + (sl.ultimoRegistro ? " (" + sl.ultimoRegistro + ")" : "")));
         } else {
           card.appendChild(el("small", "mut", Estacao.ehSlotNivel(info.id) ? "Envia leitura de nível do rio (m)" : "Envia chuva e clima da estação"));
         }
@@ -52,7 +52,7 @@
           };
           acoes.appendChild(btnUsar);
         }
-        var btnUp = el("button", "btn small", chaves.length ? "📂 Atualizar CSV" : "📂 Enviar CSV");
+        var btnUp = el("button", "btn small", chaves.length ? "➕ Alimentar continuidade" : "📂 Enviar CSV");
         btnUp.type = "button";
         btnUp.onclick = function () {
           slotUploadComp = info.id;
