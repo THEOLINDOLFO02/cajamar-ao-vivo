@@ -90,6 +90,62 @@
     return { dias: n, modelo: Math.round(modelo * 10) / 10, estacao: Math.round(estacao * 10) / 10, difPct: estacao > 0 ? Math.round((modelo - estacao) / estacao * 100) : null };
   }
 
+  // ---------- 1.3 Balanço Hídrico de Seca / Estiagem (Dias consecutivos sem chuva relevante >= 2,5 mm + Déficit 30/90d) ----------
+  function analisarEstiagem(s, fimISO, limiarMm) {
+    if (!s || !fimISO) return null;
+    var lim = typeof limiarMm === "number" && limiarMm > 0 ? limiarMm : 2.5;
+    var fim = diaDeISO(fimISO);
+    var diasSecos = 0;
+    var ultimoDiaChuva = null;
+    var chuvaUltimoDia = null;
+    // Conta dias consecutivos para trás com chuva < limiarMm. Se encontrar dia sem dado (null), para se ainda não achou chuva.
+    for (var d = fim; d >= s.ini && fim - d <= 365; d--) {
+      var v = valorDia(s, d);
+      if (v === null) {
+        if (diasSecos === 0) return null;
+        break;
+      }
+      if (v >= lim) {
+        ultimoDiaChuva = isoDeDia(d);
+        chuvaUltimoDia = v;
+        break;
+      }
+      diasSecos++;
+    }
+    var c30 = comparar(s, fimISO, "dias", 30);
+    var c90 = comparar(s, fimISO, "dias", 90);
+    var deficit30Mm = c30 ? Math.round((c30.atual - c30.media) * 10) / 10 : null;
+    var deficit90Mm = c90 ? Math.round((c90.atual - c90.media) * 10) / 10 : null;
+
+    var nivel = 0, estado = "Sem estiagem significativa", classeCor = "ok";
+    if (diasSecos >= 30 || (diasSecos >= 20 && c30 && c30.pctDaMedia !== null && c30.pctDaMedia < 35)) {
+      nivel = 3; estado = "Estiagem Severa (Crítica p/ Queimadas)"; classeCor = "v";
+    } else if (diasSecos >= 15 || (c30 && c30.pctDaMedia !== null && c30.pctDaMedia < 50)) {
+      nivel = 2; estado = "Estiagem Moderada (Atenção)"; classeCor = "l";
+    } else if (diasSecos >= 7 || (c30 && c30.pctDaMedia !== null && c30.pctDaMedia < 75)) {
+      nivel = 1; estado = "Período Seco em Curso"; classeCor = "am";
+    }
+
+    return {
+      diasSemChuva: diasSecos,
+      limiarMm: lim,
+      ultimoDiaChuva: ultimoDiaChuva,
+      chuvaUltimoDia: chuvaUltimoDia,
+      acum30Mm: c30 ? c30.atual : null,
+      normal30Mm: c30 ? c30.media : null,
+      deficit30Mm: deficit30Mm,
+      pctNormal30: c30 ? c30.pctDaMedia : null,
+      acum90Mm: c90 ? c90.atual : null,
+      normal90Mm: c90 ? c90.media : null,
+      deficit90Mm: deficit90Mm,
+      pctNormal90: c90 ? c90.pctDaMedia : null,
+      nivel: nivel,
+      estado: estado,
+      classeCor: classeCor,
+      referenciaFim: fimISO
+    };
+  }
+
   function urlArquivo(fimISO) {
     return "https://archive-api.open-meteo.com/v1/archive?latitude=" + LAT + "&longitude=" + LON + "&start_date=" + ANO_INI + "-01-01&end_date=" + fimISO +
       "&daily=precipitation_sum&timezone=America%2FSao_Paulo";
@@ -98,7 +154,7 @@
   var api = {
     ANO_INI: ANO_INI, ANO_FIM: ANO_FIM, urlArquivo: urlArquivo, serieDeResposta: serieDeResposta, somar: somar, valorDia: valorDia,
     ultimoDiaComDado: ultimoDiaComDado, janelaDoAno: janelaDoAno, comparar: comparar, classe: classe, posicao: posicao, conferir: conferir,
-    diaDeISO: diaDeISO, isoDeDia: isoDeDia
+    analisarEstiagem: analisarEstiagem, diaDeISO: diaDeISO, isoDeDia: isoDeDia
   };
 
   // ---------- parte de tela (só roda no navegador) ----------
@@ -166,9 +222,24 @@
         var defs = [["Este mês", "mes", 0], ["Últimos 30 dias", "dias", 30], ["Últimos 90 dias", "dias", 90]];
         var comps = defs.map(function (x) { return comparar(d.s, d.fim, x[1], x[2]); });
         if (!comps.some(function (c) { return c; })) throw new Error("sem dados suficientes");
+        var est = analisarEstiagem(d.s, d.fim, 2.5);
+        api.ultimaEstiagem = est;
+        document.dispatchEvent(new CustomEvent("cajamar:estiagem", { detail: est }));
         var escala = Math.max.apply(null, comps.filter(Boolean).reduce(function (a, c) { return a.concat([c.max, c.atual]); }, [5])) * 1.05;
         B.textContent = ""; B.className = "";
         if (d.antigo) B.appendChild(el("p", "stale", "Não foi possível atualizar agora. Mostrando dados guardados até " + dm(d.fim) + "."));
+        if (est) {
+          var banEst = el("div", "alert " + (est.classeCor === "v" ? "v" : est.classeCor === "l" ? "l" : est.classeCor === "am" ? "" : "ok-alert"));
+          banEst.style.marginTop = "0";
+          banEst.style.marginBottom = "12px";
+          banEst.appendChild(el("strong", "", "🌵 Balanço Hídrico e Estiagem: " + est.estado + " (" + est.diasSemChuva + " dia(s) consecutivo(s) c/ chuva < 2,5 mm)"));
+          banEst.appendChild(el("small", "",
+            (est.ultimoDiaChuva ? "Última chuva ≥ 2,5 mm: " + dm(est.ultimoDiaChuva) + " (" + f0(est.chuvaUltimoDia) + " mm)" : "Sem registro recente ≥ 2,5 mm") +
+            (est.deficit30Mm !== null ? " · Saldo 30 dias: " + (est.deficit30Mm >= 0 ? "+" : "") + f0(est.deficit30Mm) + " mm (" + est.pctNormal30 + "% da normal)" : "") +
+            (est.deficit90Mm !== null ? " · Saldo 90 dias: " + (est.deficit90Mm >= 0 ? "+" : "") + f0(est.deficit90Mm) + " mm" : "")
+          ));
+          B.appendChild(banEst);
+        }
         comps.forEach(function (c, i) { if (c) B.appendChild(linha(defs[i][0], c, escala)); });
         B.appendChild(el("p", "mut norm-legenda", "Barra azul: chuva do período. Faixa clara: do ano mais seco ao mais chuvoso (1991-2020). Traço: média."));
 

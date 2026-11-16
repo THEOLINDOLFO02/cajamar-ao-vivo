@@ -10,6 +10,7 @@
     "cajamar:estacoes:v2": 1,
     "cajamar:historico:v1": 1,
     "cajamar:cotas_rio:v1": 1,
+    "cajamar:areas_risco_custom:v1": 1,
     "cajamar:tema": 1,
     "cajamar:contato": 1,
     "cajamar:alertaSom": 1

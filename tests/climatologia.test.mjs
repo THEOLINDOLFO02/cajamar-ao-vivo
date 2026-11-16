@@ -118,3 +118,18 @@ test("a consulta pede o período 1991 até a data final, só a chuva diária, em
   const u = Clim.urlArquivo("2026-10-21");
   assert.ok(u.includes("start_date=1991-01-01") && u.includes("end_date=2026-10-21") && u.includes("daily=precipitation_sum") && u.includes("America%2FSao_Paulo"));
 });
+
+test("analisarEstiagem: conta dias consecutivos sem chuva relevante (< 2,5 mm) e calcula saldo de 30 e 90 dias", () => {
+  // Últimos 18 dias sem chuva (0 mm de 04/10 a 21/10) e dia 03/10 com 12 mm
+  const s = Clim.serieDeResposta(resposta("2026-10-21", (d) => {
+    if (d >= "2026-10-04" && d <= "2026-10-21") return 0;
+    if (d === "2026-10-03") return 12;
+    return regraOutubro(d);
+  }));
+  const est = Clim.analisarEstiagem(s, "2026-10-21", 2.5);
+  assert.equal(est.diasSemChuva, 18);
+  assert.equal(est.ultimoDiaChuva, "2026-10-03");
+  assert.equal(est.chuvaUltimoDia, 12);
+  assert.ok(est.nivel >= 2, "18 dias secos caracteriza estiagem moderada/severa");
+  assert.ok(typeof est.deficit30Mm === "number");
+});

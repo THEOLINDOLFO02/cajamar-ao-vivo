@@ -166,6 +166,9 @@
       <button type="button" class="btn small modo-mapa" data-modo="goes_geocolor">🛰️ Satélite GOES (GeoColor)</button>
       <button type="button" class="btn small modo-mapa" data-modo="goes_ir">🌡️ Satélite GOES IR (Tempestades)</button>
       <button type="button" class="btn small modo-mapa" data-modo="pontos_cajamar">📍 Estações, Rio e Encostas</button>
+      <button type="button" class="btn small modo-mapa" data-modo="areas_risco">⚠️ Polígonos de Áreas de Risco</button>
+      <button type="button" id="btnImportarGeoRisco" class="btn small" title="Importar arquivo GeoJSON de setores de risco">📂 Importar GeoJSON</button>
+      <input id="arqGeoRisco" type="file" accept=".geojson,.json,application/json" hidden>
     </div>
     <div id="mapa"></div>
     <div class="rc" id="radarControles">
@@ -182,6 +185,18 @@
   </section>
 
   <section class="card" id="previsao" data-aba="previsao"><h2>Previsão oficial do INMET</h2><div id="prevInmet" class="mut carregando">Carregando…</div></section>
+
+  <section class="card" id="tempestadeCard" data-aba="previsao">
+    <div class="card-head"><h2>⚡ Monitoramento de Raios, Descargas Atmosféricas e Tempestade Severa (CAPE)</h2></div>
+    <p class="card-sub">Energia Potencial Convectiva Disponível (CAPE), Índice de Instabilidade (Lifted Index) e descargas elétricas em tempo real (GOES-19 GLM / Blitzortung)</p>
+    <div id="tempestadePainel" class="mut carregando">Calculando índice convectivo de tempestade severa (CAPE / Lifted Index)…</div>
+    <details class="mais-acoes" style="margin-top:8px">
+      <summary>⚡ Ver mapa interativo de raios e trovoadas ao vivo (Windy Thunder / GOES GLM)</summary>
+      <div style="margin-top:8px">
+        <iframe title="Mapa de raios e trovoadas sobre Cajamar" src="https://embed.windy.com/embed.html?type=map&amp;location=coordinates&amp;metricRain=mm&amp;metricTemp=%C2%B0C&amp;metricWind=km/h&amp;zoom=8&amp;overlay=thunder&amp;product=ecmwf&amp;level=surface&amp;lat=-23.355&amp;lon=-46.876&amp;detailLat=-23.355&amp;detailLon=-46.876&amp;marker=true" style="width:100%;height:340px;border:1px solid var(--line);border-radius:var(--r)" loading="lazy"></iframe>
+      </div>
+    </details>
+  </section>
 
   <details class="colapso" id="horas-sec" data-aba="previsao">
     <summary><span>Chuva prevista nas próximas 24 h<small>Milímetros por hora, modelo Open-Meteo (não é medição)</small></span></summary>
@@ -318,7 +333,8 @@
 
   <details class="colapso links" id="links" data-aba="mapa"><summary><span>Fontes de chuva, radar e satélite<small>INMET, SAISP, RainViewer, GOES e outras</small></span></summary><div class="colapso-corpo">
     <div class="links-grupo">
-      <strong>🌧️ Clima, Chuva e Radar:</strong>
+      <strong>🌧️ Clima, Chuva, Estações Locais e Radar:</strong>
+      <a href="https://cajamar.catavento-surya.com/" target="_blank" rel="noopener">🌐 Portal de Monitoramento Cajamar (Catavento / Surya)</a>
       <a href="https://previsao.inmet.gov.br/3509205" target="_blank" rel="noopener">INMET Cajamar</a>
       <a href="https://www.saisp.br/estaticos/sitenovo/home.html" target="_blank" rel="noopener">SAISP</a>
       <a href="https://www.rainviewer.com/map.html?loc=-23.3547,-46.8764,9" target="_blank" rel="noopener">RainViewer</a>

@@ -185,9 +185,14 @@
     d.appendChild(el("strong", "", "🌡️ Condição Meteorológica para Fogo em Cajamar: " + rf.nivel));
     d.appendChild(el("small", "", "Temp: " + Math.round(rf.temp) + "°C · Umidade: " + Math.round(rf.umid) + "% · Vento/Rajada: " + rf.ventoMax + " km/h · Regra dos 30: " + rf.regra30 + "/3 fatores · Índice Angström: " + rf.angstrom));
     d.appendChild(el("span", "", rf.recomendacao));
+    if (typeof Clim !== "undefined" && Clim.ultimaEstiagem) {
+      var est = Clim.ultimaEstiagem;
+      d.appendChild(el("small", "", "🌵 Estiagem acumulada (ERA5): " + est.diasSemChuva + " dia(s) consecutivo(s) sem chuva ≥ 2,5 mm (" + est.estado + ")" + (est.deficit30Mm !== null ? " · Saldo 30 d: " + (est.deficit30Mm >= 0 ? "+" : "") + String(est.deficit30Mm).replace(".", ",") + " mm (" + est.pctNormal30 + "% da normal)" : "") + "."));
+    }
     d.appendChild(el("small", "mut", rf.aviso + " Índice de Angström clássico (sem ajustes): " + String(rf.angstromPuro).replace(".", ",") + "."));
     box.appendChild(d);
   }
+  document.addEventListener("cajamar:estiagem", function () { atualizarRiscoFogoBox(); });
 
   function filtrarFocosAtuais() {
     if (!dadosQueimadasAtual || !Array.isArray(dadosQueimadasAtual.focos)) return [];

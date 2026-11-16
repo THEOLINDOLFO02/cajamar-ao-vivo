@@ -36,8 +36,102 @@
   }
 
   var map = null, frames = [], layers = [], cur = 0, timer = null, host = "", pastCount = 0;
-  var layerFogo = null, layerPontos = null, camadaGoesGeo = null, camadaGoesIr = null, camadaViirsSnpp = null, camadaViirsNoaa20 = null, camadaTermicaNasa = null;
+  var layerFogo = null, layerPontos = null, layerRisco = null, camadaGoesGeo = null, camadaGoesIr = null, camadaViirsSnpp = null, camadaViirsNoaa20 = null, camadaTermicaNasa = null;
   var modoMapaAtual = "radar", extrasGibs = {};
+
+  // 1.1 Polígonos referenciais de Áreas de Risco Geológico (G1–G4) e Hidrológico (Inundação do Rio Juquery) em Cajamar
+  var AREAS_RISCO_CAJAMAR = {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: { id: "risco_jord_encosta", nome: "Jordanésia · Encostas e Taludes", bairro: "Jordanésia", tipo: "Geológico (Escorregamento)", grau: "G3 — Alto (Referencial)", cor: "#ea580c", desc: "Setor de encostas íngremes e cortes de talude em Jordanésia (próximo à Estação 1)." },
+        geometry: { type: "Polygon", coordinates: [[[-46.8320, -23.3300], [-46.8190, -23.3300], [-46.8190, -23.3405], [-46.8320, -23.3405], [-46.8320, -23.3300]]] }
+      },
+      {
+        type: "Feature",
+        properties: { id: "risco_jord_rio", nome: "Várzea do Rio Juquery · Jordanésia", bairro: "Jordanésia", tipo: "Hidrológico (Inundação / Alagamento)", grau: "Risco Hidrológico (Régua Jordanésia)", cor: "#0284c7", desc: "Planície de inundação marginal ao Rio Juquery em Jordanésia." },
+        geometry: { type: "Polygon", coordinates: [[[-46.8490, -23.3320], [-46.8360, -23.3320], [-46.8360, -23.3415], [-46.8490, -23.3415], [-46.8490, -23.3320]]] }
+      },
+      {
+        type: "Feature",
+        properties: { id: "risco_polvilho", nome: "Polvilho / Portal · Drenagem Urbana e Taludes", bairro: "Polvilho", tipo: "Hidrológico e Geológico", grau: "G2/G3 — Médio a Alto (Referencial)", cor: "#eab308", desc: "Área urbana adensada sujeita a enxurradas rápidas, alagamentos e pontos de talude no Polvilho." },
+        geometry: { type: "Polygon", coordinates: [[[-46.8530, -23.4040], [-46.8380, -23.4040], [-46.8380, -23.4165], [-46.8530, -23.4165], [-46.8530, -23.4040]]] }
+      },
+      {
+        type: "Feature",
+        properties: { id: "risco_ponunduva", nome: "Ponunduva · Encostas e Serra", bairro: "Ponunduva", tipo: "Geológico (Escorregamento) e Florestal", grau: "G3 — Alto (Referencial)", cor: "#dc2626", desc: "Setor serrano e de encostas com vegetação em Ponunduva (monitorado pela Estação 3)." },
+        geometry: { type: "Polygon", coordinates: [[[-46.9270, -23.3220], [-46.9100, -23.3220], [-46.9100, -23.3365], [-46.9270, -23.3365], [-46.9270, -23.3220]]] }
+      },
+      {
+        type: "Feature",
+        properties: { id: "risco_km43", nome: "KM 43 / Anhanguera · Encostas e Mata", bairro: "KM 43", tipo: "Geológico (Taludes Rodoviários e Encostas)", grau: "G3 — Alto (Referencial)", cor: "#ea580c", desc: "Trecho de serra e taludes ao longo do eixo KM 43 / Anhanguera (monitorado pela Estação 4)." },
+        geometry: { type: "Polygon", coordinates: [[[-46.8710, -23.3080], [-46.8560, -23.3080], [-46.8560, -23.3200], [-46.8710, -23.3200], [-46.8710, -23.3080]]] }
+      },
+      {
+        type: "Feature",
+        properties: { id: "risco_natura_rio", nome: "Calha do Rio Juquery · Setor Natura / Centro", bairro: "Cajamar Centro / Natura", tipo: "Hidrológico (Inundação)", grau: "Risco Hidrológico (Régua Natura)", cor: "#0284c7", desc: "Trecho monitorado pela régua de nível Natura no eixo do Rio Juquery." },
+        geometry: { type: "Polygon", coordinates: [[[-46.8420, -23.3950], [-46.8280, -23.3950], [-46.8280, -23.4050], [-46.8420, -23.4050], [-46.8420, -23.3950]]] }
+      }
+    ]
+  };
+
+  function carregarGeoJsonPersonalizado() {
+    try {
+      var salvo = JSON.parse(localStorage.getItem("cajamar:areas_risco_custom:v1") || "null");
+      if (salvo && salvo.type === "FeatureCollection" && Array.isArray(salvo.features)) return salvo;
+    } catch (e) {}
+    return null;
+  }
+
+  function obterGeoJsonAreasRisco() {
+    var custom = carregarGeoJsonPersonalizado();
+    if (!custom) return AREAS_RISCO_CAJAMAR;
+    return {
+      type: "FeatureCollection",
+      features: AREAS_RISCO_CAJAMAR.features.concat(custom.features)
+    };
+  }
+
+  function verificarIntersecaoRisco(lon, lat) {
+    if (typeof Geo === "undefined" || !Geo.pontoDentro) return [];
+    var col = obterGeoJsonAreasRisco();
+    return (col.features || []).filter(function (f) {
+      return Geo.pontoDentro(lon, lat, f);
+    }).map(function (f) { return f.properties || {}; });
+  }
+
+  function desenharAreasRiscoNoMapa() {
+    if (!layerRisco || typeof L === "undefined") return;
+    layerRisco.clearLayers();
+    var col = obterGeoJsonAreasRisco();
+    (col.features || []).forEach(function (feat) {
+      var pr = feat.properties || {};
+      var cor = pr.cor || "#ea580c";
+      var g = L.geoJSON(feat, {
+        style: { color: cor, weight: 2, dashArray: "5 4", fillColor: cor, fillOpacity: 0.18 }
+      });
+      var pop = el("div");
+      pop.appendChild(el("b", "", "⚠️ " + (pr.nome || "Setor de Risco Mapeado")));
+      pop.appendChild(el("br"));
+      pop.appendChild(el("small", "", "Tipo: " + (pr.tipo || "Geológico/Hidrológico") + " · Grau: " + (pr.grau || "Referencial")));
+      if (pr.desc) {
+        pop.appendChild(el("br"));
+        pop.appendChild(el("small", "", pr.desc));
+      }
+      var btnVist = el("button", "btn small", "🚨 Abrir Vistoria neste Setor");
+      btnVist.type = "button";
+      btnVist.style.marginTop = "6px";
+      btnVist.style.minHeight = "28px";
+      btnVist.style.padding = "2px 8px";
+      btnVist.onclick = function () { P.desliz.abrirOcorrencia(pr.nome || pr.bairro || "Setor de Risco"); };
+      pop.appendChild(el("br"));
+      pop.appendChild(btnVist);
+      g.bindPopup(pop);
+      g.bindTooltip("⚠️ " + (pr.nome || "Área de Risco") + " (" + (pr.grau || "Referencial") + ")", { sticky: true });
+      g.addTo(layerRisco);
+    });
+  }
 
   var layerLimite = null, limiteEnquadrado = false;
   function desenharLimite() {
@@ -194,8 +288,10 @@
     });
 
     layerLimite = L.layerGroup().addTo(map);
+    layerRisco = L.layerGroup().addTo(map);
     layerPontos = L.layerGroup().addTo(map);
     desenharLimite();
+    desenharAreasRiscoNoMapa();
     atualizarPontosCajamarNoMapa();
     layerAvisos = L.layerGroup().addTo(map);
     layerFogo = L.layerGroup().addTo(map);
@@ -204,6 +300,7 @@
       { "Ruas": camadaRuas, "Satélite (Base Esri)": camadaSatelite, "Relevo/Topografia": camadaRelevo },
       Object.assign({
         "🗺️ Limite do município (IBGE)": layerLimite,
+        "⚠️ Setores de Risco (Encostas G1–G4 e Várzea do Juquery)": layerRisco,
         "📍 Estações, Rio e Encostas de Cajamar": layerPontos,
         "⚠️ Áreas dos avisos do INMET": layerAvisos,
         "🔥 Focos de Calor INPE (BDQueimadas)": layerFogo,
@@ -275,9 +372,16 @@
       if (m) m.textContent = "Monitoramento de Fogo por Satélite ativo: Focos INPE BDQueimadas + Anomalias Térmicas NASA (VIIRS 375m NOAA-20/21/NPP-375 e MODIS).";
     } else if (modo === "pontos_cajamar") {
       atualizarPontosCajamarNoMapa();
+      desenharAreasRiscoNoMapa();
       if (layerPontos && !map.hasLayer(layerPontos)) layerPontos.addTo(map);
+      if (layerRisco && !map.hasLayer(layerRisco)) layerRisco.addTo(map);
       map.setView([LAT, LON], 12);
-      if (m) m.textContent = "Pontos monitorados de Cajamar: clique em qualquer marcador (Jordanésia, Polvilho, Ponunduva, KM 43, Natura ou Base da Defesa Civil) para ver o indicador referencial, o nível do rio e abrir vistoria.";
+      if (m) m.textContent = "Pontos monitorados e Setores de Risco de Cajamar: clique em qualquer marcador ou polígono (Jordanésia, Polvilho, Ponunduva, KM 43, Natura ou Base da Defesa Civil) para ver o indicador referencial, o nível do rio e abrir vistoria.";
+    } else if (modo === "areas_risco") {
+      desenharAreasRiscoNoMapa();
+      if (layerRisco && !map.hasLayer(layerRisco)) layerRisco.addTo(map);
+      map.setView([LAT, LON], 12);
+      if (m) m.textContent = "Polígonos referenciais de Áreas de Risco Geológico (encostas G2/G3) e Hidrológico (várzea de inundação do Rio Juquery) em Cajamar. Você também pode importar um arquivo GeoJSON abaixo.";
     } else {
       if (m && frames.length) {
         m.textContent = pastCount + " quadros passados (chuva detectada) + " + (frames.length - pastCount) + " de projeção (nowcast).";
@@ -359,6 +463,11 @@
           (f.diasSemChuva !== null ? " · " + f.diasSemChuva + " dia(s) s/ chuva" : "")
         ));
       }
+      var zonasFoco = verificarIntersecaoRisco(f.lon, f.lat);
+      if (zonasFoco.length) {
+        pop.appendChild(el("br"));
+        pop.appendChild(el("small", "err", "⚠️ DENTRO DE SETOR DE RISCO MAPEADO: " + zonasFoco.map(function (z) { return z.nome; }).join(", ")));
+      }
       m.bindPopup(pop);
       m.bindTooltip("🔥 " + f.municipio + " · " + f.rotuloSat + " (" + f.distanciaKm.toFixed(0) + " km)", { direction: "top" });
       layerFogo.addLayer(m);
@@ -421,8 +530,31 @@
   $("play").onclick = function () { play(!timer); };
   $("slider").oninput = function () { play(false); show(+this.value); };
 
+  if ($("btnImportarGeoRisco") && $("arqGeoRisco")) {
+    $("btnImportarGeoRisco").onclick = function () { $("arqGeoRisco").click(); };
+    $("arqGeoRisco").onchange = function () {
+      var f = this.files && this.files[0];
+      this.value = "";
+      if (!f) return;
+      var rd = new FileReader();
+      rd.onload = function () {
+        try {
+          var j = JSON.parse(String(rd.result));
+          if (!j || j.type !== "FeatureCollection" || !Array.isArray(j.features)) throw new Error("Use um arquivo GeoJSON FeatureCollection válido.");
+          localStorage.setItem("cajamar:areas_risco_custom:v1", JSON.stringify(j));
+          desenharAreasRiscoNoMapa();
+          if ($("rmsg")) $("rmsg").textContent = "✅ " + j.features.length + " polígono(s) de área de risco importado(s) e desenhado(s) no mapa.";
+        } catch (e) {
+          if ($("rmsg")) $("rmsg").textContent = "❌ Erro ao importar GeoJSON: " + (e && e.message ? e.message : "formato inválido");
+        }
+      };
+      rd.readAsText(f);
+    };
+  }
+
   P.mapa = {
     carregarRadar: radar, desenharFocos: desenharFocosNoMapa, focarFoco: focarFocoNoMapa, atualizarPontos: atualizarPontosCajamarNoMapa,
+    AREAS_RISCO_CAJAMAR: AREAS_RISCO_CAJAMAR, verificarIntersecaoRisco: verificarIntersecaoRisco,
     definirAvisos: function (dentro, proximos) { avisosMapa = dentro; avisosProximosMapa = proximos; desenharAvisosNoMapa(); }
   };
   window.focarFocoNoMapa = focarFocoNoMapa;

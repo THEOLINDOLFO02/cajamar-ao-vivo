@@ -50,7 +50,20 @@
   <div class="actions">
     <button class="btn primary" id="novo" type="button">+ Nova ocorrência</button>
     <button class="btn" id="relatorio" type="button" title="Copiar relatório formatado para o WhatsApp da equipe">📋 Resumo para WhatsApp</button>
+    <button class="btn" id="btnPassagemPlantao" type="button" title="Gerar relatório consolidado de Passagem de Plantão (12h/24h): chuva, réguas do rio, ocorrências, focos de calor e previsão">📑 Fechar Plantão (12h / 24h)</button>
+    <button class="btn" id="btnImprimirPlantao" type="button" title="Imprimir ou salvar PDF do Relatório de Plantão">🖨️ Imprimir / PDF</button>
   </div>
+  <section class="card" id="boxPassagemPlantao" hidden>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <h2 style="margin:0">📑 Relatório Consolidado de Passagem de Plantão</h2>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn small primary" id="btnCopiarPlantao" type="button">📋 Copiar p/ WhatsApp</button>
+        <button class="btn small" id="btnWhatsPlantao" type="button">💬 Abrir no WhatsApp</button>
+        <button class="btn small" id="btnFecharBoxPlantao" type="button">✕ Fechar</button>
+      </div>
+    </div>
+    <pre id="textoPassagemPlantao" style="white-space:pre-wrap;font:inherit;font-size:.9rem;background:var(--bg);padding:12px;border-radius:var(--r-sm);border:1px solid var(--line);margin:0"></pre>
+  </section>
   <details class="mais-acoes">
     <summary>Backup (.json)</summary>
     <div class="barra-acoes">
@@ -66,8 +79,21 @@
       <label>Tipo<select id="subtipo" required></select></label>
     </div>
     <div class="row2">
-      <label>Bairro / local<input id="local" list="bairrosCajamar" maxlength="120" required placeholder="Ex.: bairro ou ponto de referência"><datalist id="bairrosCajamar"></datalist></label>
+      <label>Bairro / local
+        <div style="display:flex;gap:6px;align-items:center">
+          <input id="local" list="bairrosCajamar" maxlength="120" required placeholder="Ex.: bairro ou ponto de referência">
+          <button class="btn small" id="btnGpsOcorrencia" type="button" title="Capturar coordenadas GPS atuais do aparelho" style="flex:none">📍 GPS</button>
+        </div>
+        <datalist id="bairrosCajamar"></datalist>
+      </label>
       <label>Data e hora<input id="quando" type="datetime-local" required></label>
+    </div>
+    <input id="coordGps" type="hidden">
+    <div class="row2">
+      <label>Fotos da vistoria (até 2 fotos — salvas no aparelho via IndexedDB)
+        <input id="fotosInput" type="file" accept="image/*" multiple>
+      </label>
+      <div id="previaFotosForm" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding-top:18px"></div>
     </div>
     <div class="row2" id="boxStatus" hidden>
       <label>Status<select id="statusForm"><option value="aberta">Aberta</option><option value="atendimento">Em atendimento</option><option value="concluida">Concluída</option></select></label>

@@ -18,9 +18,34 @@
     return "";
   }
 
+  function classificarTempestadeSevera(cape, li, wmo) {
+    var c = typeof cape === "number" && isFinite(cape) && cape >= 0 ? Math.round(cape) : null;
+    var l = typeof li === "number" && isFinite(li) ? Math.round(li * 10) / 10 : null;
+    var ehRaioWmo = wmo === 95 || wmo === 96 || wmo === 99;
+    if (c === null && l === null && !ehRaioWmo) return null;
+    var nivel = 0, estado = "Estável (baixo potencial de raios)", classe = "ok-alert", desc = "Baixa energia convectiva disponível para tempestades elétricas.";
+    if (ehRaioWmo || (c !== null && c >= 2500) || (l !== null && l <= -6)) {
+      nivel = 3;
+      estado = "Severo (Alto Potencial de Raios, Vendaval e Granizo)";
+      classe = "v";
+      desc = "Forte instabilidade convectiva (CAPE elevado / índice Lifted muito negativo ou tempestade ativa). Risco de descargas atmosféricas intensas e microexplosões.";
+    } else if ((c !== null && c >= 1000) || (l !== null && l <= -3)) {
+      nivel = 2;
+      estado = "Moderado a Alto (Condição para Trovoadas e Pancadas Fortes)";
+      classe = "l";
+      desc = "Atmosfera instável com energia suficiente para formação de nuvens Cumulonimbus (Cb), raios e rajadas de vento.";
+    } else if ((c !== null && c >= 300) || (l !== null && l <= 0)) {
+      nivel = 1;
+      estado = "Instabilidade Fraca (Convecção Isolada)";
+      classe = "";
+      desc = "Energia convectiva moderada/baixa: possibilidade de pancadas rápidas e trovoadas isoladas, principalmente à tarde.";
+    }
+    return { nivel: nivel, estado: estado, classe: classe, desc: desc, cape: c, li: l };
+  }
+
   async function clima() {
     var url = "https://api.open-meteo.com/v1/forecast?latitude=" + LAT + "&longitude=" + LON +
-      "&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_gusts_10m&hourly=precipitation" +
+      "&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_gusts_10m&hourly=precipitation,cape,lifted_index" +
       "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum&past_days=7&forecast_days=7&timezone=America%2FSao_Paulo";
     try {
       var r = await Fontes.consultar("clima", url, function (j) { return j && j.current && j.hourly && j.hourly.time && j.daily && j.daily.time; });
@@ -76,6 +101,43 @@
           ? "Total previsto nas próximas 24 h (até " + String(j.hourly.time[i0 + 24]).slice(11, 16) + " de amanhã): " + prox.valor.toFixed(1) + " mm (modelo, não é medição)"
           : "Total previsto nas próximas 24 h: indisponível (" + (24 - prox.comDado) + " de 24 horas sem dado).";
         chuva24hPassada = SerieOM.acumuladoAte(j.hourly.precipitation, i0, 24).valor;
+      }
+
+      // 1.2 Monitoramento de Raios / Descargas Atmosféricas e CAPE (Potencial de Tempestade Severa)
+      var boxTempestade = $("tempestadePainel");
+      if (boxTempestade) {
+        boxTempestade.textContent = "";
+        boxTempestade.className = "";
+        aviso(boxTempestade, r);
+        var capeAtual = (i0 >= 0 && Array.isArray(j.hourly.cape) && typeof j.hourly.cape[i0] === "number") ? j.hourly.cape[i0] : null;
+        var liAtual = (i0 >= 0 && Array.isArray(j.hourly.lifted_index) && typeof j.hourly.lifted_index[i0] === "number") ? j.hourly.lifted_index[i0] : null;
+        var capeMax24 = null, horaPicoCape = "";
+        if (i0 >= 0 && Array.isArray(j.hourly.cape)) {
+          for (var ic = i0; ic <= Math.min(i0 + 24, j.hourly.cape.length - 1); ic++) {
+            var vc = j.hourly.cape[ic];
+            if (typeof vc === "number" && isFinite(vc) && (capeMax24 === null || vc > capeMax24)) {
+              capeMax24 = Math.round(vc);
+              horaPicoCape = String(j.hourly.time[ic] || "").slice(11, 16);
+            }
+          }
+        }
+        var avSev = classificarTempestadeSevera(capeAtual !== null ? capeAtual : capeMax24, liAtual, c.weather_code);
+        if (!avSev) {
+          boxTempestade.appendChild(el("p", "mut", "Índice de instabilidade convectiva (CAPE / Lifted Index) indisponível nesta atualização. Use o mapa de raios ao vivo abaixo."));
+        } else {
+          var banSev = el("div", "alert " + avSev.classe);
+          banSev.style.marginTop = "0";
+          banSev.style.marginBottom = "10px";
+          banSev.appendChild(el("strong", "", "⚡ Potencial Convectivo e de Raios: " + avSev.estado));
+          banSev.appendChild(el("small", "",
+            "CAPE agora: " + (avSev.cape !== null ? avSev.cape + " J/kg" : "—") +
+            (capeMax24 !== null ? " · Pico próx. 24 h: " + capeMax24 + " J/kg" + (horaPicoCape ? " (às " + horaPicoCape + ")" : "") : "") +
+            (avSev.li !== null ? " · Lifted Index: " + String(avSev.li).replace(".", ",") + " °C" : "") +
+            " · Condição atual: " + (descWmo || "—")
+          ));
+          banSev.appendChild(el("span", "", avSev.desc));
+          boxTempestade.appendChild(banSev);
+        }
       }
 
       if (typeof Deslizamento !== "undefined" && Deslizamento.extrairDeSerieHoraria) {
@@ -243,5 +305,5 @@
     }
   }
 
-  P.clima = { carregarClima: clima, carregarAlertas: alertas, carregarPrevisaoInmet: previsaoInmet };
+  P.clima = { carregarClima: clima, carregarAlertas: alertas, carregarPrevisaoInmet: previsaoInmet, classificarTempestadeSevera: classificarTempestadeSevera };
 })();
