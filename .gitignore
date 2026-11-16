@@ -7,3 +7,6 @@ node_modules/
 *.csv
 data/cemaden.json
 _site/
+
+# estado do robô de alertas (vive no cache do GitHub Actions, não no repositório)
+data/alertas-estado.json

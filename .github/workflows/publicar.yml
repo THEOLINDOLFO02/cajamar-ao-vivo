@@ -49,13 +49,26 @@ jobs:
       - name: Coletar CGE
         continue-on-error: true
         run: node scripts/coletar-cge.mjs data/cge.json
-      # 2.7 Robô de alertas automáticos em segundo plano (Telegram): verifica INMET e CEMADEN a cada ciclo.
+      # 2.7 Robô de alertas automáticos (Telegram). O estado "o que já foi avisado" é restaurado e salvo pelo cache do Actions
+      # (cada execução cria uma entrada nova e restaura a mais recente): a mesma mensagem não se repete a cada 10 minutos.
+      - name: Restaurar estado dos alertas
+        uses: actions/cache/restore@v4
+        with:
+          path: data/alertas-estado.json
+          key: alertas-estado-${{ github.run_id }}
+          restore-keys: alertas-estado-
       - name: Verificar e enviar alertas automáticos (Telegram)
         continue-on-error: true
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: node scripts/alertas-telegram.mjs data/cemaden.json
+        run: node scripts/alertas-telegram.mjs data/cemaden.json data/alertas-estado.json
+      - name: Salvar estado dos alertas
+        if: always() && hashFiles('data/alertas-estado.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: data/alertas-estado.json
+          key: alertas-estado-${{ github.run_id }}
       - name: Montar site
         run: |
           mkdir _site
