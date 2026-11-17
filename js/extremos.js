@@ -44,9 +44,34 @@
 
   function calcular(banco, filtros) {
     var todos = listar(banco, filtros);
-    var met = todos.filter(function (x) { return !x.nivel; });
-    var rios = todos.filter(function (x) { return x.nivel; });
-    var r = { filtros: filtros || {}, totalDias: todos.length, equipamentos: [], rios: [] };
+    // Equipamentos que têm chuva (incluindo Réguas de Nível Jordanésia e Natura que possuem pluviômetro) entram nos recordes de chuva;
+    // todos os que possuem sensores meteorológicos (temperatura, vento, pressão, umidade, radiação) entram nas respectivas tabelas.
+    var met = todos;
+    var rios = todos.filter(function (x) { return x.nivel || ok(x.d.nvMax); });
+    var r = { filtros: filtros || {}, totalDias: todos.length, equipamentos: [], rios: [], acumuladosPeriodo: {} };
+
+    // Maiores acumulados de chuva por janela (30, 60, 90, 180 / semestre e 365 / ano) entre todos os equipamentos filtrados
+    if (w.Estacao && w.Estacao.maiorAcumuladoJanelaDias) {
+      [30, 60, 90, 180, 365].forEach(function (nDias) {
+        var listaJan = [];
+        Object.keys(banco.slots || {}).forEach(function (id) {
+          if (filtros && filtros.slot && filtros.slot !== "todas" && filtros.slot !== id) return;
+          var sl = banco.slots[id];
+          if (!sl || !sl.dias) return;
+          var chs = Object.keys(sl.dias).filter(function (k) {
+            if (filtros && filtros.de && k < filtros.de) return false;
+            if (filtros && filtros.ate && k > filtros.ate) return false;
+            return true;
+          }).sort();
+          var mj = w.Estacao.maiorAcumuladoJanelaDias(sl.dias, chs, nDias);
+          if (mj && mj.valor > 0) {
+            listaJan.push({ slot: id, estacao: sl.estacao || sl.rotulo || id, data: mj.fim, inicio: mj.inicio, valor: mj.valor, diasComDado: mj.diasComDado, completo: true });
+          }
+        });
+        listaJan.sort(function (a, b) { return b.valor - a.valor; });
+        r.acumuladosPeriodo["d" + nDias] = listaJan.slice(0, TOP);
+      });
+    }
 
     r.chuva = {
       dias: ranking(met, function (d) { return d.chuva; }, true),
@@ -67,8 +92,8 @@
     };
     r.radiacao = { dias: ranking(met, function (d) { return d.radmax; }, true) };
     r.umidade = {
-      maisUmido: ranking(met, function (d) { return d.umid; }, true, 3),
-      maisSeco: ranking(met, function (d) { return d.umid; }, false, 3)
+      maisUmido: ranking(met, function (d) { return ok(d.umax) ? d.umax : d.umid; }, true, 3),
+      maisSeco: ranking(met, function (d) { return ok(d.umin) ? d.umin : d.umid; }, false, 3)
     };
 
     // por equipamento: resumo do período
@@ -80,17 +105,15 @@
       var e = { slot: id, nivel: l[0].nivel, estacao: l[0].estacao, dias: l.length, primeiro: l[0].data, ultimo: l[l.length - 1].data,
         incompletos: l.filter(function (x) { return x.completo !== true; }).length,
         diasSemLeituraAteFim: ultimaGlobal ? dias(l[l.length - 1].data, ultimaGlobal) : 0 };
-      if (!e.nivel) {
-        var comChuva = l.filter(function (x) { return ok(x.d.chuva); });
-        e.chuvaTotal = comChuva.length ? Math.round(comChuva.reduce(function (s, x) { return s + x.d.chuva; }, 0) * 10) / 10 : null;
-        e.diasComChuva = comChuva.filter(function (x) { return x.d.chuva >= 1; }).length;
-        e.chuvaTotalMinimo = comChuva.some(function (x) { return x.completo !== true; });
-        var tx = l.filter(function (x) { return ok(x.d.tmax); }), tn = l.filter(function (x) { return ok(x.d.tmin); });
-        e.tmax = tx.length ? Math.max.apply(null, tx.map(function (x) { return x.d.tmax; })) : null;
-        e.tmin = tn.length ? Math.min.apply(null, tn.map(function (x) { return x.d.tmin; })) : null;
-        var vv = l.filter(function (x) { return ok(x.d.vmax); });
-        e.vmax = vv.length ? Math.max.apply(null, vv.map(function (x) { return x.d.vmax; })) : null;
-      }
+      var comChuva = l.filter(function (x) { return ok(x.d.chuva); });
+      e.chuvaTotal = comChuva.length ? Math.round(comChuva.reduce(function (s, x) { return s + x.d.chuva; }, 0) * 10) / 10 : null;
+      e.diasComChuva = comChuva.filter(function (x) { return x.d.chuva >= 1; }).length;
+      e.chuvaTotalMinimo = comChuva.some(function (x) { return x.completo !== true; });
+      var tx = l.filter(function (x) { return ok(x.d.tmax); }), tn = l.filter(function (x) { return ok(x.d.tmin); });
+      e.tmax = tx.length ? Math.max.apply(null, tx.map(function (x) { return x.d.tmax; })) : null;
+      e.tmin = tn.length ? Math.min.apply(null, tn.map(function (x) { return x.d.tmin; })) : null;
+      var vv = l.filter(function (x) { return ok(x.d.vmax); });
+      e.vmax = vv.length ? Math.max.apply(null, vv.map(function (x) { return x.d.vmax; })) : null;
       r.equipamentos.push(e);
     });
     r.ultimaData = ultimaGlobal || null;
@@ -145,7 +168,19 @@
     var ultima = "";
     Object.keys(banco.slots).forEach(function (id) { Object.keys(banco.slots[id].dias || {}).forEach(function (k) { if (k > ultima) ultima = k; }); });
     var n = $("selPeriodoExt").value, f = { slot: $("selEquipExt").value, apenasCompletos: $("selCompletosExt").value === "sim" };
-    if (n !== "todos" && ultima) {
+    if (n.indexOf("mes:") === 0) {
+      var ym = n.slice(4);
+      f.de = ym + "-01";
+      f.ate = ym + "-31";
+    } else if (n.indexOf("ano:") === 0) {
+      var ano = n.slice(4);
+      f.de = ano + "-01-01";
+      f.ate = ano + "-12-31";
+    } else if (n.indexOf("sem:") === 0) {
+      var ps = n.slice(4).split("-S");
+      f.de = ps[0] + (ps[1] === "1" ? "-01-01" : "-07-01");
+      f.ate = ps[0] + (ps[1] === "1" ? "-06-30" : "-12-31");
+    } else if (n !== "todos" && ultima) {
       var d = new Date(Date.parse(ultima + "T12:00:00Z") - (+n - 1) * 86400000);
       f.de = d.toISOString().slice(0, 10); f.ate = ultima;
     }
@@ -165,6 +200,18 @@
     var resumo = el("p", "mut", r.totalDias + " dia(s) de equipamento no período · último dia com dado: " + dataBr(r.ultimaData) + ". ⚠ = dia incompleto (horas sem leitura): chuva é valor mínimo e os extremos podem ser maiores/menores do que o registrado.");
     raiz.appendChild(resumo);
 
+    try {
+      var qGuardado = JSON.parse(localStorage.getItem("cajamar:queimadas") || "null");
+      if (qGuardado && qGuardado.d && Array.isArray(qGuardado.d.focos)) {
+        var focosCaj = qGuardado.d.focos.filter(function (f) { return f.emCajamar; });
+        var focos50 = qGuardado.d.focos.filter(function (f) { return f.distanciaKm <= 50; });
+        var pFogo = el("p", "norm-conf", "🔥 Focos de Fogo no território de Cajamar (últimas 24–48 h INPE BDQueimadas): " + focosCaj.length + " foco(s) em Cajamar · " + focos50.length + " foco(s) no raio de 50 km.");
+        pFogo.style.marginTop = "0";
+        pFogo.style.marginBottom = "10px";
+        raiz.appendChild(pFogo);
+      }
+    } catch (e) {}
+
     var sec = function (titulo, filhos, dica) {
       var s = el("section", "card"); s.appendChild(el("h2", "", titulo)); if (dica) s.appendChild(el("p", "card-sub", dica));
       var g = el("div", "ext-grade"); filhos.forEach(function (c) { g.appendChild(c); }); s.appendChild(g); raiz.appendChild(s);
@@ -172,7 +219,12 @@
     sec("🌧️ Chuva", [
       tabela("Dias que mais choveram (dia civil, 00h–24h)", r.chuva.dias, f1, "mm", "Nenhum dia com chuva registrada."),
       tabela("Maior chuva em 60 min", r.chuva.hora, f1, "mm", "Sem chuva registrada."),
-      tabela("Maior chuva em 10 min", r.chuva.dezMin, f1, "mm", "Sem chuva registrada.")
+      tabela("Maior chuva em 10 min", r.chuva.dezMin, f1, "mm", "Sem chuva registrada."),
+      tabela("Maior acumulado em 30 dias", r.acumuladosPeriodo.d30 || [], f1, "mm", "Sem acumulado no período."),
+      tabela("Maior acumulado em 60 dias", r.acumuladosPeriodo.d60 || [], f1, "mm", "Sem acumulado no período."),
+      tabela("Maior acumulado em 90 dias", r.acumuladosPeriodo.d90 || [], f1, "mm", "Sem acumulado no período."),
+      tabela("Maior acumulado no Semestre (180 d)", r.acumuladosPeriodo.d180 || [], f1, "mm", "Sem acumulado no período."),
+      tabela("Maior acumulado no Ano (365 d)", r.acumuladosPeriodo.d365 || [], f1, "mm", "Sem acumulado no período.")
     ]);
     sec("🌡️ Temperatura", [
       tabela("Dia mais quente (maior máxima)", r.temperatura.maisQuente, f1, "°C", "Sem temperatura no período."),
@@ -207,10 +259,10 @@
       tr.appendChild(el("td", "", String(e.dias)));
       tr.appendChild(el("td", "", dataBr(e.primeiro) + " a " + dataBr(e.ultimo) + (e.diasSemLeituraAteFim > 1 ? " (sem dado nos últimos " + e.diasSemLeituraAteFim + " dias da rede)" : "")));
       tr.appendChild(el("td", "", String(e.incompletos)));
-      tr.appendChild(el("td", "", e.nivel ? "—" : (e.chuvaTotal === null ? "sem dado" : f1(e.chuvaTotal) + " mm" + (e.chuvaTotalMinimo ? " (mínimo)" : ""))));
-      tr.appendChild(el("td", "", e.nivel ? "—" : String(e.diasComChuva)));
-      tr.appendChild(el("td", "", e.nivel ? "—" : (e.tmin === null && e.tmax === null ? "sem dado" : f1(e.tmin) + " a " + f1(e.tmax) + " °C")));
-      tr.appendChild(el("td", "", e.nivel ? "—" : (e.vmax === null ? "sem dado" : f1(e.vmax) + " km/h")));
+      tr.appendChild(el("td", "", e.chuvaTotal === null ? "sem dado" : f1(e.chuvaTotal) + " mm" + (e.chuvaTotalMinimo ? " (mínimo)" : "")));
+      tr.appendChild(el("td", "", e.chuvaTotal === null ? "—" : String(e.diasComChuva)));
+      tr.appendChild(el("td", "", e.tmin === null && e.tmax === null ? "sem dado" : f1(e.tmin) + " a " + f1(e.tmax) + " °C"));
+      tr.appendChild(el("td", "", e.vmax === null ? "sem dado" : f1(e.vmax) + " km/h"));
       tb.appendChild(tr);
     });
     tw.appendChild(tb); s.appendChild(tw);
@@ -218,15 +270,42 @@
     raiz.appendChild(s);
   }
 
+  var MESES_NOMES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
   function iniciar() {
     if (!$("conteudoExt") || !w.Estacao) return;
     var banco = w.Estacao.carregarBanco();
     var sel = $("selEquipExt");
+    var mesesMap = {}, anosMap = {}, semMap = {};
     Object.keys(banco.slots).forEach(function (id) {
       var sl = banco.slots[id];
-      if (!Object.keys(sl.dias || {}).length) return;
+      var ks = Object.keys(sl.dias || {});
+      if (!ks.length) return;
       var o = el("option", "", sl.estacao || sl.rotulo); o.value = id; sel.appendChild(o);
+      ks.forEach(function (k) {
+        mesesMap[k.slice(0, 7)] = true;
+        var a = k.slice(0, 4);
+        anosMap[a] = true;
+        var m = parseInt(k.slice(5, 7), 10);
+        semMap[a + "-S" + (m <= 6 ? "1" : "2")] = true;
+      });
     });
+    var selPer = $("selPeriodoExt");
+    if (selPer) {
+      Object.keys(anosMap).sort().reverse().forEach(function (ano) {
+        var oA = el("option", "", "Ano de " + ano); oA.value = "ano:" + ano; selPer.appendChild(oA);
+      });
+      Object.keys(semMap).sort().reverse().forEach(function (sem) {
+        var ps = sem.split("-S");
+        var oS = el("option", "", ps[1] + "º Semestre de " + ps[0]); oS.value = "sem:" + sem; selPer.appendChild(oS);
+      });
+      Object.keys(mesesMap).sort().reverse().forEach(function (ym) {
+        var p = ym.split("-");
+        var oM = el("option", "", "Mês de " + (MESES_NOMES[parseInt(p[1], 10) - 1] || ym) + " / " + p[0]);
+        oM.value = "mes:" + ym;
+        selPer.appendChild(oM);
+      });
+    }
     ["selPeriodoExt", "selEquipExt", "selCompletosExt"].forEach(function (id) { $(id).onchange = desenhar; });
     desenhar();
   }

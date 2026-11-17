@@ -8,8 +8,75 @@
   var CHAVE_OB = "cajamar:observacoes:v1";
   var CHAVE_COTAS = "cajamar:cotas_rio:v1";
   var CHAVE_RISCO_GEO = "cajamar:areas_risco_custom:v1";
+  var CHAVE_AVISOS_TG = "cajamar:tg_avisos_enviados:v1";
 
   var $ = function (id) { return typeof document !== "undefined" ? document.getElementById(id) : null; };
+
+  // ---------- Banco IndexedDB de Espelho Local para as Estações CSV (protege contra limpeza ou quota do localStorage) ----------
+  var DB_EST_NOME = "cajamar_estacoes_idb", DB_EST_STORE = "banco";
+  function abrirDbEstacoes() {
+    return new Promise(function (resolve) {
+      if (typeof indexedDB === "undefined") { resolve(null); return; }
+      try {
+        var req = indexedDB.open(DB_EST_NOME, 1);
+        req.onupgradeneeded = function (e) {
+          var db = e.target.result;
+          if (!db.objectStoreNames.contains(DB_EST_STORE)) db.createObjectStore(DB_EST_STORE, { keyPath: "id" });
+        };
+        req.onsuccess = function (e) { resolve(e.target.result); };
+        req.onerror = function () { resolve(null); };
+      } catch (e) { resolve(null); }
+    });
+  }
+  async function salvarBancoNoIdb(bancoObj) {
+    if (!bancoObj || !bancoObj.slots) return;
+    var db = await abrirDbEstacoes();
+    if (!db) return;
+    return new Promise(function (resolve) {
+      try {
+        var tx = db.transaction(DB_EST_STORE, "readwrite");
+        tx.objectStore(DB_EST_STORE).put({ id: "principal", atualizadoEm: Date.now(), banco: bancoObj });
+        tx.oncomplete = function () { resolve(true); };
+        tx.onerror = function () { resolve(false); };
+      } catch (e) { resolve(false); }
+    });
+  }
+  async function restaurarBancoDoIdbSeVazio() {
+    if (typeof Estacao === "undefined" || !Estacao.carregarBanco || !Estacao.salvarBanco) return false;
+    var atual = Estacao.carregarBanco();
+    var temAlgumDia = Object.keys(atual.slots || {}).some(function (id) {
+      return Object.keys((atual.slots[id] && atual.slots[id].dias) || {}).length > 0;
+    });
+    if (temAlgumDia) {
+      // Atualiza o espelho IDB com os dados atuais do localStorage
+      salvarBancoNoIdb(atual);
+      return false;
+    }
+    var db = await abrirDbEstacoes();
+    if (!db) return false;
+    return new Promise(function (resolve) {
+      try {
+        var tx = db.transaction(DB_EST_STORE, "readonly");
+        var req = tx.objectStore(DB_EST_STORE).get("principal");
+        req.onsuccess = function () {
+          var reg = req.result;
+          if (reg && reg.banco && reg.banco.slots) {
+            var temIdb = Object.keys(reg.banco.slots).some(function (id) {
+              return Object.keys((reg.banco.slots[id] && reg.banco.slots[id].dias) || {}).length > 0;
+            });
+            if (temIdb) {
+              Estacao.salvarBanco(reg.banco);
+              try { w.dispatchEvent(new StorageEvent("storage", { key: "cajamar:estacoes:v2" })); } catch (e) {}
+              resolve(true);
+              return;
+            }
+          }
+          resolve(false);
+        };
+        req.onerror = function () { resolve(false); };
+      } catch (e) { resolve(false); }
+    });
+  }
 
   function urlPadraoWorker() {
     if (w.CAJAMAR_CONFIG && w.CAJAMAR_CONFIG.cemadenProxy) {
@@ -142,10 +209,12 @@
           if (rem.atualizadoEm) sl.atualizadoEm = rem.atualizadoEm;
         });
         Estacao.salvarBanco(banco);
+        salvarBancoNoIdb(banco);
       } catch (e) {}
     }
 
     try { w.dispatchEvent(new StorageEvent("storage", { key: CHAVE_OC })); } catch (e) {}
+    try { w.dispatchEvent(new StorageEvent("storage", { key: "cajamar:estacoes:v2" })); } catch (e) {}
     return {
       ocTotal: ocFinais.length,
       ocNovas: Math.max(0, ocFinais.length - ocAntes),
@@ -291,6 +360,38 @@
       };
     }
 
+    // Pede ao navegador armazenamento persistente (evita que o navegador apague localStorage/IndexedDB ao fechar)
+    if (typeof navigator !== "undefined" && navigator.storage && navigator.storage.persist) {
+      try { navigator.storage.persist().catch(function () {}); } catch (e) {}
+    }
+    restaurarBancoDoIdbSeVazio();
+
+    // Auto-disparo de novos avisos do INMET para o Telegram assim que o painel os identifica (evita duplicatas por id do aviso)
+    document.addEventListener("cajamar:avisos", function (ev) {
+      try {
+        var det = ev && ev.detail;
+        if (!det || !det.ok || !Array.isArray(det.lista) || !det.lista.length) return;
+        var cAtual = lerConfig();
+        if (!cAtual.tgChatId && !cAtual.tgBotToken) return;
+        var jaEnviados = {};
+        try { jaEnviados = JSON.parse(localStorage.getItem(CHAVE_AVISOS_TG) || "{}") || {}; } catch (e) {}
+        var novos = det.lista.filter(function (a) { return a && a.id && !jaEnviados[a.id]; });
+        if (!novos.length) return;
+        novos.forEach(function (a) { jaEnviados[a.id] = Date.now(); });
+        try { localStorage.setItem(CHAVE_AVISOS_TG, JSON.stringify(jaEnviados)); } catch (e) {}
+        var horaBrt = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+        var linhas = ["🚨 *NOVO AVISO INMET PARA CAJAMAR*", "🕒 *Detectado em:* " + horaBrt + " (BRT)", "━━━━━━━━━━━━━━━━━━━━"];
+        novos.forEach(function (a) {
+          linhas.push("⚠️ *" + (a.evento || "Aviso") + " — " + (a.severidade || "Ativo") + "*");
+          linhas.push("Vigência: " + (a.inicio || "—") + " até " + (a.fim || "—"));
+          if (a.risco) linhas.push("Risco: " + a.risco);
+          linhas.push("");
+        });
+        linhas.push("🔗 https://theolindolfo02.github.io/cajamar-ao-vivo/");
+        enviarAlertaTelegram(linhas.join("\n")).catch(function () {});
+      } catch (e) {}
+    });
+
     // Se autoSync estiver ativo e houver sala configurada, sincroniza ao abrir e a cada 2 minutos
     if (cfg.autoSync && cfg.sala && cfg.sala.length >= 4) {
       setTimeout(function () { sincronizarAgora().catch(function () {}); }, 2500);
@@ -309,6 +410,8 @@
   }
 
   w.SyncNuvem = {
+    espelharBanco: salvarBancoNoIdb,
+    restaurarDoEspelho: restaurarBancoDoIdbSeVazio,
     lerConfig: lerConfig,
     salvarConfig: salvarConfig,
     montarPacoteLocal: montarPacoteLocal,

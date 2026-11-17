@@ -54,21 +54,28 @@
       Destino ao importar:
       <select id="slotDestino" class="sel-inline">
         <option value="auto">Automático (detectar estação / régua pelo CSV)</option>
-        <option value="est1">Estação Meteorológica 1</option>
-        <option value="est2">Estação Meteorológica 2</option>
-        <option value="est3">Estação Meteorológica 3</option>
-        <option value="est4">Estação Meteorológica 4</option>
-        <option value="est5">Estação Meteorológica 5</option>
-        <option value="regua">🌊 Régua de Nível — Jordanésia</option>
-        <option value="regua2">🌊 Régua de Nível — Natura</option>
+        <option value="est1">🌡️ Estação 1 — GCM Vila Nova (completa)</option>
+        <option value="est2">🌡️ Estação 2 — EMEB Karine Pereira Santiago (completa)</option>
+        <option value="est3">🌡️ Estação 3 — EMEB Maria Gonçalves (completa)</option>
+        <option value="est4">🌧️ Estação 4 — EMEB Guilhermina de C. Oliveira (pluviômetro)</option>
+        <option value="est5">🌡️ Estação Meteorológica 5</option>
+        <option value="regua">🌊 Régua de Nível + Pluviômetro — Jordanésia</option>
+        <option value="regua2">🌊 Régua de Nível + Pluviômetro — Natura</option>
       </select>
     </label>
-    <details class="mais-acoes">
-      <summary>Backup e limpeza</summary>
-      <div class="barra-acoes">
-        <button id="btnExportarTudoHist" type="button" class="btn small">💾 Exportar Backup Completo</button>
-        <button id="btnImportarTudoHist" type="button" class="btn small">📂 Restaurar Backup</button>
+    <details class="mais-acoes" open>
+      <summary>☁️ Sincronização em Nuvem dos CSVs (acessar de outro aparelho) e Backup (.json)</summary>
+      <div class="row2" style="margin:8px 0">
+        <label for="inpSyncSala">Código da Equipe (compartilha os CSVs entre PC e celular):
+          <input id="inpSyncSala" type="text" maxlength="64" placeholder="Ex.: plantao-cajamar-199">
+        </label>
+        <div style="display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;padding-bottom:2px">
+          <button id="btnSyncAgora" type="button" class="btn primary small">☁️ Sincronizar CSVs na Nuvem Agora</button>
+          <button id="btnExportarTudoHist" type="button" class="btn small">💾 Exportar Backup Completo</button>
+          <button id="btnImportarTudoHist" type="button" class="btn small">📂 Restaurar Backup</button>
+        </div>
       </div>
+      <p id="msgSyncNuvem" class="mut" style="font-size:.84rem;margin:4px 0 8px"></p>
       <div class="barra-acoes zona-perigo">
         <button id="limpar" type="button" class="btn small perigo">Apagar estação atual</button>
         <button id="limparTudo" type="button" class="btn small perigo">Apagar todas</button>
@@ -144,7 +151,7 @@
     <section class="card" id="cardChuva"><h2>Chuva por dia (mm)</h2><div id="gChuva"></div><p id="notaParcial" class="mut" style="margin:6px 0 0;font-size:.82rem"></p></section>
     <section class="card" id="cardTemp"><h2>Temperatura mínima e máxima (°C)</h2><div id="gTemp"></div><p class="mut" style="margin:6px 0 0;font-size:.82rem"><span class="leg max"></span> máxima · <span class="leg min"></span> mínima</p></section>
     <section class="card"><h2>Dia a dia</h2>
-      <div class="tw"><table><thead><tr id="cabTabela"><th>Dia</th><th title="Soma da chuva do dia civil (00:00 a 24:00 BRT), não é janela móvel">Chuva do dia civil (mm)</th><th title="Maior acumulado em qualquer janela móvel de 60 minutos do dia">Máx. em 60 min (mm)</th><th title="Soma das 24 horas anteriores ao fim da janela do dia; exige cobertura completa">Acum. móvel 24 h (mm)</th><th title="Soma das 168 horas anteriores ao fim da janela do dia; exige cobertura completa">Acum. móvel 168 h (mm)</th><th title="Horas do dia com leitura válida, lacunas e qualidade">Cobertura</th><th>⛰️ Indicador referencial</th><th>Máx 10 min</th><th>Mín °C</th><th>Máx °C</th><th>Umid.</th><th>Vento km/h</th><th>Nível Rio (m)</th></tr></thead><tbody id="tabela"></tbody></table></div>
+      <div class="tw"><table><thead><tr id="cabTabela"><th>Dia</th><th title="Soma da chuva do dia civil (00:00 a 24:00 BRT), não é janela móvel">Chuva do dia civil (mm)</th><th title="Maior acumulado em qualquer janela móvel de 60 minutos do dia">Máx. em 60 min (mm)</th><th title="Soma das 24 horas anteriores ao fim da janela do dia; exige cobertura completa">Acum. móvel 24 h (mm)</th><th title="Soma das 168 horas anteriores ao fim da janela do dia; exige cobertura completa">Acum. móvel 168 h (mm)</th><th title="Horas do dia com leitura válida, lacunas e qualidade">Cobertura</th><th>⛰️ Indicador referencial</th><th>Máx 10 min</th><th>Mín °C</th><th>Máx °C</th><th>Umid. (Mín–Máx)</th><th>Pressão (hPa)</th><th>Vento km/h</th><th>Nível Rio (m)</th></tr></thead><tbody id="tabela"></tbody></table></div>
       <p class="mut" style="margin:6px 0 0;font-size:.82rem">* dia incompleto (horas sem leitura ou lacunas) ou guardado sem detalhe horário: reimporte o CSV. "Dados insuficientes" = a janela móvel não tem cobertura completa; a soma parcial nunca é apresentada como acumulado. O indicador avalia a chuva em 1h (mm/h), 24h (mm/24h) e 168h / 7 dias (mm/168h) com limiares de Pinheiro et al. (2005) e AlertaRio (2013), não homologados para Cajamar. Dias sem as 7 jornadas de dados ficam como "sem dados suficientes".</p></section>
     <div class="rodape-boletim" hidden>
       <div class="boletim-assinaturas">
@@ -161,6 +168,8 @@
 </main>
 <script src="js/estacao.js"></script>
 <script src="js/deslizamento.js"></script>
+<script src="js/config.js"></script>
+<script src="js/sync-nuvem.js"></script>
 <script src="js/historico.js"></script>
 <script>
 if ('serviceWorker' in navigator) {

@@ -34,13 +34,13 @@
   var LIMITE_BACKUP_BYTES = 20 * 1024 * 1024;
 
   var SLOTS_PADRAO = [
-    { id: "est1", rotulo: "Estação Meteorológica 1", tipo: "meteorologica" },
-    { id: "est2", rotulo: "Estação Meteorológica 2", tipo: "meteorologica" },
-    { id: "est3", rotulo: "Estação Meteorológica 3", tipo: "meteorologica" },
-    { id: "est4", rotulo: "Estação Meteorológica 4", tipo: "meteorologica" },
-    { id: "est5", rotulo: "Estação Meteorológica 5", tipo: "meteorologica" },
-    { id: "regua", rotulo: "Régua de Nível — Jordanésia", tipo: "nivel" },
-    { id: "regua2", rotulo: "Régua de Nível — Natura", tipo: "nivel" }
+    { id: "est1", rotulo: "Estação Meteorológica 1 — GCM Vila Nova", tipo: "meteorologica", pistas: ["gcm", "vila nova"] },
+    { id: "est2", rotulo: "Estação Meteorológica 2 — EMEB Karine Pereira Santiago", tipo: "meteorologica", pistas: ["karine"] },
+    { id: "est3", rotulo: "Estação Meteorológica 3 — EMEB Maria Gonçalves", tipo: "meteorologica", pistas: ["maria goncalves", "maria gonçalves"] },
+    { id: "est4", rotulo: "Estação Pluviométrica 4 — EMEB Guilhermina de C. Oliveira", tipo: "meteorologica", pistas: ["guilhermina"] },
+    { id: "est5", rotulo: "Estação Meteorológica 5", tipo: "meteorologica", pistas: [] },
+    { id: "regua", rotulo: "Régua de Nível + Pluviômetro — Jordanésia", tipo: "nivel", pistas: ["jordanesia", "jordanésia"] },
+    { id: "regua2", rotulo: "Régua de Nível + Pluviômetro — Natura", tipo: "nivel", pistas: ["natura"] }
   ];
   var IDS_NIVEL = ["regua", "regua2"];
   function ehSlotNivel(id) { return IDS_NIVEL.indexOf(id) > -1; }
@@ -80,11 +80,11 @@
     var temDataIso = !temDataBrt && cab.indexOf("data_hora") >= 0;
     var temData = (temDataBrt || temDataIso) && cab.indexOf("timestamp_ms") >= 0;
     var temChuvaCol = cab.indexOf("rain_interval_mm") >= 0 || cab.indexOf("rain_mm") >= 0 || cab.indexOf("accumulated_mm") >= 0 || cab.indexOf("intensity_mm") >= 0;
-    var temClima = cab.indexOf("temperature_c") >= 0 && temChuvaCol;
+    var temClima = cab.indexOf("temperature_c") >= 0 || temChuvaCol;
     var temNivel = cab.indexOf("water_level_m") >= 0;
     if (!temData || (!temClima && !temNivel)) {
-      var precisa = ["data_hora_brt", "timestamp_ms", "temperature_c", "rain_interval_mm"];
-      var faltam = precisa.filter(function (c) { return cab.indexOf(c) < 0; });
+      var precisa = ["data_hora_brt", "timestamp_ms", "rain_interval_mm / accumulated_mm / water_level_m"];
+      var faltam = ["data_hora_brt", "timestamp_ms", "temperature_c", "rain_interval_mm"].filter(function (c) { return cab.indexOf(c) < 0; });
       throw new Error("colunas ausentes: " + faltam.join(", "));
     }
     var idx = {};
@@ -150,6 +150,7 @@
       });
       out[out.length - 1].fx = fx;
     }
+    // Se rain_interval_mm estiver ausente nas linhas (como nas Réguas de Nível + Pluviômetro Jordanésia/Natura ou EMEB Guilhermina que trazem accumulated_mm), extrai o incremento de accumulated_mm
     if (usaDeltaAcc && out.length > 0) {
       var ord = out.slice().sort(function (a, b) { return a.ts - b.ts; });
       var antPorSn = {};
@@ -158,11 +159,15 @@
         var chSn = (r.sn || r.nome || "est") + "|" + r.dia;
         if (r._acc !== null && r._acc >= 0) {
           var prev = antPorSn[chSn];
-          r.ch = prev === undefined ? r._acc : (r._acc >= prev ? r3(r._acc - prev) : r._acc);
+          if (r.ch === null) {
+            r.ch = prev === undefined ? r._acc : (r._acc >= prev ? r3(r._acc - prev) : r._acc);
+          }
           antPorSn[chSn] = r._acc;
         }
         delete r._acc;
       }
+    } else {
+      for (var k2 = 0; k2 < out.length; k2++) delete out[k2]._acc;
     }
     return out;
   }
@@ -194,7 +199,7 @@
     var D = {};
     rows.forEach(function (r) {
       var d = D[r.dia] || (D[r.dia] = {
-        n: 0, chuva: 0, nChuva: 0, inv: 0, fx: 0, tmin: null, tmax: null, uSoma: 0, uN: 0,
+        n: 0, chuva: 0, nChuva: 0, inv: 0, fx: 0, tmin: null, tmax: null, uSoma: 0, uN: 0, umin: null, umax: null,
         pmin: null, pmax: null, vmax: null, radmax: null, c10: 0, c60: 0,
         nvMin: null, nvMax: null, nvSoma: 0, nNivel: 0,
         hMm: vetor(24, null), hN: vetor(24, 0), hNv: vetor(24, 0), lacunas: [], lacunasTrunc: false, lacunaMaxMs: 0
@@ -209,7 +214,11 @@
         d.hN[h]++;
       }
       if (r.t !== null && r.t !== undefined) { d.tmin = d.tmin === null ? r.t : Math.min(d.tmin, r.t); d.tmax = d.tmax === null ? r.t : Math.max(d.tmax, r.t); }
-      if (r.u !== null && r.u !== undefined) { d.uSoma += r.u; d.uN++; }
+      if (r.u !== null && r.u !== undefined) {
+        d.uSoma += r.u; d.uN++;
+        d.umin = d.umin === null ? r.u : Math.min(d.umin, r.u);
+        d.umax = d.umax === null ? r.u : Math.max(d.umax, r.u);
+      }
       if (r.p !== null && r.p !== undefined) { d.pmin = d.pmin === null ? r.p : Math.min(d.pmin, r.p); d.pmax = d.pmax === null ? r.p : Math.max(d.pmax, r.p); }
       if (r.v !== null && r.v !== undefined) d.vmax = d.vmax === null ? r.v : Math.max(d.vmax, r.v);
       if (r.rad !== null && r.rad !== undefined) d.radmax = d.radmax === null ? r.rad : Math.max(d.radmax, r.rad);
@@ -266,6 +275,8 @@
         tmin: d.tmin,
         tmax: d.tmax,
         umid: d.uN ? Math.round(d.uSoma / d.uN * 10) / 10 : null,
+        umin: d.umin !== null ? Math.round(d.umin * 10) / 10 : null,
+        umax: d.umax !== null ? Math.round(d.umax * 10) / 10 : null,
         pmin: d.pmin,
         pmax: d.pmax,
         vmax: d.vmax,
@@ -425,13 +436,13 @@
     return {
       ativo: "est1",
       slots: {
-        est1: { id: "est1", rotulo: "Estação Meteorológica 1", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
-        est2: { id: "est2", rotulo: "Estação Meteorológica 2", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
-        est3: { id: "est3", rotulo: "Estação Meteorológica 3", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
-        est4: { id: "est4", rotulo: "Estação Meteorológica 4", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
+        est1: { id: "est1", rotulo: "Estação Meteorológica 1 — GCM Vila Nova", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
+        est2: { id: "est2", rotulo: "Estação Meteorológica 2 — EMEB Karine Pereira Santiago", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
+        est3: { id: "est3", rotulo: "Estação Meteorológica 3 — EMEB Maria Gonçalves", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
+        est4: { id: "est4", rotulo: "Estação Pluviométrica 4 — EMEB Guilhermina de C. Oliveira", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
         est5: { id: "est5", rotulo: "Estação Meteorológica 5", tipo: "meteorologica", estacao: "", sn: "", dias: {} },
-        regua: { id: "regua", rotulo: "Régua de Nível — Jordanésia", tipo: "nivel", estacao: "", sn: "", dias: {} },
-        regua2: { id: "regua2", rotulo: "Régua de Nível — Natura", tipo: "nivel", estacao: "", sn: "", dias: {} }
+        regua: { id: "regua", rotulo: "Régua de Nível + Pluviômetro — Jordanésia", tipo: "nivel", estacao: "", sn: "", dias: {} },
+        regua2: { id: "regua2", rotulo: "Régua de Nível + Pluviômetro — Natura", tipo: "nivel", estacao: "", sn: "", dias: {} }
       }
     };
   }
@@ -517,6 +528,7 @@
       esc[CHAVE_MULTI] = textoBanco(banco);
       esc[CHAVE_V1] = calcularV1(banco);
       gravarAtomico(st, esc); // reverte tudo se qualquer gravação falhar
+      if (w.SyncNuvem && typeof w.SyncNuvem.espelharBanco === "function") w.SyncNuvem.espelharBanco(banco); // cópia de segurança em IndexedDB
       return true;
     } catch (e) {
       if (typeof console !== "undefined") console.error("[estacao] salvarBanco:", e);
@@ -558,9 +570,16 @@
     var sn = (rows[0] && rows[0].sn) || "";
     var arq = String(nomeArquivo || "").toLowerCase();
 
-    if (tipo === "nivel" || /regua|régua|nivel|nível|rio|fluv|hidro/.test(arq)) {
+    var pistaTexto = (String(nome || "") + " " + arq).toLowerCase();
+    var temColNivel = rows.some(function (r) { return r.nv !== null && r.nv !== undefined; });
+    if (tipo === "nivel" || temColNivel || /regua|régua|nivel|nível|rio|fluv|hidro/.test(arq)) {
       return escolherSlotNivel(banco, nome, sn, arq);
     }
+    // 0) Pistas diretas das estações de Cajamar (GCM Vila Nova, Karine, Maria Gonçalves, Guilhermina)
+    if (/gcm|vila\s*nova/.test(pistaTexto)) return "est1";
+    if (/karine/.test(pistaTexto)) return "est2";
+    if (/maria\s*gon/.test(pistaTexto)) return "est3";
+    if (/guilhermina/.test(pistaTexto)) return "est4";
     // 1) Se já existe slot com o mesmo SN ou mesmo nome de estação (ou mesmo nome normalizado sem as datas), atualiza-o
     var idsMet = ["est1", "est2", "est3", "est4", "est5"];
     for (var i = 0; i < idsMet.length; i++) {
@@ -687,6 +706,8 @@
       tmin: minVal(antigo.tmin, novo.tmin),
       tmax: maxVal(antigo.tmax, novo.tmax),
       umid: umid,
+      umin: minVal(antigo.umin, novo.umin),
+      umax: maxVal(antigo.umax, novo.umax),
       pmin: minVal(antigo.pmin, novo.pmin),
       pmax: maxVal(antigo.pmax, novo.pmax),
       vmax: maxVal(antigo.vmax, novo.vmax),
@@ -1030,7 +1051,7 @@
     };
   }
 
-  var CAMPOS_DIA_NUM = ["n", "chuva", "nChuva", "tmin", "tmax", "umid", "pmin", "pmax", "vmax", "radmax", "c10", "c60", "nvMin", "nvMax", "nvMed", "nvDelta", "nNivel", "intMin", "lacunaMaxMin", "dup", "inv", "foraFaixa", "foraOrdem", "cobHoras", "cobHorasNivel", "v"];
+  var CAMPOS_DIA_NUM = ["n", "chuva", "nChuva", "tmin", "tmax", "umid", "umin", "umax", "pmin", "pmax", "vmax", "radmax", "c10", "c60", "nvMin", "nvMax", "nvMed", "nvDelta", "nNivel", "intMin", "lacunaMaxMin", "dup", "inv", "foraFaixa", "foraOrdem", "cobHoras", "cobHorasNivel", "v"];
   var MAX_DIAS_POR_SLOT = 3700;
 
   function ehNumOuNull(x) { return x === null || (typeof x === "number" && isFinite(x)); }
@@ -1253,6 +1274,33 @@
     return resumo;
   }
 
+  // Calcula o maior acumulado de chuva em qualquer janela deslizante de N dias corridos (ex.: 30, 60, 90, 180, 365) dentro das datas informadas.
+  function maiorAcumuladoJanelaDias(dias, chavesOrdenadas, nDias) {
+    var chs = Array.isArray(chavesOrdenadas) ? chavesOrdenadas : Object.keys(dias || {}).sort();
+    if (!chs.length || !nDias || nDias < 1) return null;
+    var msJanela = (nDias - 1) * 86400000;
+    var melhor = null;
+    for (var j = 0; j < chs.length; j++) {
+      var tFim = Date.parse(chs[j] + "T12:00:00Z");
+      var soma = 0, diasComChuva = 0, iniKey = chs[j];
+      for (var i = j; i >= 0; i--) {
+        var tIni = Date.parse(chs[i] + "T12:00:00Z");
+        if (tFim - tIni > msJanela) break;
+        iniKey = chs[i];
+        var d = dias[chs[i]];
+        if (d && typeof d.chuva === "number" && isFinite(d.chuva)) {
+          soma += d.chuva;
+          diasComChuva++;
+        }
+      }
+      soma = Math.round(soma * 10) / 10;
+      if (diasComChuva > 0 && (!melhor || soma > melhor.valor)) {
+        melhor = { valor: soma, inicio: iniKey, fim: chs[j], diasComDado: diasComChuva, janelaDias: nDias };
+      }
+    }
+    return melhor;
+  }
+
   w.Estacao = {
     SLOTS_PADRAO: SLOTS_PADRAO,
     IDS_NIVEL: IDS_NIVEL,
@@ -1266,6 +1314,7 @@
     coberturaJanela: coberturaJanela,
     acumuladoMovel: acumuladoMovel,
     janelasDoDia: janelasDoDia,
+    maiorAcumuladoJanelaDias: maiorAcumuladoJanelaDias,
     diaCompleto: diaCompleto,
     qualidadeNivel: qualidadeNivel,
     detectarTipo: detectarTipo,
