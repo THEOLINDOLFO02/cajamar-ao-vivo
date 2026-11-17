@@ -203,8 +203,94 @@ test("Catavento-Surya login: autentica em cajamar-meteorologia.catavento-surya.c
   assert.equal(res.autenticado, true);
   assert.equal(res.estacoes.length, 1);
   assert.equal(res.estacoes[0].nome, "EMEB Karine");
-  const reqPainel = chamadas.find((c) => c.url === "https://cajamar-meteorologia.catavento-surya.com/");
+  const reqPainel = chamadas.find((c) => c.url.startsWith("https://cajamar-meteorologia.catavento-surya.com/") && !c.url.endsWith("/login"));
   assert.ok(reqPainel);
   assert.match(reqPainel.headers.Cookie, /auth=logado/);
   assert.equal(reqPainel.headers.Authorization, "Bearer jwt999");
+});
+
+test("Catavento-Surya fixture real HTML (cajamar-meteorologia.catavento-surya.com): extrai as 3 tabelas e mescla chuva + nível dos rios", async () => {
+  const { readFileSync } = await import("node:fs");
+  const html = readFileSync(new URL("./fixtures/catavento-cajamar.html", import.meta.url), "utf8");
+  const est = lerCatavento(html);
+  assert.equal(est.length, 6);
+
+  const vilaNova = est.find((e) => e.id === "140070634");
+  assert.ok(vilaNova);
+  assert.equal(vilaNova.nome, "GCM - Vila Nova");
+  assert.equal(vilaNova.chuva1h, 0);
+  assert.equal(vilaNova.chuva24h, 22);
+  assert.equal(vilaNova.temperatura, 20.6);
+  assert.equal(vilaNova.umidade, 77);
+  assert.equal(vilaNova.vento, 3);
+  assert.equal(vilaNova.direcao, 123);
+  assert.equal(vilaNova.pressao, 929);
+
+  const jord = est.find((e) => e.id === "140070661");
+  assert.ok(jord);
+  assert.equal(jord.nome, "Jordanésia");
+  assert.equal(jord.chuva1h, 0);
+  assert.equal(jord.chuva24h, 28);
+  assert.equal(jord.nivelRio, 0.44);
+  assert.equal(jord.statusRio, "normal");
+
+  const natura = est.find((e) => e.id === "140070580");
+  assert.ok(natura);
+  assert.equal(natura.chuva24h, 17);
+  assert.equal(natura.nivelRio, 3.57);
+  assert.equal(natura.statusRio, "normal");
+
+  // Ao avaliar gatilhos: Jordanésia tem 28 mm em 24h (Atenção >= 25 mm), mas Natura com statusRio="normal" não dispara falso alarme de rio
+  const alertas = avaliarEstacoesCatavento(est);
+  assert.ok(alertas.some((a) => a.chave === "catavento:chuva:140070661" && a.nivel === 1));
+  assert.ok(!alertas.some((a) => a.chave === "catavento:nivel:140070580"), "statusRio=normal na tabela Rios evita falso positivo");
+});
+
+test("Catavento-Surya /api/cajamar/unified JSON: converte polegadas->mm e mph->km/h e mescla pluviômetro com rio", () => {
+  const unifiedJson = JSON.stringify({
+    lastUpdate: "2026-11-16T21:50:00.000Z",
+    data: [
+      {
+        tipo: "estacao",
+        nome: "G2- GCM - Vila Nova",
+        valor_atual: 20.6,
+        data_hora_atualizacao: "2026-11-16T21:50:00.000Z",
+        detalhes: {
+          humidity: 77,
+          hourlyRainIn: 1.0,     // 25,4 mm
+          dailyRainIn: 2.0,      // 50,8 mm
+          windSpeedMph: 10,      // 16,1 km/h
+          windDirectionDegrees: 123,
+          pressureHpa: 929,
+          solarRadiationWm2: 0
+        }
+      },
+      {
+        tipo: "pluviometro",
+        nome: "Jordanésia",
+        valor_atual: 28,
+        data_hora_atualizacao: "2026-11-16T21:50:00.000Z",
+        detalhes: { precip1h: 0, waterLevelM: 0.44 }
+      },
+      {
+        tipo: "rio",
+        nome: "Jordanésia",
+        status: "alerta",
+        valor_atual: 2.35,
+        data_hora_atualizacao: "2026-11-16T21:50:00.000Z",
+        detalhes: { nivelAtualCm: 235 }
+      }
+    ]
+  });
+  const est = lerCatavento(unifiedJson);
+  assert.equal(est.length, 2);
+  const vn = est.find((e) => e.id === "140070634");
+  assert.equal(vn.temperatura, 20.6);
+  assert.equal(vn.chuva1h, 25.4);
+  assert.equal(vn.chuva24h, 50.8);
+  assert.equal(vn.vento, 16.1);
+
+  const jord = est.find((e) => e.id === "140070661");
+  assert.equal(jord.chuva24h, 28);
+  assert.equal(jord.statusRio, "alerta");
 });

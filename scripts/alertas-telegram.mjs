@@ -15,7 +15,7 @@
 import { readFile, writeFile, rename, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { lerCatavento, URL_CATAVENTO, USER_AGENT } from "../worker/cemaden-proxy.js";
+import { lerCatavento, URL_CATAVENTO, URL_CATAVENTO_API_UNIFIED, URL_CATAVENTO_API_UNIFIED_ALT, USER_AGENT } from "../worker/cemaden-proxy.js";
 
 const IBGE_CAJAMAR = 3509205;
 const LAT_CAJAMAR = -23.3547;
@@ -120,8 +120,13 @@ export function avaliarEstacoesCatavento(catavento, cotasRio = null) {
     // 2. Nível do Rio (Réguas)
     const nvRio = ehNum(e.nivelRio) ? e.nivelRio : (ehNum(e.water_level_m) ? e.water_level_m : null);
     const deltaCm = ehNum(e.variacaoNivelM) ? Math.round(e.variacaoNivelM * 100) : null;
-    if (nvRio !== null) {
-      const nvHid = nvRio >= cTransb ? 3 : (nvRio >= cAlerta || (deltaCm !== null && deltaCm >= dAlertaCm)) ? 2 : (nvRio >= cAtencao || (deltaCm !== null && deltaCm >= dAtencaoCm)) ? 1 : 0;
+    const stRio = String(e.statusRio || e.status || "").toLowerCase();
+    const nvStatus = (stRio === "critico" || stRio === "inundacao") ? 3 : stRio === "alerta" ? 2 : stRio === "atencao" ? 1 : 0;
+    if (nvRio !== null || nvStatus > 0) {
+      const nvDelta = deltaCm !== null ? (deltaCm >= dAlertaCm ? 2 : deltaCm >= dAtencaoCm ? 1 : 0) : 0;
+      const nvCota = nvRio !== null ? (nvRio >= cTransb ? 3 : nvRio >= cAlerta ? 2 : nvRio >= cAtencao ? 1 : 0) : 0;
+      // Se a tabela "Rios" do Catavento já trouxe status oficial ("normal" em Natura a 3,57 m, por exemplo) e cotasRio não foi customizado, respeita o status oficial + variação Δ
+      const nvHid = (stRio && !cotasRio) ? Math.max(nvStatus, nvDelta) : Math.max(nvStatus, nvCota, nvDelta);
       if (nvHid > 0) {
         const rotH = nvHid >= 3 ? "🔴 Cota de Transbordamento" : nvHid === 2 ? "🟠 Alerta Hidrológico (Cheia)" : "🟡 Atenção Hidrológica";
         alertas.push({
@@ -130,7 +135,7 @@ export function avaliarEstacoesCatavento(catavento, cotasRio = null) {
           nivel: nvHid,
           critico: nvHid >= 2,
           titulo: `🌊 <b>CATAVENTO-SURYA (${rotH}) — ${esc(nome)}</b>`,
-          detalhe: `Nível: ${fmt2(nvRio)}${deltaCm !== null ? ` · Variação (Δ): +${deltaCm} cm` : ""}${leit}`
+          detalhe: `${nvRio !== null ? `Nível: ${fmt2(nvRio)}` : `Status: ${esc(stRio)}`}${deltaCm !== null ? ` · Variação (Δ): +${deltaCm} cm` : ""}${leit}`
         });
       }
     }
@@ -429,15 +434,19 @@ export async function consultarFocosInpe(agoraMs = Date.now(), { buscar = fetch,
   return { ok: true, focos };
 }
 
-export async function consultarCataventoAoVivo(agoraMs = Date.now(), { buscar = fetch, url = process.env.CATAVENTO_URL || URL_CATAVENTO, timeoutMs = 12000 } = {}) {
+export async function consultarCataventoAoVivo(agoraMs = Date.now(), { buscar = fetch, url = process.env.CATAVENTO_URL || "", timeoutMs = 12000 } = {}) {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), timeoutMs);
+  const urls = url ? [url] : [URL_CATAVENTO_API_UNIFIED, URL_CATAVENTO_API_UNIFIED_ALT, URL_CATAVENTO];
   try {
-    const r = await buscar(url, { signal: ctl.signal, headers: { "User-Agent": USER_AGENT } });
-    if (!r.ok) return { ok: false, estacoes: [] };
-    const estacoes = lerCatavento(await r.text());
-    return { ok: estacoes.length > 0, coletadoEm: new Date(agoraMs).toISOString(), estacoes };
-  } catch (e) {
+    for (const u of urls) {
+      try {
+        const r = await buscar(u, { signal: ctl.signal, headers: { "User-Agent": USER_AGENT } });
+        if (!r.ok) continue;
+        const estacoes = lerCatavento(await r.text());
+        if (estacoes.length > 0) return { ok: true, coletadoEm: new Date(agoraMs).toISOString(), estacoes };
+      } catch (e) { /* tenta próxima URL */ }
+    }
     return { ok: false, estacoes: [] };
   } finally {
     clearTimeout(t);

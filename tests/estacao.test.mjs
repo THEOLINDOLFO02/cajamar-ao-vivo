@@ -595,3 +595,21 @@ test("continuidade incremental de CSV: une manhã do CSV antigo com tarde do nov
   assert.equal(j.mov168.estado, "OK");
   assert.equal(j.mov168.valor, 201.6);
 });
+
+test("lerCsv: aceita também o CSV exportado pelos gráficos do painel Catavento-Surya (data_hora ISO e accumulated_mm)", () => {
+  const cabGrafico = "tenant;sn;alias;periodo;data_hora;timestamp_ms;temperature_c;humidity_percent;pressure_hpa;wind_speed_mps;wind_speed_kmh;wind_direction_degrees;intensity_mm;accumulated_mm;accumulated_24h_mm;solar_radiation_wm2";
+  const ts1 = Date.UTC(2026, 10, 16, 21, 0, 0); // 16/11/2026 18:00:00 BRT
+  const ts2 = Date.UTC(2026, 10, 16, 21, 10, 0); // 16/11/2026 18:10:00 BRT
+  const csvTxt = [
+    cabGrafico,
+    `cajamar;140070634;GCM - Vila Nova;24h;2026-11-16T21:00:00.000Z;${ts1};20,6;77;929;0,8;3,0;123;0;1,2;20,0;0`,
+    `cajamar;140070634;GCM - Vila Nova;24h;2026-11-16T21:10:00.000Z;${ts2};20,4;78;929;0,8;3,0;123;0;2,0;20,8;0`
+  ].join("\n");
+  const rows = Estacao.lerCsv(csvTxt);
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].dia, "2026-11-16");
+  assert.equal(rows[0].ch, 1.2);
+  assert.equal(rows[1].ch, 0.8);
+  const res = Estacao.resumir(rows)["2026-11-16"];
+  assert.equal(res.chuva, 2);
+});

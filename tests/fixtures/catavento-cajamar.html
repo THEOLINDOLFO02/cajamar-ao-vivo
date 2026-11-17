@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Cajamar - Monitoramento do Tempo</title>
+</head>
+<body>
+  <main>
+    <section>
+      <h2>Estações Meteorológicas</h2>
+      <table class="w-full text-xs border-collapse">
+        <thead>
+          <tr class="border-b border-border bg-muted/30">
+            <th>Estação</th>
+            <th>Bairros associados</th>
+            <th>Chuva 1h (mm)</th>
+            <th>Chuva 24h (mm)</th>
+            <th>Temp (°C)</th>
+            <th>Umidade (%)</th>
+            <th>Vento (km/h)</th>
+            <th>Direção</th>
+            <th>Pressão (hPa)</th>
+            <th>Rad. Solar (W/m²)</th>
+            <th>Atualização</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>EMEB Maria Gonçalves</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>15,2</td>
+            <td>80%</td>
+            <td>10</td>
+            <td>E (90°)</td>
+            <td>927</td>
+            <td>0</td>
+            <td>21/10/2026, 01:10</td>
+          </tr>
+          <tr>
+            <td>GCM - Vila Nova</td>
+            <td>—</td>
+            <td>0</td>
+            <td>22</td>
+            <td>20,6</td>
+            <td>77%</td>
+            <td>3</td>
+            <td>ESE (123°)</td>
+            <td>929</td>
+            <td>0</td>
+            <td>16/11/2026, 21:50</td>
+          </tr>
+          <tr>
+            <td>EMEB Karine Pereira Santiago</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>15,9</td>
+            <td>76%</td>
+            <td>8</td>
+            <td>SSE (162°)</td>
+            <td>938</td>
+            <td>0</td>
+            <td>21/10/2026, 01:00</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Estações Pluviométricas</h2>
+      <table class="w-full text-xs border-collapse">
+        <thead>
+          <tr>
+            <th>Estação</th>
+            <th>Bairros associados</th>
+            <th>Chuva 1h (mm)</th>
+            <th>Chuva 24h (mm)</th>
+            <th>Atualização</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Jordanésia</td>
+            <td>—</td>
+            <td>0</td>
+            <td>28</td>
+            <td>16/11/2026, 21:50</td>
+          </tr>
+          <tr>
+            <td>EMEB Guilhermina de C. Oliveira</td>
+            <td>—</td>
+            <td>0</td>
+            <td>19,2</td>
+            <td>16/11/2026, 21:50</td>
+          </tr>
+          <tr>
+            <td>Natura</td>
+            <td>—</td>
+            <td>0</td>
+            <td>17</td>
+            <td>16/11/2026, 21:50</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Rios</h2>
+      <table class="w-full text-xs border-collapse">
+        <thead>
+          <tr>
+            <th>Rio</th>
+            <th>Status</th>
+            <th>Nível atual</th>
+            <th>Hora</th>
+            <th>Atualização</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Jordanésia</td>
+            <td>Normal</td>
+            <td>0,44 m</td>
+            <td>21:50</td>
+            <td>16/11/2026, 21:50</td>
+          </tr>
+          <tr>
+            <td>Natura</td>
+            <td>Normal</td>
+            <td>3,57 m</td>
+            <td>21:50</td>
+            <td>16/11/2026, 21:50</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <select id="cajamar-meteorological-selector">
+        <option value="140070599">EMEB Karine Pereira Santiago</option>
+        <option value="140070616">EMEB Maria Gonçalves</option>
+        <option value="140070634">GCM - Vila Nova</option>
+      </select>
+      <select id="cajamar-pluviometric-selector">
+        <option value="18153629">EMEB Guilhermina de C. Oliveira</option>
+        <option value="18154190">GCM - Ponunduva</option>
+        <option value="140070661">Jordanésia</option>
+        <option value="140070580">Natura</option>
+      </select>
+    </section>
+  </main>
+</body>
+</html>

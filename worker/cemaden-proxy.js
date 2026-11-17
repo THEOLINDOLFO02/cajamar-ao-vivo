@@ -145,41 +145,144 @@ async function rotaCge(request, env, cors) {
 export const URL_CATAVENTO = "https://cajamar.catavento-surya.com/";
 export const URL_CATAVENTO_LOGIN = "https://cajamar-meteorologia.catavento-surya.com/login";
 export const URL_CATAVENTO_PAINEL = "https://cajamar-meteorologia.catavento-surya.com/";
+export const URL_CATAVENTO_API_UNIFIED = "https://cajamar-meteorologia.catavento-surya.com/api/cajamar/unified";
+export const URL_CATAVENTO_API_UNIFIED_ALT = "https://catavento-surya.com/api/cajamar/unified";
+export const URL_CATAVENTO_API_STATE = "https://catavento-surya.com/api/v2/monitoring/cajamar/state";
 
-function normalizarItemCatavento(raw, idx = 0) {
+const SN_CONHECIDOS_CAJAMAR = {
+  "emeb karine pereira santiago": "140070599",
+  "emeb karine": "140070599",
+  "emeb maria goncalves": "140070616",
+  "emeb maria": "140070616",
+  "gcm vila nova": "140070634",
+  "emeb guilhermina de c oliveira": "18153629",
+  "emeb guilhermina": "18153629",
+  "gcm ponunduva": "18154190",
+  "jordanesia": "140070661",
+  "regua jordanesia": "140070661",
+  "natura": "140070580",
+  "regua natura": "140070580"
+};
+
+function chaveNomeCatavento(s) {
+  return String(s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/^g2-\s*/i, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function resolverSnCajamar(nome, idExplicito, mapaSelect = null) {
+  const ch = chaveNomeCatavento(nome);
+  if (mapaSelect && ch && mapaSelect.has(ch)) return mapaSelect.get(ch);
+  if (idExplicito && String(idExplicito).trim()) return String(idExplicito).trim();
+  if (ch && SN_CONHECIDOS_CAJAMAR[ch]) return SN_CONHECIDOS_CAJAMAR[ch];
+  for (const [k, sn] of Object.entries(SN_CONHECIDOS_CAJAMAR)) {
+    if (ch && (ch.includes(k) || k.includes(ch))) return sn;
+  }
+  return idExplicito ? String(idExplicito).trim() : (ch ? ch.replace(/\s+/g, "_") : "est");
+}
+
+function normalizarItemCatavento(raw, idx = 0, mapaSelect = null) {
   if (!raw || typeof raw !== "object") return null;
-  const id = String(raw.sn || raw.id || raw.codigo || raw.serial || raw.alias || raw.nome || raw.name || ("est_" + (idx + 1))).trim();
-  const nome = String(raw.alias || raw.nome || raw.name || raw.estacao || id).trim();
-  const catBruta = String(raw.category || raw.tipo || "").toLowerCase();
-  const ehNivel = /nivel|nível|hidro|fluv|regua|régua/.test(catBruta) || (/natura|jordan/i.test(nome) && raw.water_level_m !== undefined && raw.temperature_c === undefined);
-  const pick = (chaves, min, max) => {
+  const det = raw.detalhes && typeof raw.detalhes === "object" ? raw.detalhes : {};
+  const nomeBruto = String(raw.alias || raw.nome || raw.name || raw.estacao || det.rio || det.riverName || raw.sn || raw.id || ("est_" + (idx + 1))).trim().replace(/^G2-\s*/i, "");
+  const idBruto = raw.sn || raw.id || raw.codigo || raw.serial || det.sourceId || "";
+  const id = resolverSnCajamar(nomeBruto, idBruto, mapaSelect);
+  const nome = nomeBruto || id;
+  const catBruta = String(raw.category || raw.tipo || det.measurementType || "").toLowerCase();
+
+  const pick = (obj, chaves, min, max) => {
+    if (!obj || typeof obj !== "object") return null;
     for (const k of chaves) {
-      if (raw[k] !== undefined && raw[k] !== null && raw[k] !== "") {
-        const v = numeroCge(raw[k], min, max);
+      if (obj[k] !== undefined && obj[k] !== null && obj[k] !== "") {
+        const v = numeroCge(obj[k], min, max);
         if (v !== null) return v;
       }
     }
     return null;
   };
+
+  // Suporte nativo ao schema de /api/cajamar/unified (tipo: "estacao" | "pluviometro" | "cemaden" | "rio")
+  const ehUnifiedEstacao = catBruta === "estacao" && (raw.valor_atual !== undefined || det.hourlyRainIn !== undefined || det.dailyRainIn !== undefined);
+  const ehUnifiedPluv = (catBruta === "pluviometro" || catBruta === "cemaden") && (raw.valor_atual !== undefined || det.precip1h !== undefined);
+  const ehUnifiedRio = catBruta === "rio" || catBruta === "river_level";
+
   const chuvaObj = raw.chuva && typeof raw.chuva === "object" ? raw.chuva : (raw.acc && typeof raw.acc === "object" ? raw.acc : {});
-  const h1 = pick(["chuva1h", "acc1h", "chuva_1h", "rain_1h", "c60", "intensity_mm", "rain_interval_mm"], 0, 500) ?? numeroCge(chuvaObj.h1 ?? chuvaObj.atual, 0, 500);
-  const h24 = pick(["chuva24h", "acc24h", "chuva_24h", "rain_24h", "accumulated_mm", "chuva_dia", "chuva"], 0, 1000) ?? numeroCge(chuvaObj.h24 ?? chuvaObj.dia, 0, 1000);
-  const h72 = pick(["chuva72h", "acc72h", "chuva_72h", "rain_72h"], 0, 1500) ?? numeroCge(chuvaObj.h72, 0, 1500);
-  const h168 = pick(["chuva168h", "acc168h", "chuva_168h", "rain_168h"], 0, 2000) ?? numeroCge(chuvaObj.h168, 0, 2000);
-  const temperatura = pick(["temperatura", "temperature_c", "temp", "temperatura_c", "tmax"], -50, 60);
-  const umidade = pick(["umidade", "humidity_percent", "umid", "humidity"], 0, 100);
-  const pressao = pick(["pressao", "pressure_hpa", "pressao_hpa", "pressure"], 300, 1100);
-  const vento = pick(["vento", "wind_speed_kmh", "vento_kmh", "wind_speed", "vmax"], 0, 400);
-  const rajada = pick(["rajada", "wind_gust_kmh", "rajada_kmh", "gust_kmh"], 0, 400);
-  const direcao = pick(["direcao", "wind_direction_degrees", "wind_dir"], 0, 360);
-  const nivelRio = pick(["nivelRio", "water_level_m", "nivel_m", "water_level", "nvMax", "nivel"], 0, 30);
-  const variacaoNivelM = pick(["variacaoNivelM", "nvDelta", "water_level_delta_m", "delta_m"], 0, 20);
-  const radiacao = pick(["radiacao", "solar_radiation_wm2", "radiacao_wm2", "radmax"], 0, 2000);
-  const leitura = String(raw.leitura || raw.data_hora_brt || raw.data_hora || raw.updatedAt || raw.ultimoRegistro || "").trim() || null;
+  const inParaMm = (v) => (v !== null ? Math.round(Math.max(0, v * 25.4) * 10) / 10 : null);
+  const mphParaKmh = (v) => (v !== null ? Math.round(v * 1.60934 * 10) / 10 : null);
+
+  let h1 = pick(raw, ["chuva1h", "acc1h", "chuva_1h", "rain_1h", "c60", "precip1h", "intensity_mm", "rain_interval_mm"], 0, 500)
+    ?? pick(det, ["precip1h", "chuva1h", "rain1h"], 0, 500)
+    ?? inParaMm(pick(det, ["hourlyRainIn"], 0, 30))
+    ?? numeroCge(chuvaObj.h1 ?? chuvaObj.atual, 0, 500);
+
+  let h24 = pick(raw, ["chuva24h", "acc24h", "chuva_24h", "rain_24h", "accumulated_24h_mm", "accumulated_mm", "chuva_dia", "chuva"], 0, 1000)
+    ?? pick(det, ["precip24h", "chuva24h", "rain24h"], 0, 1000)
+    ?? inParaMm(pick(det, ["dailyRainIn"], 0, 60))
+    ?? (ehUnifiedPluv ? numeroCge(raw.valor_atual, 0, 1000) : null)
+    ?? numeroCge(chuvaObj.h24 ?? chuvaObj.dia, 0, 1000);
+
+  const h72 = pick(raw, ["chuva72h", "acc72h", "chuva_72h", "rain_72h"], 0, 1500)
+    ?? pick(det, ["precip72h", "precip96h"], 0, 1500)
+    ?? numeroCge(chuvaObj.h72, 0, 1500);
+  const h168 = pick(raw, ["chuva168h", "acc168h", "chuva_168h", "rain_168h"], 0, 2000) ?? numeroCge(chuvaObj.h168, 0, 2000);
+
+  const temperatura = pick(raw, ["temperatura", "temperature_c", "temp", "temperatura_c", "tmax"], -50, 60)
+    ?? pick(det, ["temperature", "temperature_c", "temp"], -50, 60)
+    ?? (ehUnifiedEstacao ? numeroCge(raw.valor_atual, -50, 60) : null);
+
+  const umidade = pick(raw, ["umidade", "humidity_percent", "umid", "humidity"], 0, 100)
+    ?? pick(det, ["humidity", "humidity_percent"], 0, 100);
+
+  const pressao = pick(raw, ["pressao", "pressure_hpa", "pressao_hpa", "pressure", "pressureHpa"], 300, 1100)
+    ?? pick(det, ["pressureHpa", "pressure_hpa", "pressure"], 300, 1100);
+
+  const vento = pick(raw, ["vento", "wind_speed_kmh", "vento_kmh", "wind_speed", "vmax"], 0, 400)
+    ?? pick(det, ["windSpeedKmh", "wind_speed_kmh"], 0, 400)
+    ?? mphParaKmh(pick(det, ["windSpeedMph"], 0, 250));
+
+  const rajada = pick(raw, ["rajada", "wind_gust_kmh", "rajada_kmh", "gust_kmh"], 0, 400)
+    ?? pick(det, ["windGustKmh", "wind_gust_kmh"], 0, 400)
+    ?? mphParaKmh(pick(det, ["windGustMph"], 0, 250));
+
+  let direcao = pick(raw, ["direcao", "wind_direction_degrees", "wind_dir", "windDirDeg"], 0, 360)
+    ?? pick(det, ["windDirectionDegrees", "wind_direction_degrees"], 0, 360);
+  if (direcao === null && typeof raw.direcao === "string") {
+    const mDeg = /\((-?\d+(?:[.,]\d+)?)\s*°\)/.exec(raw.direcao);
+    if (mDeg) direcao = numeroCge(mDeg[1], 0, 360);
+  }
+
+  const nvCm = pick(det, ["nivelAtualCm"], 0, 3000) ?? pick(raw, ["nivelAtualCm"], 0, 3000);
+  const nivelRio = pick(raw, ["nivelRio", "water_level_m", "nivel_m", "water_level", "waterLevelM", "nvMax", "nivel"], 0, 30)
+    ?? pick(det, ["riverLevelMeters", "waterLevelM", "water_level_m"], 0, 30)
+    ?? (ehUnifiedRio ? numeroCge(raw.valor_atual, 0, 30) : null)
+    ?? (nvCm !== null ? Math.round((nvCm / 100) * 100) / 100 : null);
+
+  const variacaoNivelM = pick(raw, ["variacaoNivelM", "nvDelta", "water_level_delta_m", "delta_m"], 0, 20);
+  const radiacao = pick(raw, ["radiacao", "solar_radiation_wm2", "radiacao_wm2", "radmax", "solarRadiationWm2"], 0, 2000)
+    ?? pick(det, ["solarRadiationWm2", "solar_radiation_wm2"], 0, 2000);
+
+  const statusBruto = String(raw.statusRio || raw.status || det.status || "").trim().toLowerCase();
+  const statusRio = /^(normal|atencao|atenção|alerta|critico|crítico|inundacao|inundação)$/.test(statusBruto)
+    ? statusBruto.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    : null;
+
+  const leitura = String(
+    raw.leitura || raw.data_hora_brt || raw.data_hora_atualizacao || det.dateTime || raw.data_hora || raw.updatedAt || raw.ultimoRegistro || ""
+  ).trim() || null;
+
+  const ehNivel = ehUnifiedRio
+    || /nivel|nível|hidro|fluv|regua|régua/.test(catBruta)
+    || (nivelRio !== null && temperatura === null && h1 === null && h24 === null)
+    || (/natura|jordan/i.test(nome) && nivelRio !== null && temperatura === null);
 
   const temValor = [h1, h24, h72, h168, temperatura, umidade, pressao, vento, rajada, nivelRio, radiacao].some((v) => v !== null);
   if (!temValor) return null;
-  return {
+  const item = {
     id,
     nome,
     tipo: ehNivel ? "nivel" : "meteorologica",
@@ -198,16 +301,45 @@ function normalizarItemCatavento(raw, idx = 0) {
     variacaoNivelM,
     radiacao
   };
+  if (statusRio) item.statusRio = statusRio;
+  return item;
+}
+
+// Mescla entradas da mesma estação (ex.: Jordanésia e Natura aparecem tanto em "Estações Pluviométricas" quanto em "Rios").
+function mesclarListaCatavento(itens) {
+  const mapa = new Map();
+  for (const it of itens) {
+    if (!it) continue;
+    const chave = /^\d{6,}$/.test(it.id) ? it.id : chaveNomeCatavento(it.nome || it.id);
+    if (!mapa.has(chave)) {
+      mapa.set(chave, { ...it });
+      continue;
+    }
+    const atual = mapa.get(chave);
+    for (const k of ["chuva1h", "chuva24h", "chuva72h", "chuva168h", "temperatura", "umidade", "pressao", "vento", "rajada", "direcao", "nivelRio", "variacaoNivelM", "radiacao", "statusRio", "leitura"]) {
+      if ((atual[k] === null || atual[k] === undefined) && it[k] !== null && it[k] !== undefined) {
+        atual[k] = it[k];
+      }
+    }
+    if (it.nivelRio !== null && atual.temperatura === null) atual.tipo = "nivel";
+  }
+  return Array.from(mapa.values());
 }
 
 function extrairListaJsonCatavento(obj) {
   if (!obj || typeof obj !== "object") return [];
-  if (Array.isArray(obj)) return obj.map(normalizarItemCatavento).filter(Boolean);
-  for (const k of ["estacoes", "stations", "devices", "equipamentos", "dados", "data", "items"]) {
+  if (Array.isArray(obj)) return mesclarListaCatavento(obj.map((x, i) => normalizarItemCatavento(x, i)).filter(Boolean));
+  const acumulados = [];
+  for (const k of ["estacoes", "pluviometros", "cemaden", "rios", "stations", "devices", "equipamentos", "dados", "data", "items"]) {
     if (Array.isArray(obj[k])) {
-      const l = obj[k].map(normalizarItemCatavento).filter(Boolean);
-      if (l.length) return l;
+      const l = obj[k].map((x, i) => normalizarItemCatavento(x, i)).filter(Boolean);
+      acumulados.push(...l);
     }
+  }
+  if (acumulados.length) return mesclarListaCatavento(acumulados);
+  if (obj.state && typeof obj.state === "object") {
+    const subState = extrairListaJsonCatavento(obj.state);
+    if (subState.length) return subState;
   }
   if (obj.props && obj.props.pageProps) {
     const sub = extrairListaJsonCatavento(obj.props.pageProps);
@@ -216,14 +348,114 @@ function extrairListaJsonCatavento(obj) {
   return [];
 }
 
-// Lê dados das estações de https://cajamar.catavento-surya.com/ (suporta JSON, CSV de exportação ou raspagem HTML).
+function rasparTabelasHtmlCatavento(html) {
+  const mapaSelect = new Map();
+  const rxOpt = /<option\s+value=["']([^"']+)["'][^>]*>([\s\S]*?)<\/option>/gi;
+  let mOpt;
+  while ((mOpt = rxOpt.exec(html)) !== null) {
+    const val = mOpt[1].trim();
+    const txt = mOpt[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (val && txt) mapaSelect.set(chaveNomeCatavento(txt), val);
+  }
+
+  const limparCelula = (s) => String(s || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&([a-z]+);/gi, (m, e) => (ENTIDADES[e.toLowerCase()] !== undefined ? ENTIDADES[e.toLowerCase()] : " "))
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const itens = [];
+  const rxTable = /<table[^>]*>([\s\S]*?)<\/table>/gi;
+  let mTab;
+  while ((mTab = rxTable.exec(html)) !== null) {
+    const tabHtml = mTab[1];
+    const mHead = /<thead[^>]*>([\s\S]*?)<\/thead>/i.exec(tabHtml);
+    const mBody = /<tbody[^>]*>([\s\S]*?)<\/tbody>/i.exec(tabHtml);
+    if (!mHead || !mBody) continue;
+
+    const headers = [];
+    const rxTh = /<th[^>]*>([\s\S]*?)<\/th>/gi;
+    let mTh;
+    while ((mTh = rxTh.exec(mHead[1])) !== null) {
+      headers.push(limparCelula(mTh[1]));
+    }
+    if (headers.length < 2) continue;
+
+    const primeiroHeader = chaveNomeCatavento(headers[0]);
+    if (!["estacao", "rio", "variavel"].includes(primeiroHeader)) continue;
+    const ehTabelaRio = primeiroHeader === "rio";
+
+    const linhas = [];
+    const rxTr = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+    let mTr;
+    while ((mTr = rxTr.exec(mBody[1])) !== null) {
+      const cols = [];
+      const rxTd = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+      let mTd;
+      while ((mTd = rxTd.exec(mTr[1])) !== null) {
+        cols.push(limparCelula(mTd[1]));
+      }
+      if (cols.length >= 2) linhas.push(cols);
+    }
+    if (!linhas.length) continue;
+
+    const atribuirCampo = (obj, rotuloCol, valorTxt) => {
+      if (!valorTxt || valorTxt === "—" || valorTxt === "-") return;
+      const c = chaveNomeCatavento(rotuloCol);
+      if (c === "estacao" || c === "rio") obj.nome = valorTxt;
+      else if (c.includes("chuva 1h") || c === "1h") obj.chuva1h = valorTxt.replace(/mm/i, "").trim();
+      else if (c.includes("chuva 24h") || c === "24h") obj.chuva24h = valorTxt.replace(/mm/i, "").trim();
+      else if (c.includes("chuva 72h") || c.includes("chuva 96h")) obj.chuva72h = valorTxt.replace(/mm/i, "").trim();
+      else if (c.includes("chuva 168h")) obj.chuva168h = valorTxt.replace(/mm/i, "").trim();
+      else if (c.startsWith("temp")) obj.temperatura = valorTxt.replace(/°\s*c/i, "").trim();
+      else if (c.startsWith("umidade")) obj.umidade = valorTxt.replace(/%/g, "").trim();
+      else if (c.startsWith("vento")) obj.vento = valorTxt.replace(/km\/h/i, "").trim();
+      else if (c.startsWith("rajada")) obj.rajada = valorTxt.replace(/km\/h/i, "").trim();
+      else if (c.startsWith("direcao")) obj.direcao = valorTxt;
+      else if (c.startsWith("pressao")) obj.pressao = valorTxt.replace(/hpa/i, "").trim();
+      else if (c.includes("solar") || c.includes("radiacao")) obj.radiacao = valorTxt.replace(/w\/m[²2]?/i, "").trim();
+      else if (c === "status" || c === "situacao") obj.statusRio = valorTxt;
+      else if (c.includes("nivel atual") || c === "nivel") obj.nivelRio = valorTxt.replace(/m\b/i, "").trim();
+      else if (c.startsWith("atualizacao")) obj.leitura = valorTxt;
+    };
+
+    if (primeiroHeader === "variavel") {
+      // Layout transposto (colunas = estações, linhas = variáveis)
+      const porCol = headers.slice(1).map((nomeEst) => ({ nome: nomeEst, tipo: "meteorologica" }));
+      for (const l of linhas) {
+        const rotVar = l[0];
+        for (let cIdx = 1; cIdx < l.length && cIdx - 1 < porCol.length; cIdx++) {
+          atribuirCampo(porCol[cIdx - 1], rotVar, l[cIdx]);
+        }
+      }
+      porCol.forEach((raw, i) => {
+        const norm = normalizarItemCatavento(raw, i, mapaSelect);
+        if (norm) itens.push(norm);
+      });
+    } else {
+      // Layout padrão em linhas (Estações Meteorológicas, Estações Pluviométricas, Rios)
+      linhas.forEach((cols, i) => {
+        const raw = { tipo: ehTabelaRio ? "rio" : "meteorologica" };
+        for (let cIdx = 0; cIdx < cols.length && cIdx < headers.length; cIdx++) {
+          atribuirCampo(raw, headers[cIdx], cols[cIdx]);
+        }
+        const norm = normalizarItemCatavento(raw, i, mapaSelect);
+        if (norm) itens.push(norm);
+      });
+    }
+  }
+  return mesclarListaCatavento(itens);
+}
+
+// Lê dados das estações de https://cajamar.catavento-surya.com/ e https://cajamar-meteorologia.catavento-surya.com/
+// (suporta JSON de /api/cajamar/unified, CSV de exportação e raspagem das tabelas HTML renderizadas).
 export function lerCatavento(conteudo) {
   if (typeof conteudo !== "string" || conteudo.trim().length < 10) {
     throw new Error("resposta vazia do sistema Catavento-Surya");
   }
   const txt = conteudo.trim();
 
-  // 1) Se for JSON direto
+  // 1) Se for JSON direto (ex.: /api/cajamar/unified)
   if (txt.startsWith("{") || txt.startsWith("[")) {
     try {
       const parsed = JSON.parse(txt);
@@ -232,9 +464,9 @@ export function lerCatavento(conteudo) {
     } catch (e) { /* segue para outros formatos */ }
   }
 
-  // 2) Se for CSV do Catavento-Surya (delimitador ';')
+  // 2) Se for CSV do Catavento-Surya (delimitador ';', tanto do endpoint .csv quanto da exportação do navegador)
   const primeiraLinha = txt.replace(/^\uFEFF/, "").split(/\r?\n/)[0] || "";
-  if (primeiraLinha.includes(";") && (primeiraLinha.includes("data_hora_brt") || primeiraLinha.includes("rain_interval_mm") || primeiraLinha.includes("water_level_m"))) {
+  if (primeiraLinha.includes(";") && (primeiraLinha.includes("data_hora") || primeiraLinha.includes("rain_interval_mm") || primeiraLinha.includes("accumulated_24h_mm") || primeiraLinha.includes("water_level_m"))) {
     const linhas = txt.replace(/^\uFEFF/, "").split(/\r?\n/).filter((l) => l.trim() !== "");
     const cab = linhas[0].split(";").map((c) => c.trim());
     const idx = {};
@@ -245,13 +477,16 @@ export function lerCatavento(conteudo) {
       const sn = (idx.sn !== undefined && c[idx.sn] ? c[idx.sn].trim() : "") || "est";
       const alias = (idx.alias !== undefined && c[idx.alias] ? c[idx.alias].trim() : "") || sn;
       const cat = idx.category !== undefined && c[idx.category] ? c[idx.category].trim() : "";
-      const dh = idx.data_hora_brt !== undefined && c[idx.data_hora_brt] ? c[idx.data_hora_brt].trim() : "";
+      const dh = (idx.data_hora_brt !== undefined && c[idx.data_hora_brt] ? c[idx.data_hora_brt].trim() : "")
+        || (idx.data_hora !== undefined && c[idx.data_hora] ? c[idx.data_hora].trim() : "");
       const chave = sn + "|" + alias;
       if (!porEst.has(chave)) porEst.set(chave, { sn, alias, category: cat, rows: [] });
       porEst.get(chave).rows.push({
         dh,
         ch: idx.rain_interval_mm !== undefined ? numeroCge(c[idx.rain_interval_mm], 0, 500) : null,
-        acc: idx.accumulated_mm !== undefined ? numeroCge(c[idx.accumulated_mm], 0, 1000) : null,
+        acc: idx.accumulated_24h_mm !== undefined && c[idx.accumulated_24h_mm] !== ""
+          ? numeroCge(c[idx.accumulated_24h_mm], 0, 1000)
+          : (idx.accumulated_mm !== undefined ? numeroCge(c[idx.accumulated_mm], 0, 1000) : null),
         intMm: idx.intensity_mm !== undefined ? numeroCge(c[idx.intensity_mm], 0, 500) : null,
         t: idx.temperature_c !== undefined ? numeroCge(c[idx.temperature_c], -50, 60) : null,
         u: idx.humidity_percent !== undefined ? numeroCge(c[idx.humidity_percent], 0, 100) : null,
@@ -287,10 +522,16 @@ export function lerCatavento(conteudo) {
       });
       if (item) saidaCsv.push(item);
     }
-    if (saidaCsv.length) return saidaCsv;
+    if (saidaCsv.length) return mesclarListaCatavento(saidaCsv);
   }
 
-  // 3) Raspagem de HTML: verifica primeiro JSON embutido em <script> (__NEXT_DATA__ ou estado inicial)
+  // 3) Raspagem de tabelas HTML renderizadas (Estações Meteorológicas, Estações Pluviométricas e Rios)
+  if (/<table[\s>]/i.test(txt)) {
+    const deTabelas = rasparTabelasHtmlCatavento(txt);
+    if (deTabelas.length) return deTabelas;
+  }
+
+  // 4) Raspagem de HTML: verifica JSON embutido em <script> (__NEXT_DATA__ ou estado inicial)
   const rxScriptJson = /<script[^>]*>([\s\S]*?)<\/script>/gi;
   let mScr;
   while ((mScr = rxScriptJson.exec(txt)) !== null) {
@@ -310,7 +551,7 @@ export function lerCatavento(conteudo) {
     }
   }
 
-  // 4) Raspagem direta de blocos HTML por estação (cards, linhas de tabela ou seções)
+  // 5) Raspagem de blocos HTML / cards por estação
   const limpo = txt
     .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ")
     .replace(/&([a-z]+);/gi, (m, e) => (ENTIDADES[e.toLowerCase()] !== undefined ? ENTIDADES[e.toLowerCase()] : " "));
@@ -330,7 +571,7 @@ export function lerCatavento(conteudo) {
     const mRaj = new RegExp("(?:rajada)\\s*:?\\s*" + NUM + "\\s*km/h", "i").exec(t);
     const mNivel = new RegExp("(?:n[ií]vel(?:\\s*do\\s*rio|\\s*d['’]?[aá]gua)?|r[eé]gua|cota)\\s*:?\\s*" + NUM + "\\s*m\\b", "i").exec(t);
     const mRad = new RegExp("(?:radia[cç][aã]o)\\s*:?\\s*" + NUM + "\\s*W/m|" + NUM + "\\s*W/m", "i").exec(t);
-    const mHora = /(\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}(?::\d{2})?|\d{2}:\d{2})/.exec(t);
+    const mHora = /(\d{2}\/\d{2}\/\d{4}(?:,?\s+\d{2}:\d{2}(?::\d{2})?)?|\d{2}:\d{2})/.exec(t);
 
     const valTemp = mTemp ? (mTemp[1] || mTemp[2]) : null;
     const valUmid = mUmid ? (mUmid[1] || mUmid[2]) : null;
@@ -359,11 +600,11 @@ export function lerCatavento(conteudo) {
 
   // Procura blocos nomeados das estações conhecidas de Cajamar ou blocos <article>/<section>/<div data-estacao>
   const padroesEstacoes = [
-    { nome: "EMEB Karine", rx: /EMEB\s+Karine/i },
-    { nome: "EMEB Maria", rx: /EMEB\s+Maria/i },
-    { nome: "GCM Vila Nova", rx: /GCM\s+Vila\s+Nova|Vila\s+Nova|Polvilho/i },
-    { nome: "EMEB Guilhermina", rx: /EMEB\s+Guilhermina|KM\s*43/i },
-    { nome: "GCM Ponunduva", rx: /GCM\s+Ponunduva|Ponunduva/i },
+    { nome: "EMEB Karine", rx: /EMEB\s+Karine(?:\s+Pereira\s+Santiago)?/i },
+    { nome: "EMEB Maria", rx: /EMEB\s+Maria(?:\s+Gon[cç]alves)?/i },
+    { nome: "GCM Vila Nova", rx: /GCM\s*-?\s*Vila\s+Nova|Vila\s+Nova|Polvilho/i },
+    { nome: "EMEB Guilhermina", rx: /EMEB\s+Guilhermina(?:\s+de\s+C\.?\s+Oliveira)?|KM\s*43/i },
+    { nome: "GCM Ponunduva", rx: /GCM\s*-?\s*Ponunduva|Ponunduva/i },
     { nome: "Régua Jordanésia", rx: /R[eé]gua\s+Jordan[eé]sia|N[ií]vel\s+Jordan[eé]sia|Jordan[eé]sia/i },
     { nome: "Régua Natura", rx: /R[eé]gua\s+Natura|N[ií]vel\s+Natura|Natura/i }
   ];
@@ -381,7 +622,7 @@ export function lerCatavento(conteudo) {
     const item = rasparBlocoTexto(limpo.slice(ini, fim), posicoes[i].nome, i);
     if (item) estacoesHtml.push(item);
   }
-  if (estacoesHtml.length) return estacoesHtml;
+  if (estacoesHtml.length) return mesclarListaCatavento(estacoesHtml);
 
   // Fallback: página única com medições gerais de Cajamar
   const unico = rasparBlocoTexto(limpo, "Estação Cajamar (Catavento-Surya)", 0);
@@ -393,17 +634,27 @@ export function lerCatavento(conteudo) {
 async function rotaCatavento(request, env, cors) {
   const json = { ...cors, "Content-Type": "application/json; charset=utf-8" };
   const buscar = env && typeof env.buscar === "function" ? env.buscar : fetch;
-  const urlAlvo = (env && env.CATAVENTO_URL) || URL_CATAVENTO;
+  const urlsAlvo = env && env.CATAVENTO_URL
+    ? [env.CATAVENTO_URL]
+    : [URL_CATAVENTO_API_UNIFIED, URL_CATAVENTO_API_UNIFIED_ALT, URL_CATAVENTO];
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), 12000);
   try {
-    const r = await buscar(urlAlvo, { signal: ctl.signal, headers: { "User-Agent": USER_AGENT } });
-    if (!r.ok) throw new Error("Catavento-Surya respondeu HTTP " + r.status);
-    const estacoes = lerCatavento(await r.text());
-    const corpo = JSON.stringify({ coletadoEm: new Date().toISOString(), fonte: urlAlvo, estacoes });
-    return new Response(request.method === "HEAD" ? null : corpo, {
-      headers: { ...json, "Cache-Control": "public, max-age=120, stale-while-revalidate=300", "X-Content-Type-Options": "nosniff" }
-    });
+    let ultimoErro = null;
+    for (const urlAlvo of urlsAlvo) {
+      try {
+        const r = await buscar(urlAlvo, { signal: ctl.signal, headers: { "User-Agent": USER_AGENT } });
+        if (!r.ok) throw new Error("Catavento-Surya respondeu HTTP " + r.status);
+        const estacoes = lerCatavento(await r.text());
+        const corpo = JSON.stringify({ coletadoEm: new Date().toISOString(), fonte: urlAlvo, estacoes });
+        return new Response(request.method === "HEAD" ? null : corpo, {
+          headers: { ...json, "Cache-Control": "public, max-age=120, stale-while-revalidate=300", "X-Content-Type-Options": "nosniff" }
+        });
+      } catch (errTentativa) {
+        ultimoErro = errTentativa;
+      }
+    }
+    throw ultimoErro || new Error("Catavento-Surya indisponível");
   } catch (e) {
     const msg = e && e.name === "AbortError" ? "Catavento-Surya não respondeu em 12 s" : String(e && e.message ? e.message : e);
     return new Response(JSON.stringify({ erro: msg }), { status: 502, headers: { ...json, "Cache-Control": "no-store" } });

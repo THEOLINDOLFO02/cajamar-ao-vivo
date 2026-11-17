@@ -4,7 +4,16 @@
 import { writeFile, rename, mkdir, unlink } from "node:fs/promises";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { lerCatavento, URL_CATAVENTO, URL_CATAVENTO_LOGIN, URL_CATAVENTO_PAINEL, USER_AGENT } from "../worker/cemaden-proxy.js";
+import {
+  lerCatavento,
+  URL_CATAVENTO,
+  URL_CATAVENTO_LOGIN,
+  URL_CATAVENTO_PAINEL,
+  URL_CATAVENTO_API_UNIFIED,
+  URL_CATAVENTO_API_UNIFIED_ALT,
+  URL_CATAVENTO_API_STATE,
+  USER_AGENT
+} from "../worker/cemaden-proxy.js";
 
 function extrairCookies(headers) {
   if (!headers) return "";
@@ -15,30 +24,36 @@ function extrairCookies(headers) {
   return sc ? sc.split(/,(?=\s*[A-Za-z0-9_-]+=)/).map((c) => c.split(";")[0].trim()).join("; ") : "";
 }
 
-export async function autenticarCatavento({ buscar = fetch, loginUrl = URL_CATAVENTO_LOGIN, usuario = "", senha = "", timeoutMs = 15000 } = {}) {
+export async function autenticarCatavento({ buscar = fetch, loginUrl = URL_CATAVENTO_LOGIN, usuario = "", senha = "", cookieManual = "", timeoutMs = 15000 } = {}) {
+  if (cookieManual) return { cookies: cookieManual.trim(), token: "" };
   if (!usuario || !senha) return { cookies: "", token: "" };
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), timeoutMs);
   try {
-    // 1) GET na tela de login para obter cookie de sessão / CSRF se houver
+    // 1) GET na tela de login (/api/auth/login ou /login) para obter cookie de sessão / CSRF (_csrf do Cognito ou _token)
     let cookiesIniciais = "";
     let csrf = "";
+    let actionUrl = loginUrl;
     try {
       const rGet = await buscar(loginUrl, { signal: ctl.signal, headers: { "User-Agent": USER_AGENT } });
       cookiesIniciais = extrairCookies(rGet.headers);
+      if (rGet.url) actionUrl = rGet.url;
       const htmlLogin = await rGet.text();
-      const mCsrf = /name=["'](?:_token|csrf_token|csrfToken)["']\s+value=["']([^"']+)["']/i.exec(htmlLogin);
+      const mCsrf = /name=["'](?:_csrf|_token|csrf_token|csrfToken)["']\s+value=["']([^"']+)["']/i.exec(htmlLogin);
       if (mCsrf) csrf = mCsrf[1];
     } catch (e) { /* segue para tentativa de POST direto */ }
 
-    // 2) Tenta POST JSON e/ou Form-UrlEncoded em /login (e /api/login)
+    // 2) Tenta POST JSON e/ou Form-UrlEncoded em actionUrl / loginUrl
     const payloadObj = { email: usuario, username: usuario, user: usuario, login: usuario, password: senha, senha };
-    if (csrf) payloadObj._token = csrf;
+    if (csrf) {
+      payloadObj._token = csrf;
+      payloadObj._csrf = csrf;
+    }
 
     const cabBase = { "User-Agent": USER_AGENT };
     if (cookiesIniciais) cabBase.Cookie = cookiesIniciais;
 
-    const rPost = await buscar(loginUrl, {
+    const rPost = await buscar(actionUrl, {
       method: "POST",
       signal: ctl.signal,
       redirect: "manual",
@@ -63,22 +78,31 @@ export async function autenticarCatavento({ buscar = fetch, loginUrl = URL_CATAV
 
 export async function coletar({
   buscar = fetch,
-  url = process.env.CATAVENTO_URL || URL_CATAVENTO,
+  url = process.env.CATAVENTO_URL || "",
   usuario = (process.env.CATAVENTO_USER || "").trim(),
   senha = (process.env.CATAVENTO_PASS || "").trim(),
+  cookieManual = (process.env.CATAVENTO_COOKIE || "").trim(),
   agora = new Date(),
   timeoutMs = 20000
 } = {}) {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), timeoutMs);
   try {
-    const auth = await autenticarCatavento({ buscar, usuario, senha, timeoutMs });
-    const headers = { "User-Agent": USER_AGENT };
+    const auth = await autenticarCatavento({ buscar, usuario, senha, cookieManual, timeoutMs });
+    const headers = { "User-Agent": USER_AGENT, Accept: "application/json, text/html, */*" };
     if (auth.cookies) headers.Cookie = auth.cookies;
     if (auth.token) headers.Authorization = `Bearer ${auth.token}`;
 
-    const urlsTentativa = [url];
-    if (usuario && senha && !urlsTentativa.includes(URL_CATAVENTO_PAINEL)) {
+    const urlsTentativa = url
+      ? [url]
+      : [
+          URL_CATAVENTO_API_UNIFIED,
+          URL_CATAVENTO_API_UNIFIED_ALT,
+          URL_CATAVENTO_API_STATE,
+          URL_CATAVENTO_PAINEL,
+          URL_CATAVENTO
+        ];
+    if (url && usuario && senha && !urlsTentativa.includes(URL_CATAVENTO_PAINEL)) {
       urlsTentativa.unshift(URL_CATAVENTO_PAINEL);
     }
 

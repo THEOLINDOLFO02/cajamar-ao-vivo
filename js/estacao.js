@@ -76,8 +76,11 @@
     var linhas = String(texto || "").replace(/^﻿/, "").split(/\r?\n/).filter(function (l) { return l.trim() !== ""; });
     if (linhas.length < 2) throw new Error("arquivo vazio");
     var cab = linhas[0].split(";").map(function (c) { return c.trim(); });
-    var temData = cab.indexOf("data_hora_brt") >= 0 && cab.indexOf("timestamp_ms") >= 0;
-    var temClima = cab.indexOf("temperature_c") >= 0 && cab.indexOf("rain_interval_mm") >= 0;
+    var temDataBrt = cab.indexOf("data_hora_brt") >= 0;
+    var temDataIso = !temDataBrt && cab.indexOf("data_hora") >= 0;
+    var temData = (temDataBrt || temDataIso) && cab.indexOf("timestamp_ms") >= 0;
+    var temChuvaCol = cab.indexOf("rain_interval_mm") >= 0 || cab.indexOf("rain_mm") >= 0 || cab.indexOf("accumulated_mm") >= 0 || cab.indexOf("intensity_mm") >= 0;
+    var temClima = cab.indexOf("temperature_c") >= 0 && temChuvaCol;
     var temNivel = cab.indexOf("water_level_m") >= 0;
     if (!temData || (!temClima && !temNivel)) {
       var precisa = ["data_hora_brt", "timestamp_ms", "temperature_c", "rain_interval_mm"];
@@ -88,15 +91,26 @@
     cab.forEach(function (c, i) { idx[c] = i; });
     var out = [];
     out.descartadas = [];
+    var usaDeltaAcc = idx.rain_interval_mm === undefined && idx.rain_mm === undefined && idx.accumulated_mm !== undefined;
     for (var i = 1; i < linhas.length; i++) {
       var c = linhas[i].split(";");
       var tsTxt = String(c[idx.timestamp_ms] === undefined ? "" : c[idx.timestamp_ms]).trim();
-      var dh = c[idx.data_hora_brt] || "";
-      var m = /^(\d{2})\/(\d{2})\/(\d{4})(?: (\d{2}):(\d{2})(?::(\d{2}))?)?/.exec(dh);
-      // timestamp_ms só vale quando vem como inteiro completo. Exportações em notação científica ("1,78959E+12") perdem
-      // até ~3 h de precisão: nesse caso o instante é calculado de data_hora_brt (horário de Brasília, UTC-3), com ou sem segundos.
+      var dh = (idx.data_hora_brt !== undefined ? c[idx.data_hora_brt] : c[idx.data_hora]) || "";
       var tsExato = /^\d{12,14}$/.test(tsTxt);
       var ts = tsExato ? Number(tsTxt) : NaN;
+      // No CSV exportado pelo painel de gráficos do Catavento-Surya, "data_hora" pode vir em ISO UTC ("2026-11-16T21:50:00Z")
+      if (temDataIso && !/^\d{2}\/\d{2}\/\d{4}/.test(dh) && /^\d{4}-\d{2}-\d{2}[T ]/.test(dh)) {
+        var msIso = isFinite(ts) && ts > 0 ? ts : Date.parse(dh);
+        if (isFinite(msIso) && msIso > 0) {
+          var dBrt = new Date(msIso - BRT_MS);
+          var p2 = function (n) { return (n < 10 ? "0" : "") + n; };
+          dh = p2(dBrt.getUTCDate()) + "/" + p2(dBrt.getUTCMonth() + 1) + "/" + dBrt.getUTCFullYear() + " " +
+            p2(dBrt.getUTCHours()) + ":" + p2(dBrt.getUTCMinutes()) + ":" + p2(dBrt.getUTCSeconds());
+        }
+      }
+      var m = /^(\d{2})\/(\d{2})\/(\d{4})(?:[,\s]+(\d{2}):(\d{2})(?::(\d{2}))?)?/.exec(dh);
+      // timestamp_ms só vale quando vem como inteiro completo. Exportações em notação científica ("1,78959E+12") perdem
+      // até ~3 h de precisão: nesse caso o instante é calculado de data_hora_brt (horário de Brasília, UTC-3), com ou sem segundos.
       var derivado = false;
       if (!tsExato && tsTxt !== "" && /^[\d.,]+[eE][+-]?\d+$/.test(tsTxt) && m && m[4] !== undefined) {
         var hh = +m[4], mi = +m[5], ss = m[6] === undefined ? 0 : +m[6];
@@ -110,10 +124,12 @@
       else if (chaveDiaDe(ts) !== dia) { out.descartadas.push({ linha: i + 1, motivo: "timestamp_ms não corresponde à data de data_hora_brt" }); continue; }
       var fx = 0;
       var lim = function (v, faixa) { if (v === null) return null; if (v < faixa[0] || v > faixa[1]) { fx++; return null; } return v; };
-      var brutoCh = idx.rain_interval_mm !== undefined ? c[idx.rain_interval_mm] : undefined;
-      var ch = idx.rain_interval_mm !== undefined ? num(brutoCh) : null;
+      var colChIdx = idx.rain_interval_mm !== undefined ? idx.rain_interval_mm : (idx.rain_mm !== undefined ? idx.rain_mm : undefined);
+      var brutoCh = colChIdx !== undefined ? c[colChIdx] : undefined;
+      var ch = colChIdx !== undefined ? num(brutoCh) : null;
       var chInv = false;
-      if (idx.rain_interval_mm !== undefined && brutoCh !== undefined && String(brutoCh).trim() !== "" && (ch === null || ch < 0)) { chInv = true; ch = null; }
+      if (colChIdx !== undefined && brutoCh !== undefined && String(brutoCh).trim() !== "" && (ch === null || ch < 0)) { chInv = true; ch = null; }
+      var accMm = usaDeltaAcc ? num(c[idx.accumulated_mm]) : null;
       out.push({
         ts: ts,
         dia: dia,
@@ -123,6 +139,7 @@
         v: idx.wind_speed_kmh !== undefined ? lim(num(c[idx.wind_speed_kmh]), LIMITES_FISICOS.v) : null,
         ch: ch,
         chInv: chInv,
+        _acc: accMm,
         nv: idx.water_level_m !== undefined ? num(c[idx.water_level_m]) : null,
         rad: idx.solar_radiation_wm2 !== undefined ? lim(num(c[idx.solar_radiation_wm2]), LIMITES_FISICOS.rad) : null,
         fx: 0,
@@ -132,6 +149,20 @@
         cat: idx.category !== undefined && c[idx.category] ? c[idx.category].trim().toLowerCase() : ""
       });
       out[out.length - 1].fx = fx;
+    }
+    if (usaDeltaAcc && out.length > 0) {
+      var ord = out.slice().sort(function (a, b) { return a.ts - b.ts; });
+      var antPorSn = {};
+      for (var k = 0; k < ord.length; k++) {
+        var r = ord[k];
+        var chSn = (r.sn || r.nome || "est") + "|" + r.dia;
+        if (r._acc !== null && r._acc >= 0) {
+          var prev = antPorSn[chSn];
+          r.ch = prev === undefined ? r._acc : (r._acc >= prev ? r3(r._acc - prev) : r._acc);
+          antPorSn[chSn] = r._acc;
+        }
+        delete r._acc;
+      }
     }
     return out;
   }
