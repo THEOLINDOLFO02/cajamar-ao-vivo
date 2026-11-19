@@ -366,7 +366,37 @@
     if (typeof navigator !== "undefined" && navigator.storage && navigator.storage.persist) {
       try { navigator.storage.persist().catch(function () {}); } catch (e) {}
     }
-    restaurarBancoDoIdbSeVazio();
+    restaurarBancoDoIdbSeVazio().then(function (restaurou) {
+      if (restaurou || typeof Estacao === "undefined" || !Estacao.carregarBanco || !Estacao.salvarBanco) return;
+      var atual = Estacao.carregarBanco();
+      var temAlgumSlotVazio = Object.keys(atual.slots || {}).some(function (id) {
+        return !atual.slots[id] || !atual.slots[id].dias || !Object.keys(atual.slots[id].dias).length;
+      });
+      if (!temAlgumSlotVazio || typeof fetch !== "function") return;
+      fetch("./data/estacoes-padrao.json", { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (padrao) {
+          if (!padrao || !padrao.slots) return;
+          var banco = Estacao.carregarBanco();
+          var mudou = false;
+          Object.keys(padrao.slots).forEach(function (id) {
+            var src = padrao.slots[id];
+            var dst = banco.slots[id];
+            if (!src || !dst || !src.dias) return;
+            if (!dst.estacao && src.estacao) { dst.estacao = src.estacao; mudou = true; }
+            if (!dst.sn && src.sn) { dst.sn = src.sn; mudou = true; }
+            if (!dst.ultimoRegistro && src.ultimoRegistro) { dst.ultimoRegistro = src.ultimoRegistro; mudou = true; }
+            Object.keys(src.dias).forEach(function (d) {
+              if (!dst.dias[d]) { dst.dias[d] = src.dias[d]; mudou = true; }
+            });
+          });
+          if (mudou) {
+            Estacao.salvarBanco(banco);
+            try { window.dispatchEvent(new CustomEvent("clima-sync-atualizado", { detail: { fonte: "padrao" } })); } catch (e) {}
+          }
+        })
+        .catch(function () {});
+    });
 
     // Auto-disparo de novos avisos do INMET para o Telegram assim que o painel os identifica (evita duplicatas por id do aviso)
     document.addEventListener("cajamar:avisos", function (ev) {
