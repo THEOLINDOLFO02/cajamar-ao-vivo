@@ -34,11 +34,11 @@
   var LIMITE_BACKUP_BYTES = 20 * 1024 * 1024;
 
   var SLOTS_PADRAO = [
-    { id: "est1", rotulo: "Estação Meteorológica 1 — GCM Vila Nova", tipo: "meteorologica", pistas: ["gcm", "vila nova"] },
+    { id: "est1", rotulo: "Estação Meteorológica 1 — GCM Vila Nova", tipo: "meteorologica", pistas: ["vila nova"] },
     { id: "est2", rotulo: "Estação Meteorológica 2 — EMEB Karine Pereira Santiago", tipo: "meteorologica", pistas: ["karine"] },
     { id: "est3", rotulo: "Estação Meteorológica 3 — EMEB Maria Gonçalves", tipo: "meteorologica", pistas: ["maria goncalves", "maria gonçalves"] },
     { id: "est4", rotulo: "Estação Pluviométrica 4 — EMEB Guilhermina de C. Oliveira", tipo: "meteorologica", pistas: ["guilhermina"] },
-    { id: "est5", rotulo: "Estação Meteorológica 5", tipo: "meteorologica", pistas: [] },
+    { id: "est5", rotulo: "Estação Pluviométrica 5 — GCM Ponunduva", tipo: "meteorologica", pistas: ["ponunduva"] },
     { id: "regua", rotulo: "Régua de Nível + Pluviômetro — Jordanésia", tipo: "nivel", pistas: ["jordanesia", "jordanésia"] },
     { id: "regua2", rotulo: "Régua de Nível + Pluviômetro — Natura", tipo: "nivel", pistas: ["natura"] }
   ];
@@ -575,8 +575,9 @@
     if (tipo === "nivel" || temColNivel || /regua|régua|nivel|nível|rio|fluv|hidro/.test(arq)) {
       return escolherSlotNivel(banco, nome, sn, arq);
     }
-    // 0) Pistas diretas das estações de Cajamar (GCM Vila Nova, Karine, Maria Gonçalves, Guilhermina)
-    if (/gcm|vila\s*nova/.test(pistaTexto)) return "est1";
+    // 0) Pistas diretas das estações de Cajamar (GCM Vila Nova, Karine, Maria Gonçalves, Guilhermina, Ponunduva)
+    if (/ponunduva/.test(pistaTexto)) return "est5";
+    if (/vila\s*nova/.test(pistaTexto)) return "est1";
     if (/karine/.test(pistaTexto)) return "est2";
     if (/maria\s*gon/.test(pistaTexto)) return "est3";
     if (/guilhermina/.test(pistaTexto)) return "est4";

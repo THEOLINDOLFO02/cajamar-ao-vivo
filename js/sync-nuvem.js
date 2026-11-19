@@ -231,15 +231,17 @@
     }
     var endpoint = cfg.urlWorker + "/sync?sala=" + encodeURIComponent(cfg.sala);
     var pacote = montarPacoteLocal();
-    var r = await fetch(endpoint, {
-      method: opc.somenteBaixar ? "GET" : "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Equipe-Chave": cfg.sala
-      },
-      body: opc.somenteBaixar ? undefined : JSON.stringify(pacote)
-    });
+    var r;
+    try {
+      // text/plain e sem cabeçalho personalizado: evita o "preflight" CORS (a sala vai na URL)
+      r = await fetch(endpoint, opc.somenteBaixar ? { method: "GET" } : { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body: JSON.stringify(pacote) });
+    } catch (eNet) {
+      throw new Error("Não consegui falar com o servidor (" + cfg.urlWorker + "). Verifique a internet e se o Worker da Cloudflare foi ATUALIZADO com o cemaden-proxy.js mais recente (a rota /sync é nova).");
+    }
     var j = await r.json().catch(function () { return {}; });
+    if (r.status === 404 || r.status === 405) {
+      throw new Error("O Worker da Cloudflare está desatualizado (sem a rota /sync). Cole o worker/cemaden-proxy.js novo no editor do Worker e clique em Deploy.");
+    }
     if (!r.ok || !j.ok) {
       throw new Error(j.erro || ("Servidor de sincronização respondeu HTTP " + r.status));
     }
