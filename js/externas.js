@@ -40,9 +40,16 @@
   function carregar() {
     var msg = $("cgeMsg"), posto = $("cgePosto").value;
     msg.textContent = "Consultando…"; $("cgeSaida").textContent = "";
-    fetch("data/cge.json?t=" + Math.floor(Date.now() / 60000))
+    var sufixo = "?t=" + Math.floor(Date.now() / 60000);
+    fetch("data/cge.json" + sufixo)
       .then(function (r) { return r.ok ? r.json() : null; })
       .catch(function () { return null; })
+      .then(function (arq) {
+        if (arq && arq.postos) return arq;
+        return fetch("https://theolindolfo02.github.io/cajamar-ao-vivo/data/cge.json" + sufixo)
+          .then(function (r2) { return r2.ok ? r2.json() : null; })
+          .catch(function () { return null; });
+      })
       .then(function (arq) {
         var erro = validar(arq, posto);
         if (erro) { msg.textContent = erro; return; }

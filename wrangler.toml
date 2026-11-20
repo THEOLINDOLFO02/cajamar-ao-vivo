@@ -1,0 +1,17 @@
+name = "cajamar-cemaden"
+main = "worker/cemaden-proxy.js"
+compatibility_date = "2025-01-01"
+
+[assets]
+directory = "."
+binding = "ASSETS"
+run_worker_first = [
+  "/cemaden",
+  "/data/cemaden.json",
+  "/cge",
+  "/data/cge.json",
+  "/catavento",
+  "/data/catavento.json",
+  "/sync",
+  "/alerta-telegram"
+]

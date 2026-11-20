@@ -104,6 +104,7 @@ test("montar não falha quando todas as estações da rede estão sem data váli
 
 test("origemPermitida aceita produção e qualquer porta localhost/127.0.0.1, mas bloqueia terceiros", () => {
   assert.equal(origemPermitida("https://theolindolfo02.github.io"), true);
+  assert.equal(origemPermitida("https://cajamar-cemaden.theolindolfo02.workers.dev"), true);
   assert.equal(origemPermitida("http://localhost:8765"), true);
   assert.equal(origemPermitida("http://localhost:5173"), true);
   assert.equal(origemPermitida("http://127.0.0.1:8080"), true);
@@ -195,4 +196,26 @@ test("2.7 Alertas automáticos (Telegram): avalia gatilhos de INMET, CEMADEN >= 
   assert.match(msg, /AVISO INMET/);
   assert.match(msg, /24,6 mm/);
   assert.match(msg, /GOES-19/);
+});
+
+test("Worker híbrido (com ASSETS): serve JSON em /cemaden e /data/cemaden.json, e delega páginas HTML para ASSETS", async () => {
+  const mockRede = rede([estacao(3509205, "CAJAMAR", "Jordanésia", "15/10/26 10:00", { acc24hr: 9.8 })]);
+  const env = {
+    buscar: async () => ({ ok: true, json: async () => mockRede }),
+    ASSETS: {
+      fetch: async (req) => new Response("<html>index</html>", { status: 200, headers: { "Content-Type": "text/html" } })
+    }
+  };
+  const resHtml = await worker.fetch(new Request("https://cajamar-cemaden.theolindolfo02.workers.dev/", { headers: { Accept: "text/html" } }), env);
+  assert.equal(resHtml.status, 200);
+  assert.match(await resHtml.text(), /<html>index<\/html>/);
+
+  for (const rota of ["/cemaden", "/data/cemaden.json"]) {
+    const resApi = await worker.fetch(new Request("https://cajamar-cemaden.theolindolfo02.workers.dev" + rota, {
+      headers: { Origin: "https://cajamar-cemaden.theolindolfo02.workers.dev" }
+    }), env);
+    assert.equal(resApi.status, 200);
+    const j = await resApi.json();
+    assert.equal(j.estacoes[0].acc.h24, 9.8);
+  }
 });

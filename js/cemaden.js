@@ -25,11 +25,30 @@
     if (!B) return;
     try {
       // 1) Worker da Cloudflare (dado de poucos minutos), se configurado; 2) robô do GitHub (arquivo do site).
-      var proxy = (w.CAJAMAR_CONFIG || {}).cemadenProxy, r = null;
+      var proxy = String((w.CAJAMAR_CONFIG || {}).cemadenProxy || "").replace(/\/+$/, "");
+      var sufixo = "?t=" + Math.floor(Date.now() / 60000);
+      var mesmaOrigemProxy = typeof location !== "undefined" && proxy && location.origin === proxy;
+      var urls = [];
       if (proxy) {
-        try { r = await Fontes.consultar("cemaden", proxy, validar); if (r.antigo) r = null; } catch (e) { r = null; }
+        urls.push(proxy + "/cemaden");
+        if (!mesmaOrigemProxy) urls.push(proxy);
       }
-      if (!r) r = await Fontes.consultar("cemaden", "data/cemaden.json?t=" + Math.floor(Date.now() / 60000), validar);
+      urls.push("data/cemaden.json" + sufixo);
+      urls.push("https://theolindolfo02.github.io/cajamar-ao-vivo/data/cemaden.json" + sufixo);
+      var r = null, ultimoRes = null, ultimoErro = null;
+      for (var uIdx = 0; uIdx < urls.length; uIdx++) {
+        try {
+          var tent = await Fontes.consultar("cemaden", urls[uIdx], validar);
+          ultimoRes = tent;
+          if (tent && !tent.antigo) { r = tent; break; }
+        } catch (e) {
+          ultimoErro = e;
+        }
+      }
+      if (!r) {
+        if (ultimoRes) r = ultimoRes;
+        else throw (ultimoErro || new Error("CEMADEN indisponível"));
+      }
       var j = r.dados;
       B.textContent = ""; B.className = "";
       if (r.antigo) B.appendChild(el("p", "stale", "Não foi possível atualizar agora. Mostrando dados antigos, coletados em " + dh(r.de) + "."));

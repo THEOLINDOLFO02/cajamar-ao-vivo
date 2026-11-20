@@ -7,11 +7,17 @@ export const URL_FONTE = "https://resources.cemaden.gov.br/graficos/interativo/g
 // Cajamar e municípios da região (códigos IBGE). O robô do GitHub (scripts/coletar-cemaden.mjs) usa este mesmo arquivo.
 export const IBGE = [3509205, 3547304, 3509007, 3515004, 3516408, 3525904, 3539103, 3505708];
 // Sites autorizados a ler este proxy pelo navegador (produção + qualquer porta local de desenvolvimento).
-const ORIGENS = ["https://theolindolfo02.github.io", "http://localhost:8765", "http://localhost:3000"];
+const ORIGENS = [
+  "https://theolindolfo02.github.io",
+  "https://cajamar-cemaden.theolindolfo02.workers.dev",
+  "http://localhost:8765",
+  "http://localhost:3000"
+];
 
 export function origemPermitida(origem) {
   if (!origem || typeof origem !== "string") return false;
   if (ORIGENS.includes(origem)) return true;
+  if (/^https:\/\/[a-z0-9-]+\.theolindolfo02\.workers\.dev$/i.test(origem)) return true;
   return /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origem);
 }
 
@@ -806,8 +812,15 @@ export default {
     if (request.method !== "GET" && request.method !== "HEAD") {
       return new Response("Método não permitido", { status: 405, headers: cors });
     }
-    if (urlReq.pathname === "/cge") return rotaCge(request, env, cors);
-    if (urlReq.pathname === "/catavento") return rotaCatavento(request, env, cors);
+    if (urlReq.pathname === "/cge" || urlReq.pathname === "/data/cge.json") return rotaCge(request, env, cors);
+    if (urlReq.pathname === "/catavento" || urlReq.pathname === "/data/catavento.json") return rotaCatavento(request, env, cors);
+    const ehRotaCemaden = urlReq.pathname === "/cemaden" || urlReq.pathname === "/data/cemaden.json" || urlReq.searchParams.get("formato") === "json";
+    if (!ehRotaCemaden && env && env.ASSETS && typeof env.ASSETS.fetch === "function") {
+      const accept = request.headers.get("Accept") || "";
+      if (urlReq.pathname !== "/" || accept.includes("text/html")) {
+        return env.ASSETS.fetch(request);
+      }
+    }
     try {
       // A Cloudflare guarda a resposta do CEMADEN por 5 min: protege o CEMADEN e acelera o painel.
       const opcoesBusca = {
