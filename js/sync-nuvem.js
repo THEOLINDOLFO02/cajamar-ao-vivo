@@ -364,7 +364,7 @@
             }
           }
 
-          // 2. Todos os avisos ativos do INMET (#alertas)
+          // 2. Todos os avisos ativos do INMET (#alertas) — sem cortar palavras ao meio
           var boxAlertas = $("alertas");
           if (boxAlertas) {
             var cardsInmet = boxAlertas.querySelectorAll(".alert");
@@ -375,10 +375,11 @@
                 var smVig = cardsInmet[ai].querySelector("small");
                 var spRisco = cardsInmet[ai].querySelector("p, span:not(.selo-sev)");
                 if (stTit) {
+                  var txtRisco = spRisco && spRisco.textContent ? spRisco.textContent.trim() : "";
                   partesBol.push(
                     (ai + 1) + ". *" + stTit.textContent.trim() + "*" +
                     (smVig ? " (" + smVig.textContent.trim() + ")" : "") +
-                    (spRisco && spRisco.textContent ? "\n   ↳ " + spRisco.textContent.trim().slice(0, 180) : "")
+                    (txtRisco ? "\n   ↳ " + txtRisco : "")
                   );
                 }
               }
@@ -401,25 +402,57 @@
             }
           }
 
-          // 4. Estações Locais e Réguas de Nível carregadas
-          if (typeof Estacao !== "undefined" && Estacao.carregarBanco) {
-            var bEst = Estacao.carregarBanco();
-            var linEst = [];
-            Object.keys(bEst.slots || {}).forEach(function (id) {
-              var sl = bEst.slots[id];
-              var ds = Object.keys((sl && sl.dias) || {}).sort();
-              if (!ds.length) return;
-              var uDia = ds[ds.length - 1], dU = sl.dias[uDia];
-              if (!dU) return;
-              var info = [];
-              if (typeof dU.chuva === "number") info.push("Chuva dia: " + dU.chuva.toFixed(1).replace(".", ",") + " mm");
-              if (typeof dU.c60 === "number" && dU.c60 > 0) info.push("1h: " + dU.c60.toFixed(1).replace(".", ",") + " mm");
-              if (typeof dU.tmax === "number") info.push("Temp máx: " + dU.tmax.toFixed(1).replace(".", ",") + "°C");
-              if (typeof dU.nvMax === "number") info.push("🌊 Rio máx: " + dU.nvMax.toFixed(2).replace(".", ",") + " m");
-              if (info.length) linEst.push("• *" + (sl.estacao || sl.rotulo) + "* (" + uDia.slice(8, 10) + "/" + uDia.slice(5, 7) + "): " + info.join(" · "));
+          // 4. Estações e Réguas de Cajamar AO VIVO (Catavento-Surya em tempo real)
+          var catLive = null;
+          var cfgAt = lerConfig();
+          var urlsCat = [
+            cfgAt.urlWorker + "/catavento",
+            "data/catavento.json?t=" + Math.floor(Date.now() / 60000),
+            "https://theolindolfo02.github.io/cajamar-ao-vivo/data/catavento.json?t=" + Math.floor(Date.now() / 60000)
+          ];
+          for (var ci = 0; ci < urlsCat.length; ci++) {
+            try {
+              var rCat = await fetch(urlsCat[ci], { cache: "no-store" });
+              if (rCat.ok) {
+                var jCat = await rCat.json();
+                if (jCat && Array.isArray(jCat.estacoes) && jCat.estacoes.length) { catLive = jCat; break; }
+              }
+            } catch (eCat) {}
+          }
+
+          if (catLive && Array.isArray(catLive.estacoes)) {
+            var refMs = Date.now();
+            var linOnline = [], linOffline = [];
+            catLive.estacoes.forEach(function (e) {
+              var tsL = e.leitura ? Date.parse(e.leitura) : NaN;
+              var dhBrt = !isNaN(tsL)
+                ? new Date(tsL).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", "")
+                : (e.leitura || "—");
+              var offline = !isNaN(tsL) && (refMs - tsL > 6 * 3600000);
+              if (offline) {
+                linOffline.push("• *" + e.nome + ":* ⚠️ _Sem conexão (último sinal em " + dhBrt + ")_");
+                return;
+              }
+              var p = [];
+              if (typeof e.chuva1h === "number" || typeof e.chuva24h === "number") {
+                var ch1 = typeof e.chuva1h === "number" ? e.chuva1h.toFixed(1).replace(".", ",") + " mm" : "—";
+                var ch24 = typeof e.chuva24h === "number" ? e.chuva24h.toFixed(1).replace(".", ",") + " mm" : "—";
+                p.push("🌧️ Chuva 1h: " + ch1 + " / 24h: " + ch24);
+              }
+              if (typeof e.temperatura === "number") p.push("🌡️ " + e.temperatura.toFixed(1).replace(".", ",") + "°C");
+              if (typeof e.umidade === "number") p.push("💧 " + Math.round(e.umidade) + "%");
+              if (typeof e.vento === "number") p.push("💨 Vento " + e.vento.toFixed(1).replace(".", ",") + " km/h");
+              if (typeof e.pressao === "number") p.push("🧭 " + Math.round(e.pressao) + " hPa");
+              if (typeof e.nivelRio === "number") {
+                var stR = e.statusRio ? " (" + (e.statusRio === "normal" ? "Normal" : e.statusRio) + ")" : "";
+                p.push("🌊 Rio: " + e.nivelRio.toFixed(2).replace(".", ",") + " m" + stR);
+              }
+              linOnline.push("• *" + e.nome + "* (" + dhBrt + "): " + p.join(" · "));
             });
-            if (linEst.length) {
-              partesBol.push("", "📍 *Estações e Réguas de Cajamar:*", linEst.join("\n"));
+            if (linOnline.length || linOffline.length) {
+              partesBol.push("", "📍 *Estações e Réguas de Cajamar (Ao Vivo — Catavento):*");
+              if (linOnline.length) partesBol.push(linOnline.join("\n"));
+              if (linOffline.length) partesBol.push(linOffline.join("\n"));
             }
           }
 

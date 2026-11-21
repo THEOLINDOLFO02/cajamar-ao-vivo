@@ -336,5 +336,25 @@ test("EMEB Guilhermina com status=alerta de chuva no unified JSON não gera fals
     catavento: { estacoes: est }
   });
   assert.match(msg, /Leitura atual na estação:.*24,8 °C/);
-  assert.match(msg, /PANORAMA ATUAL DAS ESTAÇÕES EM CAJAMAR/);
+  assert.match(msg, /PANORAMA AO VIVO — ESTAÇÕES DE CAJAMAR/);
+});
+
+test("estações desconectadas há mais de 6h (ex.: EMEB Karine e EMEB Maria em 21/10) não geram falso alerta e aparecem como Sem conexão no panorama", () => {
+  const estacoes = [
+    { id: "140070634", nome: "GCM - Vila Nova", leitura: "2026-11-21T01:00:00.000Z", chuva1h: 0, chuva24h: 11.6, temperatura: 22.6, umidade: 88, pressao: 930, vento: 0 },
+    { id: "140070616", nome: "EMEB Maria Gonçalves", leitura: "2026-10-21T04:10:00.000Z", temperatura: 11.2, umidade: 80 }, // congelada em 21/10 com frio (<15°C)
+    { id: "140070599", nome: "EMEB Karine Pereira Santiago", leitura: "2026-10-21T04:00:00.000Z", temperatura: 12.0, umidade: 76 },
+    { id: "140070661", nome: "Jordanésia", leitura: "2026-11-21T01:00:00.000Z", chuva1h: 0, chuva24h: 28.0, nivelRio: 0.61, statusRio: "normal" }
+  ];
+  const alertas = avaliarEstacoesCatavento({ coletadoEm: "2026-11-21T01:10:00.000Z", estacoes });
+  // Apenas Jordanésia (28 mm em 24h, online em 20/11) gera alerta; EMEB Maria e Karine (congeladas em 21/10) são ignoradas nos gatilhos!
+  assert.equal(alertas.length, 1);
+  assert.equal(alertas[0].estacaoNome, "Jordanésia");
+
+  const msg = formatarMensagemTelegram(alertas, "20/11/2026 22:10", {
+    catavento: { coletadoEm: "2026-11-21T01:10:00.000Z", estacoes }
+  });
+  assert.match(msg, /GCM - Vila Nova:.*11,6 mm.*22,6 °C/);
+  assert.match(msg, /EMEB Maria Gonçalves:.*Sem conexão.*21\/10/);
+  assert.match(msg, /EMEB Karine Pereira Santiago:.*Sem conexão.*21\/10/);
 });

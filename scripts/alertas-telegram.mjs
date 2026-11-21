@@ -81,43 +81,72 @@ function regiaoEstacaoCajamar(nome, id) {
   return "Cajamar/SP";
 }
 
+export const LIMITE_OFFLINE_ESTACAO_MS = 6 * 3600 * 1000; // 6 horas sem atualizar = estação offline / sem conexão
+
 function formatarIsoParaBrtCurto(iso) {
   if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
+  const s = String(iso).trim();
+  const mBr = /^(\d{2})\/(\d{2})\/(\d{4})(?:,?\s+(\d{2}):(\d{2}))?/.exec(s);
+  if (mBr) return mBr[1] + "/" + mBr[2] + (mBr[4] ? " " + mBr[4] + ":" + mBr[5] : "");
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return s;
   return d.toLocaleString("pt-BR", {
     timeZone: "America/Sao_Paulo",
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
     minute: "2-digit"
-  });
+  }).replace(",", "");
+}
+
+export function msLeituraEstacao(leitura) {
+  if (!leitura) return NaN;
+  const s = String(leitura).trim();
+  const mBr = /^(\d{2})\/(\d{2})\/(\d{4})(?:,?\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/.exec(s);
+  if (mBr) {
+    return Date.UTC(+mBr[3], +mBr[2] - 1, +mBr[1], (+(mBr[4] || 0)) + 3, +(mBr[5] || 0), +(mBr[6] || 0));
+  }
+  const ts = Date.parse(s);
+  return Number.isNaN(ts) ? NaN : ts;
+}
+
+export function estacaoEstaOffline(e, refMs = null) {
+  if (!e || !e.leitura || !ehNum(refMs)) return false;
+  const ts = msLeituraEstacao(e.leitura);
+  if (Number.isNaN(ts)) return false;
+  return (refMs - ts) > LIMITE_OFFLINE_ESTACAO_MS;
 }
 
 // Monta um resumo de 1 linha com todas as medições atuais de uma estação (para exibir no encerramento e no panorama)
-export function resumirMedicoesEstacao(e) {
+export function resumirMedicoesEstacao(e, refMs = null) {
   if (!e || typeof e !== "object") return "";
+  const leitBrt = formatarIsoParaBrtCurto(e.leitura);
+  if (estacaoEstaOffline(e, refMs)) {
+    return `⚠️ <i>Sem conexão / offline (última transmissão em ${esc(leitBrt || e.leitura)})</i>`;
+  }
   const p = [];
   const temp = ehNum(e.temperatura) ? e.temperatura : (ehNum(e.temperature_c) ? e.temperature_c : null);
   const umid = ehNum(e.umidade) ? e.umidade : (ehNum(e.humidity_percent) ? e.humidity_percent : null);
   const h1 = ehNum(e.chuva1h) ? e.chuva1h : (e.acc && ehNum(e.acc.h1) ? e.acc.h1 : null);
   const h24 = ehNum(e.chuva24h) ? e.chuva24h : (e.acc && ehNum(e.acc.h24) ? e.acc.h24 : null);
   const vento = ehNum(e.vento) ? e.vento : (ehNum(e.wind_speed_kmh) ? e.wind_speed_kmh : null);
+  const pressao = ehNum(e.pressao) ? e.pressao : (ehNum(e.pressure_hpa) ? e.pressure_hpa : null);
   const nvRio = ehNum(e.nivelRio) ? e.nivelRio : (ehNum(e.water_level_m) ? e.water_level_m : null);
-  if (temp !== null) p.push(`🌡️ ${fmt1(temp, "°C")}`);
-  if (umid !== null) p.push(`💧 ${Math.round(umid)}%`);
   if (h1 !== null || h24 !== null) {
     const ch = [];
     if (h1 !== null) ch.push(`1h: ${fmt1(h1)}`);
     if (h24 !== null) ch.push(`24h: ${fmt1(h24)}`);
     p.push(`🌧️ Chuva ${ch.join(" / ")}`);
   }
-  if (vento !== null && vento > 0) p.push(`💨 Vento ${fmt1(vento, "km/h")}`);
+  if (temp !== null) p.push(`🌡️ ${fmt1(temp, "°C")}`);
+  if (umid !== null) p.push(`💧 ${Math.round(umid)}%`);
+  if (vento !== null) p.push(`💨 Vento ${fmt1(vento, "km/h")}`);
+  if (pressao !== null) p.push(`🧭 ${Math.round(pressao)} hPa`);
   if (nvRio !== null) {
-    const st = e.statusRio ? ` (${e.statusRio})` : "";
+    const st = e.statusRio ? ` (${e.statusRio === "normal" ? "Normal" : e.statusRio})` : "";
     p.push(`🌊 Rio: ${fmt2(nvRio)}${st}`);
   }
-  if (e.leitura) p.push(`🕒 ${esc(e.leitura)}`);
+  if (leitBrt) p.push(`🕒 ${esc(leitBrt)}`);
   return p.join(" · ");
 }
 
@@ -137,12 +166,21 @@ export function avaliarEstacoesCatavento(catavento, cotasRio = null) {
   const dAtencaoCm = (cotasRio && ehNum(cotasRio.deltaAtencaoCm)) ? cotasRio.deltaAtencaoCm : 35;
   const dAlertaCm = (cotasRio && ehNum(cotasRio.deltaAlertaCm)) ? cotasRio.deltaAlertaCm : 60;
 
+  let refRedeMs = catavento && catavento.coletadoEm ? Date.parse(catavento.coletadoEm) : NaN;
+  for (const item of lista) {
+    const tItem = item && item.leitura ? msLeituraEstacao(item.leitura) : NaN;
+    if (!Number.isNaN(tItem) && (Number.isNaN(refRedeMs) || tItem > refRedeMs)) refRedeMs = tItem;
+  }
+
   for (const e of lista) {
     if (!e || typeof e !== "object") continue;
+    // Ignora estações desconectadas há mais de 6h em relação à rede (ex.: EMEB Karine e EMEB Maria Gonçalves em manutenção)
+    if (!Number.isNaN(refRedeMs) && estacaoEstaOffline(e, refRedeMs)) continue;
     const id = String(e.id || e.sn || e.nome || "est").trim();
     const nome = String(e.nome || e.alias || id).trim();
     const regiao = regiaoEstacaoCajamar(nome, id);
-    const leit = e.leitura ? ` (Leitura: ${esc(e.leitura)})` : "";
+    const leitFormatada = formatarIsoParaBrtCurto(e.leitura);
+    const leit = leitFormatada ? ` (Leitura: ${esc(leitFormatada)} BRT)` : "";
 
     // 1. Chuva
     const h1 = ehNum(e.chuva1h) ? e.chuva1h : (e.acc && ehNum(e.acc.h1) ? e.acc.h1 : null);
@@ -485,12 +523,24 @@ export function formatarMensagemTelegram(alertas, dataHoraBrt, extra = {}) {
     ? extra.catavento.estacoes
     : (Array.isArray(extra.catavento) ? extra.catavento : []);
   if (listaEst.length > 0) {
-    linhas.push(`━━━━━━━━━━━━━━━━━━━━`, `📊 <b>PANORAMA ATUAL DAS ESTAÇÕES EM CAJAMAR:</b>`);
-    for (const est of listaEst.slice(0, 7)) {
-      const resumoEst = resumirMedicoesEstacao(est);
-      if (resumoEst) {
-        linhas.push(`• <b>${esc(est.nome || est.id)}:</b> ${resumoEst}`);
-      }
+    let refPanMs = extra.catavento && extra.catavento.coletadoEm ? Date.parse(extra.catavento.coletadoEm) : NaN;
+    for (const item of listaEst) {
+      const tI = item && item.leitura ? msLeituraEstacao(item.leitura) : NaN;
+      if (!Number.isNaN(tI) && (Number.isNaN(refPanMs) || tI > refPanMs)) refPanMs = tI;
+    }
+    const online = [], offline = [];
+    for (const est of listaEst) {
+      if (!Number.isNaN(refPanMs) && estacaoEstaOffline(est, refPanMs)) offline.push(est);
+      else online.push(est);
+    }
+    linhas.push(`━━━━━━━━━━━━━━━━━━━━`, `📊 <b>PANORAMA AO VIVO — ESTAÇÕES DE CAJAMAR:</b>`);
+    for (const est of online) {
+      const resumoEst = resumirMedicoesEstacao(est, refPanMs);
+      if (resumoEst) linhas.push(`• <b>${esc(est.nome || est.id)}:</b> ${resumoEst}`);
+    }
+    for (const est of offline) {
+      const leitOff = formatarIsoParaBrtCurto(est.leitura);
+      linhas.push(`• <b>${esc(est.nome || est.id)}:</b> ⚠️ <i>Sem conexão (último dado em ${esc(leitOff || est.leitura)})</i>`);
     }
     linhas.push("");
   }
