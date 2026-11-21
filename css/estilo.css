@@ -628,3 +628,273 @@ section[id],details[id]{scroll-margin-top:130px}
 .tx-campo{display:flex;gap:8px;align-items:center}
 .tx-campo input{flex:1;min-width:0}
 .tx-sem{margin:4px 0 8px;padding-left:18px;font-size:.84rem}
+
+
+/* ---------- Recordes e extremos (Visualização Ampla com Destaques e Barras) ---------- */
+body.pagina-extremos .topo,
+body.pagina-extremos .nav-bar,
+body.pagina-extremos main {
+  --lado: max(16px, calc((100% - 1240px) / 2));
+}
+.rec-atalhos-cat {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.rec-cat-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg);
+  color: var(--fg);
+  font-size: .9rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all .15s;
+}
+.rec-cat-btn:hover {
+  border-color: var(--acc);
+  color: var(--acc);
+  background: var(--acc-soft);
+}
+.rec-cat-btn.ativo {
+  background: var(--acc);
+  color: var(--on-acc);
+  border-color: var(--acc);
+  box-shadow: 0 2px 8px rgba(10, 61, 134, .22);
+}
+
+/* Painel de Campeões Absolutos no Topo */
+.rec-campeoes-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 14px;
+}
+.rec-campeao {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--acc);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  display: grid;
+  gap: 4px;
+  box-shadow: var(--sombra);
+}
+.rec-campeao-rot {
+  font-size: .84rem;
+  font-weight: 700;
+  color: var(--mut);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.rec-campeao-val {
+  font-size: 1.72rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  color: var(--fg);
+}
+.rec-campeao-meta {
+  font-size: .86rem;
+  color: var(--mut);
+  font-weight: 560;
+}
+
+/* Grade de Blocos de Recordes (2 por linha no desktop ou 1 por linha no modo expandido) */
+.rec-secao-titulo {
+  font-size: 1.22rem;
+  margin-bottom: 14px;
+}
+.rec-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+  gap: 18px;
+}
+.rec-layout-expandido .rec-grade {
+  grid-template-columns: minmax(0, 1fr);
+}
+.rec-bloco {
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-top: 4px solid var(--acc);
+  border-radius: var(--r-lg);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  box-shadow: var(--sombra);
+}
+.rec-bloco-cab h3 {
+  font-size: 1.08rem;
+  font-weight: 750;
+  margin: 0;
+  color: var(--fg);
+}
+.rec-vazio {
+  padding: 16px 0;
+  font-size: .95rem;
+}
+
+/* Destaque do 1º Colocado dentro de cada Bloco */
+.rec-top1 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: var(--r);
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+.rec-top1-info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.rec-top1-selo {
+  font-size: .73rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  color: var(--laranja-esc);
+  text-transform: uppercase;
+}
+.rec-top1-est {
+  font-size: 1.04rem;
+  font-weight: 750;
+  color: var(--fg);
+}
+.rec-top1-data {
+  font-size: .85rem;
+  color: var(--mut);
+}
+.rec-top1-valor {
+  font-size: 1.65rem;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  color: var(--acc);
+  white-space: nowrap;
+}
+
+/* Lista de Ranking Top 5 */
+.rec-lista {
+  display: grid;
+  gap: 10px;
+}
+.rec-item {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 10px 13px;
+  display: grid;
+  gap: 7px;
+}
+.rec-item-lider {
+  border-color: var(--acc);
+  background: color-mix(in srgb, var(--acc-soft) 45%, var(--card));
+}
+.rec-item-topo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+}
+.rec-pos {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: .82rem;
+  font-weight: 750;
+  background: var(--bg);
+  color: var(--mut);
+  border: 1px solid var(--line);
+}
+.rec-pos-1 {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #f59e0b;
+}
+.rec-pos-2 {
+  background: #f1f5f9;
+  color: #334155;
+  border-color: #94a3b8;
+}
+.rec-pos-3 {
+  background: #ffedd5;
+  color: #9a3412;
+  border-color: #fb923c;
+}
+.rec-item-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+.rec-item-estacao {
+  font-size: .98rem;
+  font-weight: 680;
+  color: var(--fg);
+}
+.rec-item-data {
+  font-size: .86rem;
+  color: var(--mut);
+  font-variant-numeric: tabular-nums;
+}
+.rec-item-valor {
+  flex: none;
+  font-size: 1.12rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  white-space: nowrap;
+}
+.rec-barra {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg);
+  overflow: hidden;
+}
+.rec-barra i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--bar);
+}
+
+/* Cores temáticas por grandeza */
+.rec-tom-azul { border-top-color: #0284c7; border-left-color: #0284c7; }
+.rec-tom-azul .rec-top1-valor { color: #0284c7; }
+.rec-tom-azul .rec-barra i { background: linear-gradient(90deg, #38bdf8, #0284c7); }
+
+.rec-tom-ciano { border-top-color: #0d9488; border-left-color: #0d9488; }
+.rec-tom-ciano .rec-top1-valor { color: #0d9488; }
+.rec-tom-ciano .rec-barra i { background: linear-gradient(90deg, #2dd4bf, #0d9488); }
+
+.rec-tom-laranja { border-top-color: #ea580c; border-left-color: #ea580c; }
+.rec-tom-laranja .rec-top1-valor { color: #ea580c; }
+.rec-tom-laranja .rec-barra i { background: linear-gradient(90deg, #fb923c, #ea580c); }
+
+.rec-tom-frio { border-top-color: #2563eb; border-left-color: #2563eb; }
+.rec-tom-frio .rec-top1-valor { color: #2563eb; }
+.rec-tom-frio .rec-barra i { background: linear-gradient(90deg, #60a5fa, #2563eb); }
+
+.rec-tom-verde { border-top-color: #16a34a; border-left-color: #16a34a; }
+.rec-tom-verde .rec-top1-valor { color: #16a34a; }
+.rec-tom-verde .rec-barra i { background: linear-gradient(90deg, #4ade80, #16a34a); }
+
+.rec-tom-roxo { border-top-color: #7c3aed; border-left-color: #7c3aed; }
+.rec-tom-roxo .rec-top1-valor { color: #7c3aed; }
+.rec-tom-roxo .rec-barra i { background: linear-gradient(90deg, #a78bfa, #7c3aed); }

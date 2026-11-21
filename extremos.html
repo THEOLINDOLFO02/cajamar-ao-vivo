@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="css/estilo.css">
 <script src="js/ui.js" defer></script>
 </head>
-<body>
+<body class="pagina-extremos">
 <a class="pular" href="#conteudo">Pular para o conteúdo</a>
 <header class="topo">
   <a class="marca" href="index.html"><img src="assets/logo-dc-cajamar.jpg" alt="" width="46" height="46"><span><strong>Cajamar ao Vivo</strong><small>Defesa Civil · acompanhamento auxiliar</small></span></a>
@@ -65,6 +65,32 @@
           <option value="sim">Somente dias completos</option>
         </select>
       </label>
+      <label for="selCategoriaExt">Categoria:
+        <select id="selCategoriaExt">
+          <option value="todas" selected>✨ Todas as categorias</option>
+          <option value="chuva">🌧️ Chuva (diária, 60m, 10m e acumulados)</option>
+          <option value="rios">🌊 Nível dos rios</option>
+          <option value="temperatura">🌡️ Temperatura (quente, frio e amplitude)</option>
+          <option value="pressao_umidade">🧭 Pressão e umidade</option>
+          <option value="vento_radiacao">💨 Vento e radiação solar</option>
+          <option value="equipamentos">📋 Resumo dos equipamentos</option>
+        </select>
+      </label>
+      <label for="selLayoutExt">Tamanho dos quadros:
+        <select id="selLayoutExt">
+          <option value="amplo" selected>🔲 Amplo (2 quadros grandes por linha)</option>
+          <option value="expandido">⬛ Expandido (1 quadro gigante por linha)</option>
+        </select>
+      </label>
+    </div>
+    <div class="rec-atalhos-cat" id="abasCategoriaExt" role="group" aria-label="Filtrar categoria rapidamente">
+      <button type="button" class="rec-cat-btn ativo" data-cat="todas">✨ Tudo</button>
+      <button type="button" class="rec-cat-btn" data-cat="chuva">🌧️ Chuva</button>
+      <button type="button" class="rec-cat-btn" data-cat="rios">🌊 Nível dos Rios</button>
+      <button type="button" class="rec-cat-btn" data-cat="temperatura">🌡️ Temperatura</button>
+      <button type="button" class="rec-cat-btn" data-cat="pressao_umidade">🧭 Pressão e Umidade</button>
+      <button type="button" class="rec-cat-btn" data-cat="vento_radiacao">💨 Vento e Radiação</button>
+      <button type="button" class="rec-cat-btn" data-cat="equipamentos">📋 Equipamentos</button>
     </div>
   </section>
   <div id="conteudoExt" class="mut carregando">Carregando…</div>

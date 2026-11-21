@@ -145,23 +145,112 @@
   var f0 = function (v) { return ok(v) ? String(Math.round(v)) : "—"; };
   var dataBr = function (k) { return k ? k.slice(8, 10) + "/" + k.slice(5, 7) + "/" + k.slice(0, 4) : "—"; };
 
-  function tabela(titulo, itens, fmt, unid, vazio) {
-    var b = el("div", "ext-bloco");
-    b.appendChild(el("h3", "", titulo));
-    if (!itens.length) { b.appendChild(el("p", "mut", vazio || "Sem dado no período.")); return b; }
-    var tw = el("div", "tw"), tb = el("table"), th = el("tr");
-    ["#", "Dia", "Equipamento", "Valor"].forEach(function (x) { th.appendChild(el("th", "", x)); });
-    tb.appendChild(th);
+  var MEDALHAS = ["🥇 1º", "🥈 2º", "🥉 3º", "4º", "5º"];
+
+  function calcularLarguraBarra(valor, itens, menorMelhor) {
+    var vals = itens.map(function (x) { return x.valor; }).filter(ok);
+    if (!vals.length || !ok(valor)) return 100;
+    var min = Math.min.apply(null, vals);
+    var max = Math.max.apply(null, vals);
+    if (max === min) return 100;
+    // Se a faixa é estreita (ex.: pressão 925 a 938 hPa ou temperatura), usa escala relativa com base mínima de 35%
+    var rel = menorMelhor ? (max - valor) / (max - min) : (valor - (min > 0 && min / max > 0.7 ? min * 0.98 : 0)) / (max - (min > 0 && min / max > 0.7 ? min * 0.98 : 0));
+    return Math.max(22, Math.min(100, Math.round(rel * 100)));
+  }
+
+  function tabela(titulo, itens, fmt, unid, vazio, opcoes) {
+    var opt = opcoes || {};
+    var tom = opt.tom || "azul";
+    var menorMelhor = !!opt.menor;
+    var b = el("div", "rec-bloco rec-tom-" + tom);
+    var cab = el("div", "rec-bloco-cab");
+    cab.appendChild(el("h3", "", titulo));
+    b.appendChild(cab);
+
+    if (!itens.length) {
+      b.appendChild(el("p", "mut rec-vazio", vazio || "Sem dado no período."));
+      return b;
+    }
+
+    // Destaque do 1º colocado (Recorde do indicador)
+    var top1 = itens[0];
+    var dest = el("div", "rec-top1");
+    var destEsq = el("div", "rec-top1-info");
+    destEsq.appendChild(el("span", "rec-top1-selo", "🥇 RECORDE DO PERÍODO"));
+    destEsq.appendChild(el("strong", "rec-top1-est", top1.estacao));
+    var txtDataTop = top1.inicio ? (dataBr(top1.inicio) + " a " + dataBr(top1.data)) : dataBr(top1.data);
+    destEsq.appendChild(el("span", "rec-top1-data", "📅 " + txtDataTop + (top1.completo === true ? "" : " · ⚠ dia incompleto")));
+    var destVal = el("div", "rec-top1-valor", fmt(top1.valor) + " " + unid);
+    dest.appendChild(destEsq);
+    dest.appendChild(destVal);
+    b.appendChild(dest);
+
+    // Lista visual dos Top 5 com barras proporcionais e tipografia grande
+    var lista = el("div", "rec-lista");
     itens.forEach(function (x, i) {
-      var tr = el("tr");
-      tr.appendChild(el("td", "", String(i + 1)));
-      tr.appendChild(el("td", "", dataBr(x.data)));
-      tr.appendChild(el("td", "", x.estacao));
-      tr.appendChild(el("td", "", fmt(x.valor) + " " + unid + (x.completo === true ? "" : " ⚠")));
-      tb.appendChild(tr);
+      var item = el("div", "rec-item" + (i === 0 ? " rec-item-lider" : ""));
+      var linhaSup = el("div", "rec-item-topo");
+
+      var pos = el("span", "rec-pos rec-pos-" + (i + 1), MEDALHAS[i] || ((i + 1) + "º"));
+      var meio = el("div", "rec-item-meta");
+      meio.appendChild(el("strong", "rec-item-estacao", x.estacao));
+      var perTxt = x.inicio ? (dataBr(x.inicio) + " a " + dataBr(x.data)) : dataBr(x.data);
+      meio.appendChild(el("span", "rec-item-data", perTxt));
+
+      var val = el("strong", "rec-item-valor", fmt(x.valor) + " " + unid + (x.completo === true ? "" : " ⚠"));
+
+      linhaSup.appendChild(pos);
+      linhaSup.appendChild(meio);
+      linhaSup.appendChild(val);
+      item.appendChild(linhaSup);
+
+      var trilho = el("div", "rec-barra");
+      var ench = el("i", "");
+      ench.style.width = calcularLarguraBarra(x.valor, itens, menorMelhor) + "%";
+      trilho.appendChild(ench);
+      item.appendChild(trilho);
+
+      lista.appendChild(item);
     });
-    tw.appendChild(tb); b.appendChild(tw);
+    b.appendChild(lista);
     return b;
+  }
+
+  function criarPainelCampeoes(r) {
+    var sec = el("section", "card rec-resumo-card");
+    sec.appendChild(el("h2", "", "🏆 Destaques e Recordes Absolutos do Período"));
+    var grade = el("div", "rec-campeoes-grade");
+
+    function cardCampeao(icone, rotulo, item, fmt, unid, tom) {
+      var c = el("div", "rec-campeao rec-tom-" + tom);
+      c.appendChild(el("span", "rec-campeao-rot", icone + " " + rotulo));
+      if (!item) {
+        c.appendChild(el("strong", "rec-campeao-val mut", "Sem dado"));
+        return c;
+      }
+      c.appendChild(el("strong", "rec-campeao-val", fmt(item.valor) + " " + unid + (item.completo === true ? "" : " ⚠")));
+      c.appendChild(el("span", "rec-campeao-meta", "📍 " + item.estacao + " · 📅 " + dataBr(item.data)));
+      return c;
+    }
+
+    var maiorRio = null;
+    r.rios.forEach(function (rg) {
+      if (rg.maiorNivel && rg.maiorNivel[0]) {
+        if (!maiorRio || rg.maiorNivel[0].valor > maiorRio.valor) {
+          maiorRio = { valor: rg.maiorNivel[0].valor, data: rg.maiorNivel[0].data, estacao: rg.estacao, completo: rg.maiorNivel[0].completo };
+        }
+      }
+    });
+
+    grade.appendChild(cardCampeao("🌧️", "Maior chuva em 1 dia", r.chuva.dias[0], f1, "mm", "azul"));
+    grade.appendChild(cardCampeao("⛈️", "Maior chuva em 60 min", r.chuva.hora[0], f1, "mm", "azul"));
+    grade.appendChild(cardCampeao("🌊", "Maior nível de rio", maiorRio, f2, "m", "ciano"));
+    grade.appendChild(cardCampeao("🔥", "Dia mais quente", r.temperatura.maisQuente[0], f1, "°C", "laranja"));
+    grade.appendChild(cardCampeao("❄️", "Dia mais frio", r.temperatura.maisFrio[0], f1, "°C", "frio"));
+    grade.appendChild(cardCampeao("💨", "Vento mais forte", r.vento.dias[0], f1, "km/h", "roxo"));
+
+    sec.appendChild(grade);
+    return sec;
   }
 
   function filtrosDaTela(banco) {
@@ -187,9 +276,25 @@
     return f;
   }
 
+  function atualizarBotoesCategoria(catAtiva) {
+    var cont = $("abasCategoriaExt");
+    if (!cont) return;
+    var btns = cont.querySelectorAll(".rec-cat-btn");
+    for (var i = 0; i < btns.length; i++) {
+      var ativo = btns[i].getAttribute("data-cat") === catAtiva;
+      if (ativo) btns[i].classList.add("ativo");
+      else btns[i].classList.remove("ativo");
+    }
+  }
+
   function desenhar() {
     var banco = w.Estacao.carregarBanco();
     var raiz = $("conteudoExt"); raiz.textContent = ""; raiz.className = "";
+    var layoutModo = $("selLayoutExt") ? $("selLayoutExt").value : "amplo";
+    var catFiltro = $("selCategoriaExt") ? $("selCategoriaExt").value : "todas";
+    atualizarBotoesCategoria(catFiltro);
+    if (layoutModo === "expandido") raiz.classList.add("rec-layout-expandido");
+
     var tem = Object.keys(banco.slots).some(function (id) { return Object.keys(banco.slots[id].dias || {}).length; });
     if (!tem) {
       var p = el("p", "mut", "Ainda não há CSV neste aparelho. Importe em ");
@@ -212,62 +317,81 @@
       }
     } catch (e) {}
 
-    var sec = function (titulo, filhos, dica) {
-      var s = el("section", "card"); s.appendChild(el("h2", "", titulo)); if (dica) s.appendChild(el("p", "card-sub", dica));
-      var g = el("div", "ext-grade"); filhos.forEach(function (c) { g.appendChild(c); }); s.appendChild(g); raiz.appendChild(s);
+    if (catFiltro === "todas") {
+      raiz.appendChild(criarPainelCampeoes(r));
+    }
+
+    var sec = function (catId, titulo, filhos, dica) {
+      if (catFiltro !== "todas" && catFiltro !== catId) return;
+      var s = el("section", "card rec-secao");
+      s.appendChild(el("h2", "rec-secao-titulo", titulo));
+      if (dica) s.appendChild(el("p", "card-sub", dica));
+      var g = el("div", "rec-grade");
+      filhos.forEach(function (c) { g.appendChild(c); });
+      s.appendChild(g);
+      raiz.appendChild(s);
     };
-    sec("🌧️ Chuva", [
-      tabela("Dias que mais choveram (dia civil, 00h–24h)", r.chuva.dias, f1, "mm", "Nenhum dia com chuva registrada."),
-      tabela("Maior chuva em 60 min", r.chuva.hora, f1, "mm", "Sem chuva registrada."),
-      tabela("Maior chuva em 10 min", r.chuva.dezMin, f1, "mm", "Sem chuva registrada."),
-      tabela("Maior acumulado em 30 dias", r.acumuladosPeriodo.d30 || [], f1, "mm", "Sem acumulado no período."),
-      tabela("Maior acumulado em 60 dias", r.acumuladosPeriodo.d60 || [], f1, "mm", "Sem acumulado no período."),
-      tabela("Maior acumulado em 90 dias", r.acumuladosPeriodo.d90 || [], f1, "mm", "Sem acumulado no período."),
-      tabela("Maior acumulado no Semestre (180 d)", r.acumuladosPeriodo.d180 || [], f1, "mm", "Sem acumulado no período."),
-      tabela("Maior acumulado no Ano (365 d)", r.acumuladosPeriodo.d365 || [], f1, "mm", "Sem acumulado no período.")
-    ]);
-    sec("🌡️ Temperatura", [
-      tabela("Dia mais quente (maior máxima)", r.temperatura.maisQuente, f1, "°C", "Sem temperatura no período."),
-      tabela("Dia mais frio (menor mínima)", r.temperatura.maisFrio, f1, "°C", "Sem temperatura no período."),
-      tabela("Maior amplitude no dia (máx − mín)", r.temperatura.maiorAmplitude, f1, "°C", "Sem temperatura no período.")
-    ]);
-    sec("💨 Vento", [tabela("Maior velocidade do vento no dia", r.vento.dias, f1, "km/h", "Sem vento no período.")], "Velocidade máxima registrada pelo equipamento em cada dia.");
-    sec("🧭 Pressão e umidade", [
-      tabela("Maior pressão", r.pressao.maior, f1, "hPa", "Sem pressão no período."),
-      tabela("Menor pressão", r.pressao.menor, f1, "hPa", "Sem pressão no período."),
-      tabela("Maior variação de pressão no dia", r.pressao.maiorVariacao, f1, "hPa", "Sem pressão no período."),
-      tabela("Dia mais úmido (umidade média)", r.umidade.maisUmido, f1, "%", "Sem umidade no período."),
-      tabela("Dia mais seco (umidade média)", r.umidade.maisSeco, f1, "%", "Sem umidade no período.")
-    ]);
-    sec("☀️ Radiação solar", [tabela("Maior radiação solar no dia", r.radiacao.dias, f0, "W/m²", "Nenhum equipamento deste período registra radiação solar.")]);
+
+    sec("chuva", "🌧️ Chuva — Diária, Pancadas (60 min / 10 min) e Acumulados", [
+      tabela("Dias que mais choveram (dia civil, 00h–24h)", r.chuva.dias, f1, "mm", "Nenhum dia com chuva registrada.", { tom: "azul" }),
+      tabela("Maior chuva em 60 min (1 hora)", r.chuva.hora, f1, "mm", "Sem chuva registrada.", { tom: "azul" }),
+      tabela("Maior chuva em 10 min (intensidade curta)", r.chuva.dezMin, f1, "mm", "Sem chuva registrada.", { tom: "azul" }),
+      tabela("Maior acumulado em 30 dias", r.acumuladosPeriodo.d30 || [], f1, "mm", "Sem acumulado no período.", { tom: "azul" }),
+      tabela("Maior acumulado em 60 dias", r.acumuladosPeriodo.d60 || [], f1, "mm", "Sem acumulado no período.", { tom: "azul" }),
+      tabela("Maior acumulado em 90 dias", r.acumuladosPeriodo.d90 || [], f1, "mm", "Sem acumulado no período.", { tom: "azul" }),
+      tabela("Maior acumulado no Semestre (180 dias)", r.acumuladosPeriodo.d180 || [], f1, "mm", "Sem acumulado no período.", { tom: "azul" }),
+      tabela("Maior acumulado no Ano (365 dias)", r.acumuladosPeriodo.d365 || [], f1, "mm", "Sem acumulado no período.", { tom: "azul" })
+    ], "Volumes máximos medidos pelas estações e pluviômetros de Cajamar no período selecionado.");
+
     var riosBlocos = [];
     r.rios.forEach(function (rg) {
-      riosBlocos.push(tabela(rg.estacao + " — maiores níveis", rg.maiorNivel, f2, "m", "Sem nível no período."));
-      riosBlocos.push(tabela(rg.estacao + " — maior subida no dia (máx − mín)", rg.maiorSubida, f2, "m", "Sem nível no período."));
+      riosBlocos.push(tabela("🌊 " + rg.estacao + " — Maiores níveis atingidos", rg.maiorNivel, f2, "m", "Sem nível no período.", { tom: "ciano" }));
+      riosBlocos.push(tabela("📈 " + rg.estacao + " — Maior subida no dia (máx − mín)", rg.maiorSubida, f2, "m", "Sem nível no período.", { tom: "ciano" }));
     });
     if (!riosBlocos.length) riosBlocos.push(el("p", "mut", "Nenhuma régua de nível com dado no período."));
-    sec("🌊 Nível dos rios", riosBlocos, "Valores medidos pela régua. Sem classificação de risco: as cotas de alerta ainda não estão validadas.");
+    sec("rios", "🌊 Nível dos Rios — Réguas Fluviométricas (Jordanésia e Natura)", riosBlocos, "Valores medidos pelas réguas de nível em metros. Sem classificação de risco: as cotas de alerta ainda não estão validadas.");
+
+    sec("temperatura", "🌡️ Temperatura — Máximas, Mínimas e Amplitude Térmica", [
+      tabela("🔥 Dia mais quente (maior máxima)", r.temperatura.maisQuente, f1, "°C", "Sem temperatura no período.", { tom: "laranja" }),
+      tabela("❄️ Dia mais frio (menor mínima)", r.temperatura.maisFrio, f1, "°C", "Sem temperatura no período.", { tom: "frio", menor: true }),
+      tabela("↕️ Maior amplitude térmica no dia (máx − mín)", r.temperatura.maiorAmplitude, f1, "°C", "Sem temperatura no período.", { tom: "laranja" })
+    ]);
+
+    sec("pressao_umidade", "🧭 Pressão Atmosférica e Umidade Relativa do Ar", [
+      tabela("💧 Dia mais seco (menor umidade)", r.umidade.maisSeco, f1, "%", "Sem umidade no período.", { tom: "laranja", menor: true }),
+      tabela("🌧️ Dia mais úmido (maior umidade)", r.umidade.maisUmido, f1, "%", "Sem umidade no período.", { tom: "verde" }),
+      tabela("⬆️ Maior pressão atmosférica", r.pressao.maior, f1, "hPa", "Sem pressão no período.", { tom: "roxo" }),
+      tabela("⬇️ Menor pressão atmosférica", r.pressao.menor, f1, "hPa", "Sem pressão no período.", { tom: "roxo", menor: true }),
+      tabela("📉 Maior variação de pressão no dia (máx − mín)", r.pressao.maiorVariacao, f1, "hPa", "Sem pressão no período.", { tom: "roxo" })
+    ]);
+
+    sec("vento_radiacao", "💨 Vento e ☀️ Radiação Solar", [
+      tabela("💨 Maior velocidade do vento no dia", r.vento.dias, f1, "km/h", "Sem vento no período.", { tom: "roxo" }),
+      tabela("☀️ Maior radiação solar no dia", r.radiacao.dias, f0, "W/m²", "Nenhum equipamento deste período registra radiação solar.", { tom: "laranja" })
+    ], "Velocidade máxima de vento e pico de radiação solar registrados em cada dia.");
 
     // equipamentos
-    var s = el("section", "card"); s.appendChild(el("h2", "", "📋 Equipamentos no período"));
-    var tw = el("div", "tw"), tb = el("table"), th = el("tr");
-    ["Equipamento", "Dias com dado", "Primeiro / último dia", "Dias incompletos", "Chuva no período", "Dias ≥ 1 mm", "Temp. mín–máx", "Vento máx."].forEach(function (x) { th.appendChild(el("th", "", x)); });
-    tb.appendChild(th);
-    r.equipamentos.forEach(function (e) {
-      var tr = el("tr");
-      tr.appendChild(el("td", "", (e.nivel ? "🌊 " : "🌡️ ") + e.estacao));
-      tr.appendChild(el("td", "", String(e.dias)));
-      tr.appendChild(el("td", "", dataBr(e.primeiro) + " a " + dataBr(e.ultimo) + (e.diasSemLeituraAteFim > 1 ? " (sem dado nos últimos " + e.diasSemLeituraAteFim + " dias da rede)" : "")));
-      tr.appendChild(el("td", "", String(e.incompletos)));
-      tr.appendChild(el("td", "", e.chuvaTotal === null ? "sem dado" : f1(e.chuvaTotal) + " mm" + (e.chuvaTotalMinimo ? " (mínimo)" : "")));
-      tr.appendChild(el("td", "", e.chuvaTotal === null ? "—" : String(e.diasComChuva)));
-      tr.appendChild(el("td", "", e.tmin === null && e.tmax === null ? "sem dado" : f1(e.tmin) + " a " + f1(e.tmax) + " °C"));
-      tr.appendChild(el("td", "", e.vmax === null ? "sem dado" : f1(e.vmax) + " km/h"));
-      tb.appendChild(tr);
-    });
-    tw.appendChild(tb); s.appendChild(tw);
-    s.appendChild(el("p", "mut", "“sem dado” = o equipamento não registrou aquela medida (não é zero). Dados auxiliares dos CSV importados neste aparelho; não substituem INMET e CEMADEN."));
-    raiz.appendChild(s);
+    if (catFiltro === "todas" || catFiltro === "equipamentos") {
+      var s = el("section", "card rec-secao"); s.appendChild(el("h2", "rec-secao-titulo", "📋 Equipamentos no período"));
+      var tw = el("div", "tw"), tb = el("table"), th = el("tr");
+      ["Equipamento", "Dias com dado", "Primeiro / último dia", "Dias incompletos", "Chuva no período", "Dias ≥ 1 mm", "Temp. mín–máx", "Vento máx."].forEach(function (x) { th.appendChild(el("th", "", x)); });
+      tb.appendChild(th);
+      r.equipamentos.forEach(function (e) {
+        var tr = el("tr");
+        tr.appendChild(el("td", "", (e.nivel ? "🌊 " : "🌡️ ") + e.estacao));
+        tr.appendChild(el("td", "", String(e.dias)));
+        tr.appendChild(el("td", "", dataBr(e.primeiro) + " a " + dataBr(e.ultimo) + (e.diasSemLeituraAteFim > 1 ? " (sem dado nos últimos " + e.diasSemLeituraAteFim + " dias da rede)" : "")));
+        tr.appendChild(el("td", "", String(e.incompletos)));
+        tr.appendChild(el("td", "", e.chuvaTotal === null ? "sem dado" : f1(e.chuvaTotal) + " mm" + (e.chuvaTotalMinimo ? " (mínimo)" : "")));
+        tr.appendChild(el("td", "", e.chuvaTotal === null ? "—" : String(e.diasComChuva)));
+        tr.appendChild(el("td", "", e.tmin === null && e.tmax === null ? "sem dado" : f1(e.tmin) + " a " + f1(e.tmax) + " °C"));
+        tr.appendChild(el("td", "", e.vmax === null ? "sem dado" : f1(e.vmax) + " km/h"));
+        tb.appendChild(tr);
+      });
+      tw.appendChild(tb); s.appendChild(tw);
+      s.appendChild(el("p", "mut", "“sem dado” = o equipamento não registrou aquela medida (não é zero). Dados auxiliares dos CSV importados neste aparelho; não substituem INMET e CEMADEN."));
+      raiz.appendChild(s);
+    }
   }
 
   var MESES_NOMES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -306,7 +430,20 @@
         selPer.appendChild(oM);
       });
     }
-    ["selPeriodoExt", "selEquipExt", "selCompletosExt"].forEach(function (id) { $(id).onchange = desenhar; });
+    ["selPeriodoExt", "selEquipExt", "selCompletosExt", "selCategoriaExt", "selLayoutExt"].forEach(function (id) {
+      if ($(id)) $(id).onchange = desenhar;
+    });
+    var contAbas = $("abasCategoriaExt");
+    if (contAbas) {
+      var btns = contAbas.querySelectorAll(".rec-cat-btn");
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].onclick = function () {
+          var c = this.getAttribute("data-cat") || "todas";
+          if ($("selCategoriaExt")) $("selCategoriaExt").value = c;
+          desenhar();
+        };
+      }
+    }
     desenhar();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar); else iniciar();
