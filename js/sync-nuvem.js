@@ -344,7 +344,87 @@
           var hora = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
           var tit = $("heroTitulo") ? $("heroTitulo").textContent.trim() : "Monitoramento ativo";
           var sub = $("heroSub") ? $("heroSub").textContent.trim() : "";
-          var texto = "🛡️ *DEFESA CIVIL DE CAJAMAR — BOLETIM AUTOMÁTICO*\n🕒 *Horário:* " + hora + " (BRT)\n📌 *Situação:* " + tit + (sub ? "\n" + sub : "") + "\n🔗 https://theolindolfo02.github.io/cajamar-ao-vivo/";
+          var partesBol = [
+            "🛡️ *DEFESA CIVIL DE CAJAMAR — BOLETIM OPERACIONAL COMPLETO*",
+            "🕒 *Emissão:* " + hora + " (BRT)",
+            "📌 *Situação Geral:* " + tit + (sub ? " — " + sub : "")
+          ];
+
+          // 1. Condição meteorológica atual no painel (#agora)
+          var boxAgora = $("agora");
+          if (boxAgora && boxAgora.textContent && boxAgora.textContent.indexOf("Carregando") < 0) {
+            var kItens = boxAgora.querySelectorAll(".k > div");
+            var medAgora = [];
+            for (var ki = 0; ki < kItens.length; ki++) {
+              var sp = kItens[ki].querySelector("span"), st = kItens[ki].querySelector("strong");
+              if (sp && st) medAgora.push(sp.textContent.trim() + ": " + st.textContent.trim());
+            }
+            if (medAgora.length) {
+              partesBol.push("", "🌡️ *Condição Agora em Cajamar:*", "• " + medAgora.join(" | "));
+            }
+          }
+
+          // 2. Todos os avisos ativos do INMET (#alertas)
+          var boxAlertas = $("alertas");
+          if (boxAlertas) {
+            var cardsInmet = boxAlertas.querySelectorAll(".alert");
+            if (cardsInmet.length > 0) {
+              partesBol.push("", "⚠️ *Avisos do INMET Ativos para Cajamar (" + cardsInmet.length + "):*");
+              for (var ai = 0; ai < cardsInmet.length; ai++) {
+                var stTit = cardsInmet[ai].querySelector("strong");
+                var smVig = cardsInmet[ai].querySelector("small");
+                var spRisco = cardsInmet[ai].querySelector("p, span:not(.selo-sev)");
+                if (stTit) {
+                  partesBol.push(
+                    (ai + 1) + ". *" + stTit.textContent.trim() + "*" +
+                    (smVig ? " (" + smVig.textContent.trim() + ")" : "") +
+                    (spRisco && spRisco.textContent ? "\n   ↳ " + spRisco.textContent.trim().slice(0, 180) : "")
+                  );
+                }
+              }
+            }
+          }
+
+          // 3. Painel de Deslizamento (#deslizamentoPainel)
+          var boxDesl = $("deslizamentoPainel");
+          if (boxDesl) {
+            var banDesl = boxDesl.querySelector(".desliz-banner strong");
+            var cxsDesl = boxDesl.querySelectorAll(".desliz-cx");
+            if (banDesl) {
+              var vols = [];
+              for (var di = 0; di < cxsDesl.length; di++) {
+                var rD = cxsDesl[di].querySelector("span"), vD = cxsDesl[di].querySelector("strong");
+                if (rD && vD) vols.push(rD.textContent.replace(/^[^A-Za-z0-9]+/, "").trim() + ": " + vD.textContent.trim());
+              }
+              partesBol.push("", "⛰️ *Risco de Deslizamento (Pinheiro / AlertaRio):*", "• " + banDesl.textContent.trim());
+              if (vols.length) partesBol.push("• " + vols.join(" | "));
+            }
+          }
+
+          // 4. Estações Locais e Réguas de Nível carregadas
+          if (typeof Estacao !== "undefined" && Estacao.carregarBanco) {
+            var bEst = Estacao.carregarBanco();
+            var linEst = [];
+            Object.keys(bEst.slots || {}).forEach(function (id) {
+              var sl = bEst.slots[id];
+              var ds = Object.keys((sl && sl.dias) || {}).sort();
+              if (!ds.length) return;
+              var uDia = ds[ds.length - 1], dU = sl.dias[uDia];
+              if (!dU) return;
+              var info = [];
+              if (typeof dU.chuva === "number") info.push("Chuva dia: " + dU.chuva.toFixed(1).replace(".", ",") + " mm");
+              if (typeof dU.c60 === "number" && dU.c60 > 0) info.push("1h: " + dU.c60.toFixed(1).replace(".", ",") + " mm");
+              if (typeof dU.tmax === "number") info.push("Temp máx: " + dU.tmax.toFixed(1).replace(".", ",") + "°C");
+              if (typeof dU.nvMax === "number") info.push("🌊 Rio máx: " + dU.nvMax.toFixed(2).replace(".", ",") + " m");
+              if (info.length) linEst.push("• *" + (sl.estacao || sl.rotulo) + "* (" + uDia.slice(8, 10) + "/" + uDia.slice(5, 7) + "): " + info.join(" · "));
+            });
+            if (linEst.length) {
+              partesBol.push("", "📍 *Estações e Réguas de Cajamar:*", linEst.join("\n"));
+            }
+          }
+
+          partesBol.push("", "🔗 *Painel ao vivo:* https://theolindolfo02.github.io/cajamar-ao-vivo/");
+          var texto = partesBol.join("\n");
           await enviarAlertaTelegram(texto);
           if (msg) msg.textContent = "✅ Alerta enviado com sucesso para o Telegram às " + hora.slice(-5) + "!";
         } catch (e) {

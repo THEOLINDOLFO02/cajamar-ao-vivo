@@ -294,3 +294,47 @@ test("Catavento-Surya /api/cajamar/unified JSON: converte polegadas->mm e mph->k
   assert.equal(jord.chuva24h, 28);
   assert.equal(jord.statusRio, "alerta");
 });
+
+test("EMEB Guilhermina com status=alerta de chuva no unified JSON não gera falso Alerta Hidrológico (Cheia) e mensagem traz leitura atual e panorama", () => {
+  const unifiedJson = JSON.stringify({
+    data: [
+      {
+        tipo: "pluviometro",
+        nome: "EMEB Guilhermina de C. Oliveira",
+        status: "alerta",
+        valor_atual: 28.4,
+        data_hora_atualizacao: "20/11/2026 13:20",
+        detalhes: { precip1h: 4.2 }
+      },
+      {
+        tipo: "estacao",
+        nome: "GCM - Vila Nova",
+        valor_atual: 24.8,
+        data_hora_atualizacao: "20/11/2026 13:20",
+        detalhes: { humidity: 68, hourlyRainIn: 0, dailyRainIn: 0.5 }
+      }
+    ]
+  });
+  const est = lerCatavento(unifiedJson);
+  const guilhermina = est.find((e) => /guilhermina/i.test(e.nome));
+  assert.ok(guilhermina);
+  assert.equal(guilhermina.statusRio, undefined, "pluviômetro escolar nunca deve receber statusRio de cheia");
+
+  const alertas = avaliarEstacoesCatavento(est);
+  assert.equal(alertas.length, 1);
+  assert.equal(alertas[0].parametro, "chuva");
+  assert.match(alertas[0].detalhe, /KM 43 \/ Anhanguera/);
+  assert.match(alertas[0].detalhe, /Gatilho atingido/);
+  assert.match(alertas[0].detalhe, /Orientação DC/);
+
+  const msg = formatarMensagemTelegram(alertas, "20/11/2026 13:29", {
+    encerrados: [{
+      chave: "catavento:temp:140070634",
+      titulo: "🌡️ <b>CATAVENTO-SURYA (🟡 Calor (30–36 °C)) — GCM - Vila Nova</b>",
+      desde: "2026-11-20T15:00:00.000Z"
+    }],
+    catavento: { estacoes: est }
+  });
+  assert.match(msg, /Leitura atual na estação:.*24,8 °C/);
+  assert.match(msg, /PANORAMA ATUAL DAS ESTAÇÕES EM CAJAMAR/);
+});

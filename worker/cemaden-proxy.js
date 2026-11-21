@@ -272,11 +272,6 @@ function normalizarItemCatavento(raw, idx = 0, mapaSelect = null) {
   const radiacao = pick(raw, ["radiacao", "solar_radiation_wm2", "radiacao_wm2", "radmax", "solarRadiationWm2"], 0, 2000)
     ?? pick(det, ["solarRadiationWm2", "solar_radiation_wm2"], 0, 2000);
 
-  const statusBruto = String(raw.statusRio || raw.status || det.status || "").trim().toLowerCase();
-  const statusRio = /^(normal|atencao|atenção|alerta|critico|crítico|inundacao|inundação)$/.test(statusBruto)
-    ? statusBruto.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    : null;
-
   const leitura = String(
     raw.leitura || raw.data_hora_brt || raw.data_hora_atualizacao || det.dateTime || raw.data_hora || raw.updatedAt || raw.ultimoRegistro || ""
   ).trim() || null;
@@ -285,6 +280,13 @@ function normalizarItemCatavento(raw, idx = 0, mapaSelect = null) {
     || /nivel|nível|hidro|fluv|regua|régua/.test(catBruta)
     || (nivelRio !== null && temperatura === null && h1 === null && h24 === null)
     || (/natura|jordan/i.test(nome) && nivelRio !== null && temperatura === null);
+
+  // Importante: raw.status em pluviômetros/estações meteorológicas refere-se à chuva, NÃO ao nível do rio.
+  // Só aceita raw.status como statusRio quando o registro é de rio/régua (ehNivel ou raw.statusRio explícito).
+  const statusBruto = String(raw.statusRio || (ehNivel ? (raw.status || det.status) : "") || "").trim().toLowerCase();
+  const statusRio = /^(normal|atencao|atenção|alerta|critico|crítico|inundacao|inundação)$/.test(statusBruto)
+    ? statusBruto.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    : null;
 
   const temValor = [h1, h24, h72, h168, temperatura, umidade, pressao, vento, rajada, nivelRio, radiacao].some((v) => v !== null);
   if (!temValor) return null;

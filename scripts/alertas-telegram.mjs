@@ -68,6 +68,59 @@ const fmt1 = (v, un = "mm") => v.toFixed(1).replace(".", ",") + (un ? " " + un :
 const fmt2 = (v, un = "m") => v.toFixed(2).replace(".", ",") + (un ? " " + un : "");
 const ehNum = (v) => typeof v === "number" && Number.isFinite(v);
 
+// Mapeia o bairro/região de Cajamar para deixar o alerta imediatamente claro para a equipe de plantão
+function regiaoEstacaoCajamar(nome, id) {
+  const s = ((nome || "") + " " + (id || "")).toLowerCase();
+  if (s.includes("vila nova") || s.includes("140070634")) return "Vila Nova / Polvilho";
+  if (s.includes("karine") || s.includes("140070637")) return "Polvilho";
+  if (s.includes("guilhermina") || s.includes("140070645")) return "KM 43 / Anhanguera";
+  if (s.includes("maria") || s.includes("140070655")) return "Ponunduva";
+  if (s.includes("ponunduva")) return "Ponunduva";
+  if (s.includes("jordan") || s.includes("140070661")) return "Jordanésia / Rio Juquery";
+  if (s.includes("natura") || s.includes("140070580")) return "KM 30,5 / Rio Juquery";
+  return "Cajamar/SP";
+}
+
+function formatarIsoParaBrtCurto(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+// Monta um resumo de 1 linha com todas as medições atuais de uma estação (para exibir no encerramento e no panorama)
+export function resumirMedicoesEstacao(e) {
+  if (!e || typeof e !== "object") return "";
+  const p = [];
+  const temp = ehNum(e.temperatura) ? e.temperatura : (ehNum(e.temperature_c) ? e.temperature_c : null);
+  const umid = ehNum(e.umidade) ? e.umidade : (ehNum(e.humidity_percent) ? e.humidity_percent : null);
+  const h1 = ehNum(e.chuva1h) ? e.chuva1h : (e.acc && ehNum(e.acc.h1) ? e.acc.h1 : null);
+  const h24 = ehNum(e.chuva24h) ? e.chuva24h : (e.acc && ehNum(e.acc.h24) ? e.acc.h24 : null);
+  const vento = ehNum(e.vento) ? e.vento : (ehNum(e.wind_speed_kmh) ? e.wind_speed_kmh : null);
+  const nvRio = ehNum(e.nivelRio) ? e.nivelRio : (ehNum(e.water_level_m) ? e.water_level_m : null);
+  if (temp !== null) p.push(`🌡️ ${fmt1(temp, "°C")}`);
+  if (umid !== null) p.push(`💧 ${Math.round(umid)}%`);
+  if (h1 !== null || h24 !== null) {
+    const ch = [];
+    if (h1 !== null) ch.push(`1h: ${fmt1(h1)}`);
+    if (h24 !== null) ch.push(`24h: ${fmt1(h24)}`);
+    p.push(`🌧️ Chuva ${ch.join(" / ")}`);
+  }
+  if (vento !== null && vento > 0) p.push(`💨 Vento ${fmt1(vento, "km/h")}`);
+  if (nvRio !== null) {
+    const st = e.statusRio ? ` (${e.statusRio})` : "";
+    p.push(`🌊 Rio: ${fmt2(nvRio)}${st}`);
+  }
+  if (e.leitura) p.push(`🕒 ${esc(e.leitura)}`);
+  return p.join(" · ");
+}
+
 // Avalia as estações e réguas do Catavento-Surya seguindo os parâmetros estabelecidos no Guia e no sistema:
 // - Chuva: 1h (>=20 Atenção, >=30 Alerta, >=60 Grande Perigo), 24h (>=25 Atenção, >=50 Alerta, >100 Grande Perigo),
 //          72h (>=80 Atenção, >=120 Alerta, >200 Alerta Máximo), 168h (>=120 Atenção, >=180 Alerta, >250 Alerta Máximo)
@@ -88,6 +141,7 @@ export function avaliarEstacoesCatavento(catavento, cotasRio = null) {
     if (!e || typeof e !== "object") continue;
     const id = String(e.id || e.sn || e.nome || "est").trim();
     const nome = String(e.nome || e.alias || id).trim();
+    const regiao = regiaoEstacaoCajamar(nome, id);
     const leit = e.leitura ? ` (Leitura: ${esc(e.leitura)})` : "";
 
     // 1. Chuva
@@ -103,39 +157,74 @@ export function avaliarEstacoesCatavento(catavento, cotasRio = null) {
     if (nvChuva > 0) {
       const rot = nvChuva >= 3 ? "🔴 Grande Perigo / Alerta Máximo" : nvChuva === 2 ? "🟠 Perigo / Alerta" : "🟡 Atenção / Perigo Potencial";
       const partes = [];
-      if (h1 !== null) partes.push(`1h: ${fmt1(h1)}`);
-      if (h24 !== null) partes.push(`24h: ${fmt1(h24)}`);
-      if (h72 !== null) partes.push(`72h: ${fmt1(h72)}`);
-      if (h168 !== null) partes.push(`7d: ${fmt1(h168)}`);
+      if (h1 !== null) partes.push(`1h: <b>${fmt1(h1)}</b>`);
+      if (h24 !== null) partes.push(`24h: <b>${fmt1(h24)}</b>`);
+      if (h72 !== null) partes.push(`72h: <b>${fmt1(h72)}</b>`);
+      if (h168 !== null) partes.push(`7d: <b>${fmt1(h168)}</b>`);
+
+      const motivos = [];
+      if (n1 > 0) motivos.push(`Chuva em 1h (${fmt1(h1)}) ≥ ${n1 >= 3 ? "60" : n1 === 2 ? "30" : "20"} mm/h`);
+      if (n24 > 0) motivos.push(`Acumulado 24h (${fmt1(h24)}) ≥ ${n24 >= 3 ? "100" : n24 === 2 ? "50" : "25"} mm/24h`);
+      if (n72 > 0) motivos.push(`Acumulado 72h (${fmt1(h72)}) ≥ ${n72 >= 3 ? "200" : n72 === 2 ? "120" : "80"} mm`);
+      if (n168 > 0) motivos.push(`Acumulado 7 dias (${fmt1(h168)}) ≥ ${n168 >= 3 ? "250" : n168 === 2 ? "180" : "120"} mm`);
+
+      const acaoChuva = nvChuva >= 3
+        ? "Risco elevado de alagamentos e escorregamentos de encosta. Equipes em prontidão máxima; vistoriar áreas críticas."
+        : nvChuva === 2
+        ? "Solo bastante úmido. Vistoriar pontos de alagamento, drenagem e encostas da região."
+        : "Início de umedecimento relevante do solo. Acompanhar evolução nos pluviômetros e radar.";
+
       alertas.push({
         tipo: "catavento",
         chave: `catavento:chuva:${id}`,
+        estacaoId: id,
+        estacaoNome: nome,
+        parametro: "chuva",
         nivel: nvChuva,
         critico: nvChuva >= 2,
         titulo: `🌧️ <b>CATAVENTO-SURYA (CHUVA — ${rot}) — ${esc(nome)}</b>`,
-        detalhe: `${partes.join(" · ")}${leit}`
+        detalhe: [
+          `📍 <b>Local:</b> ${esc(nome)} (${esc(regiao)})`,
+          `📊 <b>Volumes medidos:</b> ${partes.join(" · ")}${leit}`,
+          `🎯 <b>Gatilho atingido:</b> ${motivos.join(" e ")}`,
+          `🛟 <b>Orientação DC:</b> ${acaoChuva}`
+        ].join("\n")
       });
     }
 
-    // 2. Nível do Rio (Réguas)
+    // 2. Nível do Rio (Somente para Réguas Fluviométricas / estações que realmente medem nível de rio)
     const nvRio = ehNum(e.nivelRio) ? e.nivelRio : (ehNum(e.water_level_m) ? e.water_level_m : null);
     const deltaCm = ehNum(e.variacaoNivelM) ? Math.round(e.variacaoNivelM * 100) : null;
-    const stRio = String(e.statusRio || e.status || "").toLowerCase();
+    const ehEstacaoDeRio = nvRio !== null || e.tipo === "nivel" || Boolean(e.statusRio);
+    const stRio = ehEstacaoDeRio ? String(e.statusRio || "").toLowerCase() : "";
     const nvStatus = (stRio === "critico" || stRio === "inundacao") ? 3 : stRio === "alerta" ? 2 : stRio === "atencao" ? 1 : 0;
-    if (nvRio !== null || nvStatus > 0) {
+    if (ehEstacaoDeRio && (nvRio !== null || nvStatus > 0)) {
       const nvDelta = deltaCm !== null ? (deltaCm >= dAlertaCm ? 2 : deltaCm >= dAtencaoCm ? 1 : 0) : 0;
       const nvCota = nvRio !== null ? (nvRio >= cTransb ? 3 : nvRio >= cAlerta ? 2 : nvRio >= cAtencao ? 1 : 0) : 0;
-      // Se a tabela "Rios" do Catavento já trouxe status oficial ("normal" em Natura a 3,57 m, por exemplo) e cotasRio não foi customizado, respeita o status oficial + variação Δ
       const nvHid = (stRio && !cotasRio) ? Math.max(nvStatus, nvDelta) : Math.max(nvStatus, nvCota, nvDelta);
       if (nvHid > 0) {
         const rotH = nvHid >= 3 ? "🔴 Cota de Transbordamento" : nvHid === 2 ? "🟠 Alerta Hidrológico (Cheia)" : "🟡 Atenção Hidrológica";
+        const cotaRefTxt = `Cotas: Atenção ${fmt2(cAtencao)} · Alerta ${fmt2(cAlerta)} · Transbordo ${fmt2(cTransb)}`;
+        const acaoRio = nvHid >= 3
+          ? "Risco iminente ou ocorrência de extravasamento da calha. Acionar protocolo de inundação e alerta ribeirinho."
+          : nvHid === 2
+          ? "Elevação acentuada do nível do rio. Vistoriar pontes, passagens baixas e áreas ribeirinhas próximas ao Rio Juquery."
+          : "Nível do rio em elevação. Acompanhar próximas leituras da régua e chuva a montante.";
         alertas.push({
           tipo: "catavento",
           chave: `catavento:nivel:${id}`,
+          estacaoId: id,
+          estacaoNome: nome,
+          parametro: "nivel",
           nivel: nvHid,
           critico: nvHid >= 2,
           titulo: `🌊 <b>CATAVENTO-SURYA (${rotH}) — ${esc(nome)}</b>`,
-          detalhe: `${nvRio !== null ? `Nível: ${fmt2(nvRio)}` : `Status: ${esc(stRio)}`}${deltaCm !== null ? ` · Variação (Δ): +${deltaCm} cm` : ""}${leit}`
+          detalhe: [
+            `📍 <b>Régua Fluviométrica:</b> ${esc(nome)} (${esc(regiao)})`,
+            `📊 <b>Medição atual:</b> ${nvRio !== null ? `Nível: <b>${fmt2(nvRio)}</b>` : `Status: <b>${esc(stRio)}</b>`}${deltaCm !== null ? ` · Subida no dia (Δ): <b>+${deltaCm} cm</b>` : ""}${h1 !== null || h24 !== null ? ` · Chuva local 24h: ${h24 !== null ? fmt1(h24) : "—"}` : ""}${leit}`,
+            `🎯 <b>Referência:</b> ${cotaRefTxt}`,
+            `🛟 <b>Orientação DC:</b> ${acaoRio}`
+          ].join("\n")
         });
       }
     }
@@ -147,13 +236,24 @@ export function avaliarEstacoesCatavento(catavento, cotasRio = null) {
     if (vMax !== null && vMax >= 39) {
       const nvVento = vMax >= 89 ? 3 : vMax >= 62 ? 2 : 1;
       const rotV = nvVento >= 3 ? "🔴 Tempestade (Beaufort 10+)" : nvVento === 2 ? "🟠 Ventania (Beaufort 8–9)" : "🟡 Vento Forte (Beaufort 6–7)";
+      const acaoVento = nvVento >= 2
+        ? "Alto risco de queda de árvores, galhos e danos à rede elétrica. Equipes de corte/desobstrução em alerta."
+        : "Atenção para rajadas moderadas a fortes; risco de queda de galhos secos e estruturas leves.";
       alertas.push({
         tipo: "catavento",
         chave: `catavento:vento:${id}`,
+        estacaoId: id,
+        estacaoNome: nome,
+        parametro: "vento",
         nivel: nvVento,
         critico: nvVento >= 2,
         titulo: `💨 <b>CATAVENTO-SURYA (${rotV}) — ${esc(nome)}</b>`,
-        detalhe: `Velocidade/Rajada: ${fmt1(vMax, "km/h")}${leit}`
+        detalhe: [
+          `📍 <b>Local:</b> ${esc(nome)} (${esc(regiao)})`,
+          `📊 <b>Velocidade/Rajada medida:</b> <b>${fmt1(vMax, "km/h")}</b>${leit}`,
+          `🎯 <b>Faixa Beaufort:</b> ${nvVento >= 3 ? "≥ 89 km/h (Tempestade)" : nvVento === 2 ? "62 a 88 km/h (Ventania)" : "39 a 61 km/h (Vento Forte)"}`,
+          `🛟 <b>Orientação DC:</b> ${acaoVento}`
+        ].join("\n")
       });
     }
 
@@ -165,10 +265,18 @@ export function avaliarEstacoesCatavento(catavento, cotasRio = null) {
       alertas.push({
         tipo: "catavento",
         chave: `catavento:umidade:${id}`,
+        estacaoId: id,
+        estacaoNome: nome,
+        parametro: "umidade",
         nivel: nvUmid,
         critico: nvUmid >= 2,
         titulo: `💧 <b>CATAVENTO-SURYA (${rotU}) — ${esc(nome)}</b>`,
-        detalhe: `Umidade relativa: ${Math.round(umid)}%${leit}`
+        detalhe: [
+          `📍 <b>Local:</b> ${esc(nome)} (${esc(regiao)})`,
+          `📊 <b>Umidade relativa medida:</b> <b>${Math.round(umid)}%</b>${ehNum(e.temperatura) ? ` · Temp: ${fmt1(e.temperatura, "°C")}` : ""}${leit}`,
+          `🎯 <b>Critério OMS/INMET:</b> ${nvUmid >= 3 ? "Estado de Emergência (< 12%)" : nvUmid === 2 ? "Estado de Alerta (12% a 20%)" : "Estado de Atenção (20% a 30%)"}`,
+          `🛟 <b>Orientação DC:</b> Risco elevado de incêndios em vegetação. Reforçar orientação de hidratação e proibição de queimadas.`
+        ].join("\n")
       });
     }
 
@@ -177,13 +285,23 @@ export function avaliarEstacoesCatavento(catavento, cotasRio = null) {
     if (temp !== null && (temp >= 30 || temp < 15)) {
       const nvTemp = temp >= 36 || temp <= 10 ? 2 : 1;
       const rotT = temp >= 36 ? "🟠 Calor Intenso (≥ 36 °C)" : temp >= 30 ? "🟡 Calor (30–36 °C)" : temp <= 10 ? "🥶 Frio Intenso (≤ 10 °C)" : "🌡️ Frio (< 15 °C)";
+      const orientTemp = temp >= 30
+        ? `Calor ${temp >= 36 ? "intenso" : "elevado"} registrado na estação (${fmt1(temp, "°C")}). Atenção à hidratação, insolação e risco de queimadas à tarde.`
+        : `Queda acentuada de temperatura (${fmt1(temp, "°C")}). Atenção ao protocolo de proteção a pessoas vulneráveis.`;
       alertas.push({
         tipo: "catavento",
         chave: `catavento:temp:${id}`,
+        estacaoId: id,
+        estacaoNome: nome,
+        parametro: "temp",
         nivel: nvTemp,
         critico: nvTemp >= 2,
         titulo: `🌡️ <b>CATAVENTO-SURYA (${rotT}) — ${esc(nome)}</b>`,
-        detalhe: `Temperatura: ${fmt1(temp, "°C")}${leit}`
+        detalhe: [
+          `📍 <b>Local:</b> ${esc(nome)} (${esc(regiao)})`,
+          `📊 <b>Temperatura medida:</b> <b>${fmt1(temp, "°C")}</b>${umid !== null ? ` · Umidade: ${Math.round(umid)}%` : ""}${leit}`,
+          `🛟 <b>Orientação DC:</b> ${orientTemp}`
+        ].join("\n")
       });
     }
   }
@@ -275,6 +393,7 @@ export function decidirEnvio(estado, alertas, { agoraMs = Date.now(), fontesOk =
       nivel: nivelGuardado,
       ...(qtdGuardada !== undefined ? { qtd: qtdGuardada } : {}),
       titulo: a.titulo,
+      detalhe: a.detalhe || (ant && ant.detalhe) || "",
       desde: ant ? ant.desde : new Date(agoraMs).toISOString(),
       ausencias: 0
     };
@@ -284,25 +403,99 @@ export function decidirEnvio(estado, alertas, { agoraMs = Date.now(), fontesOk =
     const tipo = chave.split(":")[0];
     if (fontesOk[tipo] === false) { novo[chave] = antigo[chave]; continue; }          // fonte fora do ar: mantém como estava
     const ausencias = (antigo[chave].ausencias || 0) + 1;
-    if (ausencias >= AUSENCIAS_PARA_ENCERRAR) encerrados.push({ chave, titulo: antigo[chave].titulo, desde: antigo[chave].desde });
-    else novo[chave] = { ...antigo[chave], ausencias };
+    if (ausencias >= AUSENCIAS_PARA_ENCERRAR) {
+      encerrados.push({
+        chave,
+        titulo: antigo[chave].titulo,
+        detalheAnterior: antigo[chave].detalhe || "",
+        desde: antigo[chave].desde
+      });
+    } else {
+      novo[chave] = { ...antigo[chave], ausencias };
+    }
   }
   return { novos, agravados, encerrados, estadoNovo: { alertas: novo, atualizadoEm: new Date(agoraMs).toISOString() }, temMensagem: novos.length + agravados.length + encerrados.length > 0 };
+}
+
+function encontrarEstacaoPorChave(chave, catavento) {
+  if (!chave || !catavento) return null;
+  const partes = String(chave).split(":");
+  const idAlvo = partes.slice(2).join(":");
+  if (!idAlvo) return null;
+  const lista = Array.isArray(catavento.estacoes) ? catavento.estacoes : (Array.isArray(catavento) ? catavento : []);
+  return lista.find((e) => e && (String(e.id || e.sn || e.nome).trim() === idAlvo || String(e.nome || "").toLowerCase().replace(/[^a-z0-9]+/g, "_") === idAlvo)) || null;
 }
 
 export function formatarMensagemTelegram(alertas, dataHoraBrt, extra = {}) {
   const novos = Array.isArray(alertas) ? alertas : [];
   const agravados = extra.agravados || [], encerrados = extra.encerrados || [];
   if (!novos.length && !agravados.length && !encerrados.length) return null;
-  const linhas = [`🚨 <b>ALERTA AUTOMÁTICO — DEFESA CIVIL DE CAJAMAR</b>`, `🕒 <b>Verificação:</b> ${esc(dataHoraBrt)} (BRT)`, `━━━━━━━━━━━━━━━━━━━━`];
+
+  const soEncerrados = !novos.length && !agravados.length && encerrados.length > 0;
+  const partesRes = [];
+  if (novos.length) partesRes.push(novos.length + " novo(s)");
+  if (agravados.length) partesRes.push(agravados.length + " atualização(ões)");
+  if (encerrados.length) partesRes.push(encerrados.length + " normalizado(s)");
+  const subtituloTipo = soEncerrados
+    ? "✅ <b>SITUAÇÃO NORMALIZADA (" + encerrados.length + " alerta(s) encerrado(s))</b>"
+    : "📌 <b>Resumo:</b> " + partesRes.join(" · ");
+
+  const linhas = [
+    `🚨 <b>ALERTA AUTOMÁTICO — DEFESA CIVIL DE CAJAMAR</b>`,
+    subtituloTipo,
+    `🕒 <b>Verificação:</b> ${esc(dataHoraBrt)} (BRT)`,
+    `━━━━━━━━━━━━━━━━━━━━`
+  ];
+
   let itens = 0;
   const cabo = () => itens >= MAX_ITENS_MENSAGEM;
-  for (const a of novos) { if (cabo()) break; linhas.push(a.titulo, a.detalhe, ""); itens++; }
-  for (const a of agravados) { if (cabo()) break; linhas.push("⬆️ <b>ATUALIZAÇÃO / AGRAVAMENTO</b> " + a.titulo, a.detalhe, ""); itens++; }
-  for (const e of encerrados) { if (cabo()) break; linhas.push("✅ <b>ENCERRADO</b> " + String(e.titulo || "").replace(/^[^<]*/, ""), ""); itens++; }
+
+  for (const a of novos) {
+    if (cabo()) break;
+    linhas.push("🆕 " + a.titulo, a.detalhe, "");
+    itens++;
+  }
+  for (const a of agravados) {
+    if (cabo()) break;
+    linhas.push("⬆️ <b>ATUALIZAÇÃO / MUDANÇA DE FAIXA</b>\n" + a.titulo, a.detalhe, "");
+    itens++;
+  }
+  for (const e of encerrados) {
+    if (cabo()) break;
+    const titLimpo = String(e.titulo || "").replace(/^[^<]*/, "");
+    const linhasEnc = ["✅ <b>ENCERRADO / NORMALIZADO:</b> " + titLimpo];
+    const estAtual = encontrarEstacaoPorChave(e.chave, extra.catavento);
+    if (estAtual) {
+      const medAtual = resumirMedicoesEstacao(estAtual);
+      if (medAtual) linhasEnc.push(`📉 <b>Leitura atual na estação:</b> ${medAtual} (retornou à faixa de normalidade)`);
+    } else {
+      linhasEnc.push(`📉 <b>Status atual:</b> Condição abaixo do limiar de alerta nas últimas 3 verificações (~30 min).`);
+    }
+    const desdeTxt = formatarIsoParaBrtCurto(e.desde);
+    if (desdeTxt) linhasEnc.push(`🕓 <b>Estava ativo desde:</b> ${esc(desdeTxt)} (BRT)`);
+    linhas.push(linhasEnc.join("\n"), "");
+    itens++;
+  }
+
   const total = novos.length + agravados.length + encerrados.length;
   if (total > itens) linhas.push(`… e mais ${total - itens} alerta(s). Veja o painel.`, "");
-  linhas.push(`🔗 Painel ao vivo: https://theolindolfo02.github.io/cajamar-ao-vivo/`);
+
+  // Se houver dados atuais das estações de Cajamar (extra.catavento), inclui o panorama rápido das estações da cidade
+  const listaEst = extra.catavento && Array.isArray(extra.catavento.estacoes)
+    ? extra.catavento.estacoes
+    : (Array.isArray(extra.catavento) ? extra.catavento : []);
+  if (listaEst.length > 0) {
+    linhas.push(`━━━━━━━━━━━━━━━━━━━━`, `📊 <b>PANORAMA ATUAL DAS ESTAÇÕES EM CAJAMAR:</b>`);
+    for (const est of listaEst.slice(0, 7)) {
+      const resumoEst = resumirMedicoesEstacao(est);
+      if (resumoEst) {
+        linhas.push(`• <b>${esc(est.nome || est.id)}:</b> ${resumoEst}`);
+      }
+    }
+    linhas.push("");
+  }
+
+  linhas.push(`🔗 <b>Painel ao vivo:</b> https://theolindolfo02.github.io/cajamar-ao-vivo/`);
   return linhas.join("\n");
 }
 
@@ -512,7 +705,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   console.log(`[alertas-telegram] ${agoraBrt}: fontes INMET=${inmet.ok ? "ok" : "FALHOU"} CEMADEN=${cemadenOk ? "ok" : "indisponível/antigo"} CATAVENTO=${cataventoOk ? "ok" : "indisponível"} FOGO_INPE=${fogo.ok ? `ok (${fogo.focos.length} foco(s) em Cajamar)` : "FALHOU"}; ativos=${alertas.length}; novos=${dec.novos.length}; agravados=${dec.agravados.length}; encerrados=${dec.encerrados.length}`);
 
   const token = (process.env.TELEGRAM_BOT_TOKEN || "").trim(), chat = (process.env.TELEGRAM_CHAT_ID || "").trim();
-  const msg = formatarMensagemTelegram(dec.novos, agoraBrt, { agravados: dec.agravados, encerrados: dec.encerrados });
+  const msg = formatarMensagemTelegram(dec.novos, agoraBrt, { agravados: dec.agravados, encerrados: dec.encerrados, catavento: cataventoOk ? catavento : null });
   if (!token || !chat) {
     console.log("[alertas-telegram] TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID não configurados: nada enviado e nada gravado." + (msg ? "\nMensagem que seria enviada:\n" + msg : " Nenhuma mensagem pendente."));
     process.exit(0);
