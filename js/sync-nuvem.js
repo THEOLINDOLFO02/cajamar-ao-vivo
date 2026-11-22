@@ -89,26 +89,32 @@
     try {
       var c = JSON.parse(localStorage.getItem(CHAVE_CFG) || "null");
       if (c && typeof c === "object") {
+        var intMin = typeof c.tgIntervaloMin === "number" && isFinite(c.tgIntervaloMin) ? c.tgIntervaloMin : 180;
         return {
           urlWorker: (c.urlWorker || urlPadraoWorker()).replace(/\/+$/, ""),
           sala: String(c.sala || "").trim(),
           autoSync: c.autoSync !== false,
           tgChatId: String(c.tgChatId || "").trim(),
-          tgBotToken: String(c.tgBotToken || "").trim()
+          tgBotToken: String(c.tgBotToken || "").trim(),
+          tgIntervaloMin: intMin,
+          tgHorariosFixos: String(c.tgHorariosFixos || "").trim()
         };
       }
     } catch (e) {}
-    return { urlWorker: urlPadraoWorker(), sala: "", autoSync: true, tgChatId: "", tgBotToken: "" };
+    return { urlWorker: urlPadraoWorker(), sala: "", autoSync: true, tgChatId: "", tgBotToken: "", tgIntervaloMin: 180, tgHorariosFixos: "" };
   }
 
   function salvarConfig(cfg) {
     try {
+      var intMin = typeof cfg.tgIntervaloMin === "number" && isFinite(cfg.tgIntervaloMin) ? Math.max(0, Math.round(cfg.tgIntervaloMin)) : 180;
       localStorage.setItem(CHAVE_CFG, JSON.stringify({
         urlWorker: String(cfg.urlWorker || urlPadraoWorker()).replace(/\/+$/, ""),
         sala: String(cfg.sala || "").trim(),
         autoSync: cfg.autoSync !== false,
         tgChatId: String(cfg.tgChatId || "").trim(),
-        tgBotToken: String(cfg.tgBotToken || "").trim()
+        tgBotToken: String(cfg.tgBotToken || "").trim(),
+        tgIntervaloMin: intMin,
+        tgHorariosFixos: String(cfg.tgHorariosFixos || "").trim()
       }));
       return true;
     } catch (e) { return false; }
@@ -302,16 +308,122 @@
     if ($("inpTgChatId")) $("inpTgChatId").value = cfg.tgChatId;
     if ($("inpTgBotToken")) $("inpTgBotToken").value = cfg.tgBotToken;
 
+    function sincronizarCamposIntervalo(minVal, horariosVal) {
+      var m = typeof minVal === "number" && isFinite(minVal) ? minVal : 180;
+      if ($("inpTgIntervaloCustom")) $("inpTgIntervaloCustom").value = String(m);
+      if ($("inpTgHorariosFixos") && horariosVal !== undefined) $("inpTgHorariosFixos").value = horariosVal;
+      if ($("selTgIntervalo")) {
+        var opcoesPadrao = ["0", "60", "120", "180", "240", "360", "720", "1440"];
+        $("selTgIntervalo").value = opcoesPadrao.indexOf(String(m)) > -1 ? String(m) : "custom";
+      }
+      atualizarTextoStatusAgenda(m, horariosVal !== undefined ? horariosVal : ($("inpTgHorariosFixos") ? $("inpTgHorariosFixos").value.trim() : ""));
+    }
+
+    function atualizarTextoStatusAgenda(minVal, horariosVal) {
+      var st = $("statusAgendaTg");
+      if (!st) return;
+      var partes = [];
+      if (minVal > 0) {
+        var rot = (minVal % 60 === 0) ? ("de " + (minVal / 60) + " em " + (minVal / 60) + " hora(s) (" + minVal + " min)") : ("a cada " + minVal + " minutos");
+        partes.push("envio periódico " + rot);
+      }
+      if (horariosVal) {
+        partes.push("horários fixos: " + horariosVal + " BRT");
+      }
+      st.textContent = partes.length
+        ? "⏱️ Agendamento ativo no robô 24h: " + partes.join(" · ") + "."
+        : "⏸️ Boletim periódico desativado (você continuará recebendo os alertas imediatos quando mudar de faixa).";
+    }
+
+    sincronizarCamposIntervalo(cfg.tgIntervaloMin, cfg.tgHorariosFixos);
+
+    if ($("selTgIntervalo")) {
+      $("selTgIntervalo").onchange = function () {
+        var v = this.value;
+        if (v !== "custom" && $("inpTgIntervaloCustom")) {
+          $("inpTgIntervaloCustom").value = v;
+          atualizarTextoStatusAgenda(Number(v), $("inpTgHorariosFixos") ? $("inpTgHorariosFixos").value.trim() : "");
+        }
+      };
+    }
+    if ($("inpTgIntervaloCustom")) {
+      $("inpTgIntervaloCustom").oninput = function () {
+        var vNum = Math.max(0, parseInt(this.value, 10) || 0);
+        var opcoesPadrao = ["0", "60", "120", "180", "240", "360", "720", "1440"];
+        if ($("selTgIntervalo")) {
+          $("selTgIntervalo").value = opcoesPadrao.indexOf(String(vNum)) > -1 ? String(vNum) : "custom";
+        }
+        atualizarTextoStatusAgenda(vNum, $("inpTgHorariosFixos") ? $("inpTgHorariosFixos").value.trim() : "");
+      };
+    }
+
+    function lerIntervaloDaTela() {
+      if ($("selTgIntervalo") && $("selTgIntervalo").value !== "custom") {
+        return Math.max(0, parseInt($("selTgIntervalo").value, 10) || 0);
+      }
+      return $("inpTgIntervaloCustom") ? Math.max(0, parseInt($("inpTgIntervaloCustom").value, 10) || 0) : cfg.tgIntervaloMin;
+    }
+
     function salvarDaTela() {
+      var intMin = lerIntervaloDaTela();
+      var horFix = $("inpTgHorariosFixos") ? $("inpTgHorariosFixos").value.trim() : cfg.tgHorariosFixos;
       var nova = {
         sala: $("inpSyncSala") ? $("inpSyncSala").value.trim() : cfg.sala,
         urlWorker: $("inpSyncUrl") ? $("inpSyncUrl").value.trim() : cfg.urlWorker,
         autoSync: $("chkSyncAuto") ? $("chkSyncAuto").checked : cfg.autoSync,
         tgChatId: $("inpTgChatId") ? $("inpTgChatId").value.trim() : cfg.tgChatId,
-        tgBotToken: $("inpTgBotToken") ? $("inpTgBotToken").value.trim() : cfg.tgBotToken
+        tgBotToken: $("inpTgBotToken") ? $("inpTgBotToken").value.trim() : cfg.tgBotToken,
+        tgIntervaloMin: intMin,
+        tgHorariosFixos: horFix
       };
       salvarConfig(nova);
+      sincronizarCamposIntervalo(intMin, horFix);
       return nova;
+    }
+
+    if ($("btnSalvarIntervaloTg")) {
+      $("btnSalvarIntervaloTg").onclick = async function () {
+        var b = this;
+        var nova = salvarDaTela();
+        b.disabled = true;
+        try {
+          var r = await fetch(nova.urlWorker + "/config-alertas", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              intervaloMinutos: nova.tgIntervaloMin,
+              horariosFixos: nova.tgHorariosFixos
+            })
+          });
+          var j = await r.json().catch(function () { return {}; });
+          if (r.ok && j.ok) {
+            atualizarTextoStatusAgenda(j.config.intervaloMinutos, j.config.horariosFixos);
+            if ($("statusAgendaTg")) $("statusAgendaTg").textContent += " ✅ Salvo e sincronizado com o robô 24h!";
+          } else {
+            if ($("statusAgendaTg")) $("statusAgendaTg").textContent += " ✅ Salvo neste aparelho.";
+          }
+        } catch (e) {
+          if ($("statusAgendaTg")) $("statusAgendaTg").textContent += " ✅ Salvo neste aparelho.";
+        } finally {
+          b.disabled = false;
+        }
+      };
+    }
+
+    // Busca a configuração atual do Worker ao abrir para manter todos os aparelhos alinhados
+    if (typeof fetch === "function") {
+      fetch(cfg.urlWorker + "/config-alertas", { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) {
+          if (j && j.ok && j.config && j.config.atualizadoEm) {
+            var cAt = lerConfig();
+            cAt.tgIntervaloMin = j.config.intervaloMinutos;
+            cAt.tgHorariosFixos = j.config.horariosFixos || "";
+            salvarConfig(cAt);
+            sincronizarCamposIntervalo(cAt.tgIntervaloMin, cAt.tgHorariosFixos);
+          }
+        })
+        .catch(function () {});
     }
 
     if ($("btnSyncAgora")) {

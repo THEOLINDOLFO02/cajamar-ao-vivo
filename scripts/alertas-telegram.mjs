@@ -26,6 +26,7 @@ const URL_INPE_10MIN = "https://dataserver-coids.inpe.br/queimadas/queimadas/foc
 export const AUSENCIAS_PARA_ENCERRAR = 3;   // 3 ciclos seguidos sem o alerta (~30 min) antes de dizer "encerrado"
 export const IDADE_MAX_CEMADEN_MS = 3 * 3600 * 1000;
 export const JANELA_FOGO_MS = 24 * 3600 * 1000;
+export const INTERVALO_PADRAO_BOLETIM_MIN = 180; // Padrão: boletim automático das estações de 3 em 3 horas (180 min)
 const MAX_ITENS_MENSAGEM = 8;
 
 export function nivelDaSeveridade(sev) {
@@ -406,7 +407,38 @@ export function avaliarGatilhosAlerta({ avisosInmet = [], cemaden = null, catave
 
 // Compara o que está ativo agora com o que já foi avisado. Função pura: devolve o que enviar e o estado a gravar SE o envio der certo.
 // estado = { alertas: { chave: { nivel, qtd, titulo, desde, ausencias } } }; fontesOk = { inmet, cemaden, catavento, fogo } (false = não deu para consultar).
-export function decidirEnvio(estado, alertas, { agoraMs = Date.now(), fontesOk = {} } = {}) {
+// Verifica se chegou o momento de disparar o boletim periódico das estações (ex.: de 3 em 3 horas ou em horários fixos do dia)
+export function deveEnviarBoletimPeriodico(estado, agoraMs = Date.now(), { intervaloMin = 0, horariosFixos = "" } = {}) {
+  const ultIso = estado && estado.ultimoBoletimPeriodicoEm;
+  const ultMs = ultIso ? Date.parse(ultIso) : NaN;
+  const decorridoMs = Number.isNaN(ultMs) ? Infinity : (agoraMs - ultMs);
+
+  // 1) Verifica horários fixos do dia em BRT (ex.: "06:00, 09:00, 12:00, 15:00, 18:00, 21:00")
+  const listaH = String(horariosFixos || "")
+    .split(/[,;\s]+/)
+    .map((s) => s.trim())
+    .filter((s) => /^([01]?\d|2[0-3]):[0-5]\d$/.test(s));
+  if (listaH.length > 0 && decorridoMs >= 45 * 60000) {
+    const dBrt = new Date(agoraMs - 3 * 3600000);
+    const minDiaAtual = dBrt.getUTCHours() * 60 + dBrt.getUTCMinutes();
+    for (const hStr of listaH) {
+      const [hh, mm] = hStr.split(":").map(Number);
+      const alvoMin = hh * 60 + mm;
+      const diff = minDiaAtual - alvoMin;
+      if (diff >= 0 && diff <= 14) return true;
+    }
+  }
+
+  // 2) Verifica intervalo periódico em minutos (ex.: 180 min = 3 em 3 horas; tolerância de 3 min para jitter do cron)
+  const min = Number(intervaloMin);
+  if (Number.isFinite(min) && min >= 10) {
+    const limiarMs = Math.max(10, min - 3) * 60000;
+    if (decorridoMs >= limiarMs) return true;
+  }
+  return false;
+}
+
+export function decidirEnvio(estado, alertas, { agoraMs = Date.now(), fontesOk = {}, intervaloBoletimMin = 0, horariosFixos = "" } = {}) {
   const antigo = (estado && estado.alertas) || {};
   const novo = {}, novos = [], agravados = [], encerrados = [];
   const ativos = {};
@@ -452,7 +484,25 @@ export function decidirEnvio(estado, alertas, { agoraMs = Date.now(), fontesOk =
       novo[chave] = { ...antigo[chave], ausencias };
     }
   }
-  return { novos, agravados, encerrados, estadoNovo: { alertas: novo, atualizadoEm: new Date(agoraMs).toISOString() }, temMensagem: novos.length + agravados.length + encerrados.length > 0 };
+  const temMudanca = novos.length + agravados.length + encerrados.length > 0;
+  const boletimPeriodico = !temMudanca && deveEnviarBoletimPeriodico(estado, agoraMs, { intervaloMin: intervaloBoletimMin, horariosFixos });
+  const temMensagem = temMudanca || boletimPeriodico;
+  const ultimoBoletimPeriodicoEm = temMensagem
+    ? new Date(agoraMs).toISOString()
+    : (estado && estado.ultimoBoletimPeriodicoEm ? estado.ultimoBoletimPeriodicoEm : undefined);
+  return {
+    novos,
+    agravados,
+    encerrados,
+    boletimPeriodico,
+    intervaloBoletimMin,
+    estadoNovo: {
+      alertas: novo,
+      ...(ultimoBoletimPeriodicoEm ? { ultimoBoletimPeriodicoEm } : {}),
+      atualizadoEm: new Date(agoraMs).toISOString()
+    },
+    temMensagem
+  };
 }
 
 function encontrarEstacaoPorChave(chave, catavento) {
@@ -467,14 +517,21 @@ function encontrarEstacaoPorChave(chave, catavento) {
 export function formatarMensagemTelegram(alertas, dataHoraBrt, extra = {}) {
   const novos = Array.isArray(alertas) ? alertas : [];
   const agravados = extra.agravados || [], encerrados = extra.encerrados || [];
-  if (!novos.length && !agravados.length && !encerrados.length) return null;
+  const ehPeriodico = Boolean(extra.boletimPeriodico);
+  if (!novos.length && !agravados.length && !encerrados.length && !ehPeriodico) return null;
 
   const soEncerrados = !novos.length && !agravados.length && encerrados.length > 0;
+  const soPeriodico = !novos.length && !agravados.length && !encerrados.length && ehPeriodico;
+  const intMin = Number(extra.intervaloBoletimMin) || INTERVALO_PADRAO_BOLETIM_MIN;
+  const rotIntervalo = intMin % 60 === 0 ? (intMin / 60) + " em " + (intMin / 60) + " horas" : intMin + " minutos";
+
   const partesRes = [];
   if (novos.length) partesRes.push(novos.length + " novo(s)");
   if (agravados.length) partesRes.push(agravados.length + " atualização(ões)");
   if (encerrados.length) partesRes.push(encerrados.length + " normalizado(s)");
-  const subtituloTipo = soEncerrados
+  const subtituloTipo = soPeriodico
+    ? `⏱️ <b>BOLETIM PERIÓDICO DAS ESTAÇÕES (A cada ${esc(rotIntervalo)})</b>`
+    : soEncerrados
     ? "✅ <b>SITUAÇÃO NORMALIZADA (" + encerrados.length + " alerta(s) encerrado(s))</b>"
     : "📌 <b>Resumo:</b> " + partesRes.join(" · ");
 
@@ -517,6 +574,30 @@ export function formatarMensagemTelegram(alertas, dataHoraBrt, extra = {}) {
 
   const total = novos.length + agravados.length + encerrados.length;
   if (total > itens) linhas.push(`… e mais ${total - itens} alerta(s). Veja o painel.`, "");
+  if (soPeriodico) {
+    const ativosAtuais = Array.isArray(extra.alertasAtivos) ? extra.alertasAtivos : [];
+    if (ativosAtuais.length > 0) {
+      linhas.push(`⚠️ <b>Alertas que permanecem ativos (${ativosAtuais.length}):</b>`);
+      for (const at of ativosAtuais.slice(0, 5)) {
+        linhas.push("• " + at.titulo);
+      }
+      linhas.push("");
+    } else {
+      linhas.push("🟢 <b>Status de Risco:</b> Nenhuma estação municipal acima dos limiares críticos neste momento.", "");
+    }
+  }
+  if (soPeriodico) {
+    const ativosAtuais = Array.isArray(extra.alertasAtivos) ? extra.alertasAtivos : [];
+    if (ativosAtuais.length > 0) {
+      linhas.push(`⚠️ <b>Alertas que permanecem ativos (${ativosAtuais.length}):</b>`);
+      for (const at of ativosAtuais.slice(0, 5)) {
+        linhas.push("• " + at.titulo);
+      }
+      linhas.push("");
+    } else {
+      linhas.push("🟢 <b>Status de Risco:</b> Nenhuma estação municipal acima dos limiares críticos neste momento.", "");
+    }
+  }
 
   // Se houver dados atuais das estações de Cajamar (extra.catavento), inclui o panorama rápido das estações da cidade
   const listaEst = extra.catavento && Array.isArray(extra.catavento.estacoes)
@@ -749,13 +830,43 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     focosRecentes: fogo.ok ? fogo.focos : [],
     nivelMinimo
   });
+  // Lê o intervalo personalizado configurado no painel ("Dados e fontes" -> Cloudflare Worker /config-alertas), padrão 180 min (3 em 3 horas)
+  let intervaloBoletimMin = process.env.ALERTAS_INTERVALO_MIN !== undefined ? Number(process.env.ALERTAS_INTERVALO_MIN) : INTERVALO_PADRAO_BOLETIM_MIN;
+  let horariosFixos = process.env.ALERTAS_HORARIOS_FIXOS || "";
+  try {
+    const urlCfg = (process.env.WORKER_CONFIG_URL || "https://cajamar-cemaden.theolindolfo02.workers.dev/config-alertas");
+    const ctlCfg = new AbortController();
+    const tCfg = setTimeout(() => ctlCfg.abort(), 6000);
+    const rCfg = await fetch(urlCfg, { signal: ctlCfg.signal, headers: { "User-Agent": USER_AGENT } });
+    clearTimeout(tCfg);
+    if (rCfg.ok) {
+      const jCfg = await rCfg.json();
+      if (jCfg && jCfg.config) {
+        if (typeof jCfg.config.intervaloMinutos === "number") intervaloBoletimMin = jCfg.config.intervaloMinutos;
+        if (typeof jCfg.config.horariosFixos === "string") horariosFixos = jCfg.config.horariosFixos;
+      }
+    }
+  } catch (e) { /* usa padrão de 180 min (3 em 3 horas) */ }
+
   const estado = (await lerJson(caminhoEstado)) || { alertas: {} };
-  const dec = decidirEnvio(estado, alertas, { agoraMs, fontesOk });
+  const dec = decidirEnvio(estado, alertas, {
+    agoraMs,
+    fontesOk,
+    intervaloBoletimMin: cataventoOk ? intervaloBoletimMin : 0,
+    horariosFixos: cataventoOk ? horariosFixos : ""
+  });
   const agoraBrt = new Date(agoraMs).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
-  console.log(`[alertas-telegram] ${agoraBrt}: fontes INMET=${inmet.ok ? "ok" : "FALHOU"} CEMADEN=${cemadenOk ? "ok" : "indisponível/antigo"} CATAVENTO=${cataventoOk ? "ok" : "indisponível"} FOGO_INPE=${fogo.ok ? `ok (${fogo.focos.length} foco(s) em Cajamar)` : "FALHOU"}; ativos=${alertas.length}; novos=${dec.novos.length}; agravados=${dec.agravados.length}; encerrados=${dec.encerrados.length}`);
+  console.log(`[alertas-telegram] ${agoraBrt}: fontes INMET=${inmet.ok ? "ok" : "FALHOU"} CEMADEN=${cemadenOk ? "ok" : "indisponível/antigo"} CATAVENTO=${cataventoOk ? "ok" : "indisponível"} FOGO_INPE=${fogo.ok ? `ok (${fogo.focos.length} foco(s) em Cajamar)` : "FALHOU"}; intervalo=${intervaloBoletimMin}min; ativos=${alertas.length}; novos=${dec.novos.length}; agravados=${dec.agravados.length}; encerrados=${dec.encerrados.length}; periodico=${dec.boletimPeriodico}`);
 
   const token = (process.env.TELEGRAM_BOT_TOKEN || "").trim(), chat = (process.env.TELEGRAM_CHAT_ID || "").trim();
-  const msg = formatarMensagemTelegram(dec.novos, agoraBrt, { agravados: dec.agravados, encerrados: dec.encerrados, catavento: cataventoOk ? catavento : null });
+  const msg = formatarMensagemTelegram(dec.novos, agoraBrt, {
+    agravados: dec.agravados,
+    encerrados: dec.encerrados,
+    boletimPeriodico: dec.boletimPeriodico,
+    intervaloBoletimMin,
+    alertasAtivos: alertas,
+    catavento: cataventoOk ? catavento : null
+  });
   if (!token || !chat) {
     console.log("[alertas-telegram] TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID não configurados: nada enviado e nada gravado." + (msg ? "\nMensagem que seria enviada:\n" + msg : " Nenhuma mensagem pendente."));
     process.exit(0);

@@ -358,3 +358,34 @@ test("estações desconectadas há mais de 6h (ex.: EMEB Karine e EMEB Maria em 
   assert.match(msg, /EMEB Maria Gonçalves:.*Sem conexão.*21\/10/);
   assert.match(msg, /EMEB Karine Pereira Santiago:.*Sem conexão.*21\/10/);
 });
+
+test("boletim periódico automático das estações (de 3 em 3 horas ou intervalo/horário personalizado) dispara no prazo e atualiza ultimoBoletimPeriodicoEm", () => {
+  const estacoes = [
+    { id: "140070634", nome: "GCM - Vila Nova", leitura: "2026-11-21T01:00:00.000Z", chuva1h: 0, chuva24h: 11.6, temperatura: 22.6, umidade: 88 }
+  ];
+  const t0 = Date.UTC(2026, 10, 21, 0, 0); // 20/11 21:00 BRT
+
+  // 1º ciclo com intervalo de 180 min (3h) e sem boletim anterior: envia o primeiro boletim periódico
+  let d1 = decidirEnvio({ alertas: {} }, [], { agoraMs: t0, fontesOk: { catavento: true }, intervaloBoletimMin: 180 });
+  assert.equal(d1.boletimPeriodico, true);
+  assert.equal(d1.temMensagem, true);
+  assert.ok(d1.estadoNovo.ultimoBoletimPeriodicoEm);
+
+  const msg1 = formatarMensagemTelegram(d1.novos, "20/11/2026 21:00", {
+    boletimPeriodico: d1.boletimPeriodico,
+    intervaloBoletimMin: 180,
+    catavento: { estacoes }
+  });
+  assert.match(msg1, /BOLETIM PERIÓDICO DAS ESTAÇÕES \(A cada 3 em 3 horas\)/);
+  assert.match(msg1, /GCM - Vila Nova:.*11,6 mm.*22,6 °C/);
+
+  // 1 hora depois (60 min < 180 min): não reenvia
+  let d2 = decidirEnvio(d1.estadoNovo, [], { agoraMs: t0 + 60 * 60000, fontesOk: { catavento: true }, intervaloBoletimMin: 180 });
+  assert.equal(d2.boletimPeriodico, false);
+  assert.equal(d2.temMensagem, false);
+
+  // 3 horas depois (180 min): envia novo boletim periódico de 3 em 3 horas!
+  let d3 = decidirEnvio(d2.estadoNovo, [], { agoraMs: t0 + 180 * 60000, fontesOk: { catavento: true }, intervaloBoletimMin: 180 });
+  assert.equal(d3.boletimPeriodico, true);
+  assert.equal(d3.temMensagem, true);
+});

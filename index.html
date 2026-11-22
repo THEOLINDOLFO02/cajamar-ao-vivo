@@ -353,6 +353,37 @@
           <input id="inpTgBotToken" type="password" autocomplete="off" placeholder="Ex.: 123456789:ABCdefGHIjklMNOpqrSTUvwxYZ">
         </label>
       </div>
+      <div class="desliz-sim" style="margin:0 0 12px">
+        <strong style="font-size:.88rem">⏱️ Agendamento de Boletins Automáticos das Estações (Intervalo Personalizável)</strong>
+        <p class="mut" style="margin:3px 0 10px;font-size:.82rem">Além dos alertas imediatos quando mudar de faixa de risco, escolha de quanto em quanto tempo (ou em quais horários do dia) deseja receber no Telegram o panorama automático de todas as estações e réguas de Cajamar:</p>
+        <div class="row2" style="margin-bottom:10px">
+          <label for="selTgIntervalo">Intervalo de envio automático
+            <select id="selTgIntervalo">
+              <option value="180" selected>⏱️ De 3 em 3 horas (Padrão — 8 boletins/dia)</option>
+              <option value="60">⏱️ De 1 em 1 hora (24 boletins/dia)</option>
+              <option value="120">⏱️ De 2 em 2 horas (12 boletins/dia)</option>
+              <option value="240">⏱️ De 4 em 4 horas (6 boletins/dia)</option>
+              <option value="360">⏱️ De 6 em 6 horas (4 boletins/dia)</option>
+              <option value="720">⏱️ De 12 em 12 horas (2 boletins/dia)</option>
+              <option value="1440">⏱️ A cada 24 horas (1 boletim diário)</option>
+              <option value="custom">✏️ Intervalo personalizado (digitar em minutos ao lado)</option>
+              <option value="0">⏸️ Desativado (receber somente quando houver alerta/mudança de faixa)</option>
+            </select>
+          </label>
+          <label for="inpTgIntervaloCustom">Intervalo em minutos (ex.: 180 = 3h, 90 = 1h30)
+            <input id="inpTgIntervaloCustom" type="number" min="0" max="10080" step="10" value="180">
+          </label>
+        </div>
+        <div class="row2" style="margin-bottom:10px">
+          <label for="inpTgHorariosFixos">Horários fixos do dia em Brasília (opcional — separados por vírgula)
+            <input id="inpTgHorariosFixos" type="text" maxlength="140" placeholder="Ex.: 06:00, 09:00, 12:00, 15:00, 18:00, 21:00">
+          </label>
+        </div>
+        <div class="barra-acoes" style="align-items:center;margin:0">
+          <button id="btnSalvarIntervaloTg" type="button" class="btn small">💾 Salvar Intervalo de Alertas</button>
+          <span id="statusAgendaTg" class="mut" style="font-size:.83rem">⏱️ Ativo: boletim automático das estações a cada 3 horas (180 min).</span>
+        </div>
+      </div>
       <div class="barra-acoes" style="align-items:center">
         <button id="btnTestarTelegram" type="button" class="btn primary small">📲 Enviar Boletim Atual para o Telegram</button>
         <span id="msgTelegramBot" class="mut" style="font-size:.84rem"></span>

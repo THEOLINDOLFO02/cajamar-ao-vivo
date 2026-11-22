@@ -13,5 +13,6 @@ run_worker_first = [
   "/catavento",
   "/data/catavento.json",
   "/sync",
-  "/alerta-telegram"
+  "/alerta-telegram",
+  "/config-alertas"
 ]

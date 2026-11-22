@@ -768,6 +768,62 @@ async function rotaSync(request, env, cors) {
   return new Response(JSON.stringify({ erro: "Método não permitido em /sync" }), { status: 405, headers: json });
 }
 
+// ---- Configuração de Intervalo dos Alertas Automáticos (/config-alertas) ----
+const CHAVE_CFG_ALERTAS = "config:alertas_telegram";
+
+function normalizarConfigAlertas(inc = {}) {
+  let min = Number(inc.intervaloMinutos);
+  if (!Number.isFinite(min) || min < 0) min = 180;
+  if (min > 0 && min < 10) min = 10;
+  if (min > 10080) min = 10080;
+  const horarios = String(inc.horariosFixos || "")
+    .split(/[,;\s]+/)
+    .map((h) => h.trim())
+    .filter((h) => /^([01]?\d|2[0-3]):[0-5]\d$/.test(h))
+    .map((h) => (h.length === 4 ? "0" + h : h))
+    .slice(0, 24)
+    .join(", ");
+  return {
+    intervaloMinutos: Math.round(min),
+    horariosFixos: horarios,
+    atualizadoEm: new Date().toISOString()
+  };
+}
+
+async function rotaConfigAlertas(request, env, cors) {
+  const json = { ...cors, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" };
+  if (request.method === "GET") {
+    let salvo = null;
+    if (env && env.CAJAMAR_SYNC && typeof env.CAJAMAR_SYNC.get === "function") {
+      try {
+        const txt = await env.CAJAMAR_SYNC.get(CHAVE_CFG_ALERTAS);
+        if (txt) salvo = JSON.parse(txt);
+      } catch (e) { /* usa memoria */ }
+    }
+    if (!salvo && MEMORIA_SYNC.has(CHAVE_CFG_ALERTAS)) {
+      salvo = MEMORIA_SYNC.get(CHAVE_CFG_ALERTAS);
+    }
+    const cfg = salvo ? normalizarConfigAlertas(salvo) : { intervaloMinutos: 180, horariosFixos: "", atualizadoEm: null };
+    return new Response(JSON.stringify({ ok: true, config: cfg }), { status: 200, headers: json });
+  }
+  if (request.method === "POST") {
+    try {
+      const body = await request.json();
+      const cfg = normalizarConfigAlertas(body);
+      MEMORIA_SYNC.set(CHAVE_CFG_ALERTAS, cfg);
+      let backend = "memoria";
+      if (env && env.CAJAMAR_SYNC && typeof env.CAJAMAR_SYNC.put === "function") {
+        await env.CAJAMAR_SYNC.put(CHAVE_CFG_ALERTAS, JSON.stringify(cfg));
+        backend = "kv";
+      }
+      return new Response(JSON.stringify({ ok: true, backend, config: cfg }), { status: 200, headers: json });
+    } catch (e) {
+      return new Response(JSON.stringify({ erro: "JSON inválido em /config-alertas" }), { status: 400, headers: json });
+    }
+  }
+  return new Response(JSON.stringify({ erro: "Método não permitido em /config-alertas" }), { status: 405, headers: json });
+}
+
 // ---- 2.7 Disparo de Alertas para o Telegram (/alerta-telegram) ----
 async function rotaTelegram(request, env, cors) {
   const json = { ...cors, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" };
@@ -811,6 +867,7 @@ export default {
     const urlReq = new URL(request.url);
     if (urlReq.pathname === "/sync") return rotaSync(request, env, cors);
     if (urlReq.pathname === "/alerta-telegram") return rotaTelegram(request, env, cors);
+    if (urlReq.pathname === "/config-alertas") return rotaConfigAlertas(request, env, cors);
     if (request.method !== "GET" && request.method !== "HEAD") {
       return new Response("Método não permitido", { status: 405, headers: cors });
     }
