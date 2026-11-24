@@ -768,60 +768,192 @@ async function rotaSync(request, env, cors) {
   return new Response(JSON.stringify({ erro: "Método não permitido em /sync" }), { status: 405, headers: json });
 }
 
-// ---- Configuração de Intervalo dos Alertas Automáticos (/config-alertas) ----
+// ---- Configuração de Intervalo dos Alertas Automáticos (/config-alertas) + Cron 24h na Cloudflare ----
 const CHAVE_CFG_ALERTAS = "config:alertas_telegram";
 
-function normalizarConfigAlertas(inc = {}) {
-  let min = Number(inc.intervaloMinutos);
+async function lerConfigAlertasInterna(env) {
+  let salvo = null;
+  if (env && env.CAJAMAR_SYNC && typeof env.CAJAMAR_SYNC.get === "function") {
+    try {
+      const txt = await env.CAJAMAR_SYNC.get(CHAVE_CFG_ALERTAS);
+      if (txt) salvo = JSON.parse(txt);
+    } catch (e) { /* usa memoria */ }
+  }
+  if (!salvo && MEMORIA_SYNC.has(CHAVE_CFG_ALERTAS)) {
+    salvo = MEMORIA_SYNC.get(CHAVE_CFG_ALERTAS);
+  }
+  return salvo || { intervaloMinutos: 180, horariosFixos: "", ultimoBoletimEm: null, atualizadoEm: null, chatId: "", botToken: "" };
+}
+
+async function gravarConfigAlertasInterna(env, cfg) {
+  MEMORIA_SYNC.set(CHAVE_CFG_ALERTAS, cfg);
+  let backend = "memoria";
+  if (env && env.CAJAMAR_SYNC && typeof env.CAJAMAR_SYNC.put === "function") {
+    try {
+      await env.CAJAMAR_SYNC.put(CHAVE_CFG_ALERTAS, JSON.stringify(cfg));
+      backend = "kv";
+    } catch (e) { /* segue em memoria */ }
+  }
+  return backend;
+}
+
+function normalizarConfigAlertas(inc = {}, anterior = {}) {
+  let min = inc.intervaloMinutos !== undefined ? Number(inc.intervaloMinutos) : Number(anterior.intervaloMinutos);
   if (!Number.isFinite(min) || min < 0) min = 180;
   if (min > 0 && min < 10) min = 10;
   if (min > 10080) min = 10080;
-  const horarios = String(inc.horariosFixos || "")
+  const horariosFonte = inc.horariosFixos !== undefined ? inc.horariosFixos : (anterior.horariosFixos || "");
+  const horarios = String(horariosFonte || "")
     .split(/[,;\s]+/)
     .map((h) => h.trim())
     .filter((h) => /^([01]?\d|2[0-3]):[0-5]\d$/.test(h))
     .map((h) => (h.length === 4 ? "0" + h : h))
     .slice(0, 24)
     .join(", ");
+  const ultimoBoletimEm = inc.ultimoBoletimEm !== undefined
+    ? inc.ultimoBoletimEm
+    : (anterior.ultimoBoletimEm || null);
+  const chatId = inc.chatId !== undefined ? String(inc.chatId || "").trim() : String(anterior.chatId || "").trim();
+  const botToken = inc.botToken ? String(inc.botToken).trim() : String(anterior.botToken || "").trim();
   return {
     intervaloMinutos: Math.round(min),
     horariosFixos: horarios,
+    ultimoBoletimEm,
+    chatId,
+    botToken,
     atualizadoEm: new Date().toISOString()
+  };
+}
+
+function configPublicaAlertas(cfg, env) {
+  return {
+    intervaloMinutos: cfg.intervaloMinutos,
+    horariosFixos: cfg.horariosFixos || "",
+    ultimoBoletimEm: cfg.ultimoBoletimEm || null,
+    atualizadoEm: cfg.atualizadoEm || null,
+    chatIdConfigurado: Boolean(cfg.chatId || (env && env.TELEGRAM_CHAT_ID)),
+    tokenConfigurado: Boolean(cfg.botToken || (env && env.TELEGRAM_BOT_TOKEN))
   };
 }
 
 async function rotaConfigAlertas(request, env, cors) {
   const json = { ...cors, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" };
   if (request.method === "GET") {
-    let salvo = null;
-    if (env && env.CAJAMAR_SYNC && typeof env.CAJAMAR_SYNC.get === "function") {
-      try {
-        const txt = await env.CAJAMAR_SYNC.get(CHAVE_CFG_ALERTAS);
-        if (txt) salvo = JSON.parse(txt);
-      } catch (e) { /* usa memoria */ }
-    }
-    if (!salvo && MEMORIA_SYNC.has(CHAVE_CFG_ALERTAS)) {
-      salvo = MEMORIA_SYNC.get(CHAVE_CFG_ALERTAS);
-    }
-    const cfg = salvo ? normalizarConfigAlertas(salvo) : { intervaloMinutos: 180, horariosFixos: "", atualizadoEm: null };
-    return new Response(JSON.stringify({ ok: true, config: cfg }), { status: 200, headers: json });
+    const atual = await lerConfigAlertasInterna(env);
+    return new Response(JSON.stringify({ ok: true, config: configPublicaAlertas(atual, env) }), { status: 200, headers: json });
   }
   if (request.method === "POST") {
     try {
       const body = await request.json();
-      const cfg = normalizarConfigAlertas(body);
-      MEMORIA_SYNC.set(CHAVE_CFG_ALERTAS, cfg);
-      let backend = "memoria";
-      if (env && env.CAJAMAR_SYNC && typeof env.CAJAMAR_SYNC.put === "function") {
-        await env.CAJAMAR_SYNC.put(CHAVE_CFG_ALERTAS, JSON.stringify(cfg));
-        backend = "kv";
+      const anterior = await lerConfigAlertasInterna(env);
+      if (body && body.marcarEnvio) {
+        anterior.ultimoBoletimEm = body.ultimoBoletimEm || new Date().toISOString();
+        const backend = await gravarConfigAlertasInterna(env, anterior);
+        return new Response(JSON.stringify({ ok: true, backend, config: configPublicaAlertas(anterior, env) }), { status: 200, headers: json });
       }
-      return new Response(JSON.stringify({ ok: true, backend, config: cfg }), { status: 200, headers: json });
+      const cfg = normalizarConfigAlertas(body, anterior);
+      if (!cfg.ultimoBoletimEm) cfg.ultimoBoletimEm = new Date().toISOString();
+      const backend = await gravarConfigAlertasInterna(env, cfg);
+      return new Response(JSON.stringify({ ok: true, backend, config: configPublicaAlertas(cfg, env) }), { status: 200, headers: json });
     } catch (e) {
       return new Response(JSON.stringify({ erro: "JSON inválido em /config-alertas" }), { status: 400, headers: json });
     }
   }
   return new Response(JSON.stringify({ erro: "Método não permitido em /config-alertas" }), { status: 405, headers: json });
+}
+
+function deveDispararPeriodicoWorker(cfg, agoraMs = Date.now()) {
+  const ultMs = cfg && cfg.ultimoBoletimEm ? Date.parse(cfg.ultimoBoletimEm) : NaN;
+  const decorridoMs = Number.isNaN(ultMs) ? Infinity : (agoraMs - ultMs);
+  const listaH = String((cfg && cfg.horariosFixos) || "")
+    .split(/[,;\s]+/)
+    .map((s) => s.trim())
+    .filter((s) => /^([01]?\d|2[0-3]):[0-5]\d$/.test(s));
+  if (listaH.length > 0 && decorridoMs >= 45 * 60000) {
+    const dBrt = new Date(agoraMs - 3 * 3600000);
+    const minDia = dBrt.getUTCHours() * 60 + dBrt.getUTCMinutes();
+    for (const hStr of listaH) {
+      const [hh, mm] = hStr.split(":").map(Number);
+      const diff = minDia - (hh * 60 + mm);
+      if (diff >= 0 && diff <= 16) return true;
+    }
+  }
+  const min = Number(cfg && cfg.intervaloMinutos);
+  if (Number.isFinite(min) && min >= 10) {
+    if (decorridoMs >= Math.max(10, min - 2) * 60000) return true;
+  }
+  return false;
+}
+
+async function executarBoletimPeriodicoWorker(env, agoraMs = Date.now()) {
+  const cfg = await lerConfigAlertasInterna(env);
+  if (!deveDispararPeriodicoWorker(cfg, agoraMs)) return { enviado: false, motivo: "ainda_no_prazo" };
+  const botToken = (cfg.botToken || (env && env.TELEGRAM_BOT_TOKEN) || "").trim();
+  const chatId = (cfg.chatId || (env && env.TELEGRAM_CHAT_ID) || "").trim();
+  if (!botToken || !chatId) return { enviado: false, motivo: "sem_credenciais" };
+
+  const buscar = env && typeof env.buscar === "function" ? env.buscar : fetch;
+  let estacoes = [];
+  for (const u of [URL_CATAVENTO_API_UNIFIED, URL_CATAVENTO_API_UNIFIED_ALT, URL_CATAVENTO]) {
+    try {
+      const r = await buscar(u, { headers: { "User-Agent": USER_AGENT } });
+      if (r.ok) {
+        estacoes = lerCatavento(await r.text());
+        if (estacoes.length) break;
+      }
+    } catch (e) { /* tenta proxima */ }
+  }
+  if (!estacoes.length) return { enviado: false, motivo: "catavento_indisponivel" };
+
+  const horaBrt = new Date(agoraMs).toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
+  });
+  const intMin = Number(cfg.intervaloMinutos) || 180;
+  const rotInt = intMin % 60 === 0 ? (intMin / 60) + " em " + (intMin / 60) + " horas" : intMin + " minutos";
+  const linhas = [
+    "⏱️ *BOLETIM PERIÓDICO AUTOMÁTICO DAS ESTAÇÕES — DEFESA CIVIL DE CAJAMAR*",
+    "🕒 *Horário:* " + horaBrt + " (BRT) · *Frequência:* a cada " + rotInt,
+    "━━━━━━━━━━━━━━━━━━━━",
+    "📊 *PANORAMA AO VIVO — ESTAÇÕES E RÉGUAS DE CAJAMAR:*"
+  ];
+  const online = [], offline = [];
+  for (const e of estacoes) {
+    const ts = e.leitura ? Date.parse(e.leitura) : NaN;
+    const dh = !Number.isNaN(ts)
+      ? new Date(ts).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", "")
+      : (e.leitura || "—");
+    if (!Number.isNaN(ts) && (agoraMs - ts > 6 * 3600000)) {
+      offline.push("• *" + e.nome + ":* ⚠️ _Sem conexão (último dado em " + dh + ")_");
+      continue;
+    }
+    const p = [];
+    if (typeof e.chuva1h === "number" || typeof e.chuva24h === "number") {
+      const c1 = typeof e.chuva1h === "number" ? e.chuva1h.toFixed(1).replace(".", ",") + " mm" : "—";
+      const c24 = typeof e.chuva24h === "number" ? e.chuva24h.toFixed(1).replace(".", ",") + " mm" : "—";
+      p.push("🌧️ Chuva 1h: " + c1 + " / 24h: " + c24);
+    }
+    if (typeof e.temperatura === "number") p.push("🌡️ " + e.temperatura.toFixed(1).replace(".", ",") + "°C");
+    if (typeof e.umidade === "number") p.push("💧 " + Math.round(e.umidade) + "%");
+    if (typeof e.vento === "number") p.push("💨 Vento " + e.vento.toFixed(1).replace(".", ",") + " km/h");
+    if (typeof e.pressao === "number") p.push("🧭 " + Math.round(e.pressao) + " hPa");
+    if (typeof e.nivelRio === "number") {
+      const st = e.statusRio ? " (" + (e.statusRio === "normal" ? "Normal" : e.statusRio) + ")" : "";
+      p.push("🌊 Rio: " + e.nivelRio.toFixed(2).replace(".", ",") + " m" + st);
+    }
+    online.push("• *" + e.nome + "* (" + dh + "): " + p.join(" · "));
+  }
+  linhas.push(...online, ...offline, "", "🔗 *Painel ao vivo:* https://theolindolfo02.github.io/cajamar-ao-vivo/");
+
+  const rTg = await buscar("https://api.telegram.org/bot" + botToken + "/sendMessage", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, text: linhas.join("\n"), parse_mode: "Markdown", disable_web_page_preview: true })
+  });
+  if (!rTg.ok) return { enviado: false, motivo: "erro_telegram_" + rTg.status };
+  cfg.ultimoBoletimEm = new Date(agoraMs).toISOString();
+  await gravarConfigAlertasInterna(env, cfg);
+  return { enviado: true, ultimoBoletimEm: cfg.ultimoBoletimEm };
 }
 
 // ---- 2.7 Disparo de Alertas para o Telegram (/alerta-telegram) ----
@@ -848,6 +980,13 @@ async function rotaTelegram(request, env, cors) {
     if (!r.ok || respJson.ok === false) {
       return new Response(JSON.stringify({ erro: respJson.description || ("Telegram HTTP " + r.status) }), { status: 502, headers: json });
     }
+    try {
+      const cfgAt = await lerConfigAlertasInterna(env);
+      if (body.botToken) cfgAt.botToken = String(body.botToken).trim();
+      if (body.chatId) cfgAt.chatId = String(body.chatId).trim();
+      if (body.marcarPeriodico !== false) cfgAt.ultimoBoletimEm = new Date().toISOString();
+      await gravarConfigAlertasInterna(env, cfgAt);
+    } catch (e) { /* segue */ }
     return new Response(JSON.stringify({ ok: true, messageId: respJson.result && respJson.result.message_id }), { status: 200, headers: json });
   } catch (e) {
     return new Response(JSON.stringify({ erro: String(e && e.message ? e.message : e) }), { status: 500, headers: json });

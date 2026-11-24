@@ -16,3 +16,5 @@ run_worker_first = [
   "/alerta-telegram",
   "/config-alertas"
 ]
+[triggers]
+crons = ["*/15 * * * *"]

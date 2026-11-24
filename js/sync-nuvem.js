@@ -319,6 +319,28 @@
       atualizarTextoStatusAgenda(m, horariosVal !== undefined ? horariosVal : ($("inpTgHorariosFixos") ? $("inpTgHorariosFixos").value.trim() : ""));
     }
 
+    var CHAVE_ULTIMO_PERIODICO = "cajamar:tg_ultimo_periodico:v1";
+    var enviandoPeriodico = false;
+
+    function lerUltimoEnvioMs() {
+      try {
+        var v = localStorage.getItem(CHAVE_ULTIMO_PERIODICO);
+        var ts = v ? Date.parse(v) : NaN;
+        return isNaN(ts) ? 0 : ts;
+      } catch (e) { return 0; }
+    }
+
+    function gravarUltimoEnvioIso(iso) {
+      try {
+        localStorage.setItem(CHAVE_ULTIMO_PERIODICO, iso || new Date().toISOString());
+      } catch (e) {}
+    }
+
+    function formatarHoraCurtaBrt(ms) {
+      if (!ms || isNaN(ms)) return "—";
+      return new Date(ms).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+    }
+
     function atualizarTextoStatusAgenda(minVal, horariosVal) {
       var st = $("statusAgendaTg");
       if (!st) return;
@@ -330,9 +352,21 @@
       if (horariosVal) {
         partes.push("horários fixos: " + horariosVal + " BRT");
       }
-      st.textContent = partes.length
-        ? "⏱️ Agendamento ativo no robô 24h: " + partes.join(" · ") + "."
-        : "⏸️ Boletim periódico desativado (você continuará recebendo os alertas imediatos quando mudar de faixa).";
+      if (!partes.length) {
+        st.textContent = "⏸️ Boletim periódico desativado (você continuará recebendo os alertas imediatos quando mudar de faixa).";
+        return;
+      }
+      var ultMs = lerUltimoEnvioMs();
+      var extraTempo = "";
+      if (ultMs > 0 && minVal > 0) {
+        var proxMs = ultMs + minVal * 60000;
+        var restMin = Math.max(0, Math.ceil((proxMs - Date.now()) / 60000));
+        var txtRest = restMin >= 60
+          ? (Math.floor(restMin / 60) + "h " + (restMin % 60) + "min")
+          : (restMin + " min");
+        extraTempo = " · Último envio: " + formatarHoraCurtaBrt(ultMs) + " · Próximo: " + formatarHoraCurtaBrt(proxMs) + " (em " + txtRest + ")";
+      }
+      st.textContent = "⏱️ Agendamento ativo: " + partes.join(" · ") + extraTempo + ".";
     }
 
     sincronizarCamposIntervalo(cfg.tgIntervaloMin, cfg.tgHorariosFixos);
@@ -381,10 +415,146 @@
       return nova;
     }
 
+    async function montarTextoBoletimOperacional(ehPeriodico, intMin) {
+      var hora = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      var tit = $("heroTitulo") ? $("heroTitulo").textContent.trim() : "Monitoramento ativo";
+      var sub = $("heroSub") ? $("heroSub").textContent.trim() : "";
+      var rotInt = (intMin && intMin % 60 === 0) ? ((intMin / 60) + " em " + (intMin / 60) + "h") : ((intMin || 180) + " min");
+      var cabecalho = ehPeriodico
+        ? "⏱️ *BOLETIM PERIÓDICO AUTOMÁTICO DAS ESTAÇÕES (" + rotInt + ") — DEFESA CIVIL DE CAJAMAR*"
+        : "🛡️ *DEFESA CIVIL DE CAJAMAR — BOLETIM OPERACIONAL COMPLETO*";
+      var partesBol = [
+        cabecalho,
+        "🕒 *Emissão:* " + hora + " (BRT)",
+        "📌 *Situação Geral:* " + tit + (sub ? " — " + sub : "")
+      ];
+
+      // 1. Condição meteorológica atual no painel (#agora)
+      var boxAgora = $("agora");
+      if (boxAgora && boxAgora.textContent && boxAgora.textContent.indexOf("Carregando") < 0) {
+        var kItens = boxAgora.querySelectorAll(".k > div");
+        var medAgora = [];
+        for (var ki = 0; ki < kItens.length; ki++) {
+          var sp = kItens[ki].querySelector("span"), st = kItens[ki].querySelector("strong");
+          if (sp && st) medAgora.push(sp.textContent.trim() + ": " + st.textContent.trim());
+        }
+        if (medAgora.length) {
+          partesBol.push("", "🌡️ *Condição Agora em Cajamar:*", "• " + medAgora.join(" | "));
+        }
+      }
+
+      // 2. Todos os avisos ativos do INMET (#alertas) — sem cortar palavras ao meio
+      var boxAlertas = $("alertas");
+      if (boxAlertas) {
+        var cardsInmet = boxAlertas.querySelectorAll(".alert");
+        if (cardsInmet.length > 0) {
+          partesBol.push("", "⚠️ *Avisos do INMET Ativos para Cajamar (" + cardsInmet.length + "):*");
+          for (var ai = 0; ai < cardsInmet.length; ai++) {
+            var stTit = cardsInmet[ai].querySelector("strong");
+            var smVig = cardsInmet[ai].querySelector("small");
+            var spRisco = cardsInmet[ai].querySelector("p, span:not(.selo-sev)");
+            if (stTit) {
+              var txtRisco = spRisco && spRisco.textContent ? spRisco.textContent.trim() : "";
+              partesBol.push(
+                (ai + 1) + ". *" + stTit.textContent.trim() + "*" +
+                (smVig ? " (" + smVig.textContent.trim() + ")" : "") +
+                (txtRisco ? "\n   ↳ " + txtRisco : "")
+              );
+            }
+          }
+        }
+      }
+
+      // 3. Painel de Deslizamento (#deslizamentoPainel)
+      var boxDesl = $("deslizamentoPainel");
+      if (boxDesl) {
+        var banDesl = boxDesl.querySelector(".desliz-banner strong");
+        var cxsDesl = boxDesl.querySelectorAll(".desliz-cx");
+        if (banDesl) {
+          var vols = [];
+          for (var di = 0; di < cxsDesl.length; di++) {
+            var rD = cxsDesl[di].querySelector("span"), vD = cxsDesl[di].querySelector("strong");
+            if (rD && vD) vols.push(rD.textContent.replace(/^[^A-Za-z0-9]+/, "").trim() + ": " + vD.textContent.trim());
+          }
+          partesBol.push("", "⛰️ *Risco de Deslizamento (Pinheiro / AlertaRio):*", "• " + banDesl.textContent.trim());
+          if (vols.length) partesBol.push("• " + vols.join(" | "));
+        }
+      }
+
+      // 4. Estações e Réguas de Cajamar AO VIVO (Catavento-Surya em tempo real)
+      var catLive = null;
+      var cfgAt = lerConfig();
+      var urlsCat = [
+        cfgAt.urlWorker + "/catavento",
+        "data/catavento.json?t=" + Math.floor(Date.now() / 60000),
+        "https://theolindolfo02.github.io/cajamar-ao-vivo/data/catavento.json?t=" + Math.floor(Date.now() / 60000)
+      ];
+      for (var ci = 0; ci < urlsCat.length; ci++) {
+        try {
+          var rCat = await fetch(urlsCat[ci], { cache: "no-store" });
+          if (rCat.ok) {
+            var jCat = await rCat.json();
+            if (jCat && Array.isArray(jCat.estacoes) && jCat.estacoes.length) { catLive = jCat; break; }
+          }
+        } catch (eCat) {}
+      }
+
+      if (catLive && Array.isArray(catLive.estacoes)) {
+        var refMs = Date.now();
+        var linOnline = [], linOffline = [];
+        catLive.estacoes.forEach(function (e) {
+          var tsL = e.leitura ? Date.parse(e.leitura) : NaN;
+          var dhBrt = !isNaN(tsL)
+            ? new Date(tsL).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", "")
+            : (e.leitura || "—");
+          var offline = !isNaN(tsL) && (refMs - tsL > 6 * 3600000);
+          if (offline) {
+            linOffline.push("• *" + e.nome + ":* ⚠️ _Sem conexão (último sinal em " + dhBrt + ")_");
+            return;
+          }
+          var p = [];
+          if (typeof e.chuva1h === "number" || typeof e.chuva24h === "number") {
+            var ch1 = typeof e.chuva1h === "number" ? e.chuva1h.toFixed(1).replace(".", ",") + " mm" : "—";
+            var ch24 = typeof e.chuva24h === "number" ? e.chuva24h.toFixed(1).replace(".", ",") + " mm" : "—";
+            p.push("🌧️ Chuva 1h: " + ch1 + " / 24h: " + ch24);
+          }
+          if (typeof e.temperatura === "number") p.push("🌡️ " + e.temperatura.toFixed(1).replace(".", ",") + "°C");
+          if (typeof e.umidade === "number") p.push("💧 " + Math.round(e.umidade) + "%");
+          if (typeof e.vento === "number") p.push("💨 Vento " + e.vento.toFixed(1).replace(".", ",") + " km/h");
+          if (typeof e.pressao === "number") p.push("🧭 " + Math.round(e.pressao) + " hPa");
+          if (typeof e.nivelRio === "number") {
+            var stR = e.statusRio ? " (" + (e.statusRio === "normal" ? "Normal" : e.statusRio) + ")" : "";
+            p.push("🌊 Rio: " + e.nivelRio.toFixed(2).replace(".", ",") + " m" + stR);
+          }
+          linOnline.push("• *" + e.nome + "* (" + dhBrt + "): " + p.join(" · "));
+        });
+        if (linOnline.length || linOffline.length) {
+          partesBol.push("", "📍 *Estações e Réguas de Cajamar (Ao Vivo — Catavento):*");
+          if (linOnline.length) partesBol.push(linOnline.join("\n"));
+          if (linOffline.length) partesBol.push(linOffline.join("\n"));
+        }
+      }
+
+      partesBol.push("", "🔗 *Painel ao vivo:* https://theolindolfo02.github.io/cajamar-ao-vivo/");
+      return partesBol.join("\n");
+    }
+
+    async function registrarEnvioNoWorker(urlWorker, isoEnvio) {
+      gravarUltimoEnvioIso(isoEnvio);
+      try {
+        await fetch(urlWorker + "/config-alertas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ marcarEnvio: true, ultimoBoletimEm: isoEnvio })
+        });
+      } catch (e) {}
+    }
+
     if ($("btnSalvarIntervaloTg")) {
       $("btnSalvarIntervaloTg").onclick = async function () {
         var b = this;
         var nova = salvarDaTela();
+        if (!lerUltimoEnvioMs()) gravarUltimoEnvioIso(new Date().toISOString());
         b.disabled = true;
         try {
           var r = await fetch(nova.urlWorker + "/config-alertas", {
@@ -392,17 +562,23 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               intervaloMinutos: nova.tgIntervaloMin,
-              horariosFixos: nova.tgHorariosFixos
+              horariosFixos: nova.tgHorariosFixos,
+              chatId: nova.tgChatId || undefined,
+              botToken: nova.tgBotToken || undefined,
+              ultimoBoletimEm: new Date(lerUltimoEnvioMs() || Date.now()).toISOString()
             })
           });
           var j = await r.json().catch(function () { return {}; });
           if (r.ok && j.ok) {
+            if (j.config && j.config.ultimoBoletimEm) gravarUltimoEnvioIso(j.config.ultimoBoletimEm);
             atualizarTextoStatusAgenda(j.config.intervaloMinutos, j.config.horariosFixos);
             if ($("statusAgendaTg")) $("statusAgendaTg").textContent += " ✅ Salvo e sincronizado com o robô 24h!";
           } else {
+            atualizarTextoStatusAgenda(nova.tgIntervaloMin, nova.tgHorariosFixos);
             if ($("statusAgendaTg")) $("statusAgendaTg").textContent += " ✅ Salvo neste aparelho.";
           }
         } catch (e) {
+          atualizarTextoStatusAgenda(nova.tgIntervaloMin, nova.tgHorariosFixos);
           if ($("statusAgendaTg")) $("statusAgendaTg").textContent += " ✅ Salvo neste aparelho.";
         } finally {
           b.disabled = false;
@@ -410,21 +586,101 @@
       };
     }
 
-    // Busca a configuração atual do Worker ao abrir para manter todos os aparelhos alinhados
+    // Busca a configuração atual e o horário do último envio no Worker ao abrir
     if (typeof fetch === "function") {
       fetch(cfg.urlWorker + "/config-alertas", { cache: "no-store" })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (j) {
-          if (j && j.ok && j.config && j.config.atualizadoEm) {
+          if (j && j.ok && j.config) {
             var cAt = lerConfig();
-            cAt.tgIntervaloMin = j.config.intervaloMinutos;
-            cAt.tgHorariosFixos = j.config.horariosFixos || "";
-            salvarConfig(cAt);
+            if (j.config.atualizadoEm) {
+              cAt.tgIntervaloMin = j.config.intervaloMinutos;
+              cAt.tgHorariosFixos = j.config.horariosFixos || "";
+              salvarConfig(cAt);
+            }
+            if (j.config.ultimoBoletimEm) {
+              var tRem = Date.parse(j.config.ultimoBoletimEm) || 0;
+              if (tRem > lerUltimoEnvioMs()) gravarUltimoEnvioIso(j.config.ultimoBoletimEm);
+            } else if (!lerUltimoEnvioMs()) {
+              gravarUltimoEnvioIso(new Date().toISOString());
+            }
             sincronizarCamposIntervalo(cAt.tgIntervaloMin, cAt.tgHorariosFixos);
           }
         })
-        .catch(function () {});
+        .catch(function () {
+          if (!lerUltimoEnvioMs()) gravarUltimoEnvioIso(new Date().toISOString());
+        });
     }
+
+    // Temporizador ativo no navegador (roda a cada 30 segundos): dispara o boletim automático no intervalo escolhido
+    // sem precisar recarregar a página e sem precisar que nenhum limiar de alerta seja ultrapassado!
+    async function verificarDisparoPeriodicoNavegador() {
+      if (enviandoPeriodico) return;
+      var cAt = lerConfig();
+      atualizarTextoStatusAgenda(cAt.tgIntervaloMin, cAt.tgHorariosFixos);
+      if (cAt.tgIntervaloMin <= 0 && !cAt.tgHorariosFixos) return;
+
+      var agoraMs = Date.now();
+      var ultMs = lerUltimoEnvioMs();
+      if (!ultMs) {
+        gravarUltimoEnvioIso(new Date(agoraMs).toISOString());
+        return;
+      }
+      var decorridoMs = agoraMs - ultMs;
+      var deveEnviar = false;
+
+      if (cAt.tgIntervaloMin >= 10 && decorridoMs >= cAt.tgIntervaloMin * 60000) {
+        deveEnviar = true;
+      }
+      if (!deveEnviar && cAt.tgHorariosFixos && decorridoMs >= 45 * 60000) {
+        var horaAtualBrt = new Date(agoraMs).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+        var pH = horaAtualBrt.split(":");
+        var minDiaAt = (parseInt(pH[0], 10) || 0) * 60 + (parseInt(pH[1], 10) || 0);
+        var listaH = cAt.tgHorariosFixos.split(/[,;\s]+/);
+        for (var hi = 0; hi < listaH.length; hi++) {
+          var mH = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(listaH[hi].trim());
+          if (mH) {
+            var alvoMin = parseInt(mH[1], 10) * 60 + parseInt(mH[2], 10);
+            if (minDiaAt >= alvoMin && minDiaAt <= alvoMin + 5) { deveEnviar = true; break; }
+          }
+        }
+      }
+      if (!deveEnviar) return;
+
+      enviandoPeriodico = true;
+      try {
+        // Confere antes no Worker se o robô em nuvem já não enviou nos últimos minutos
+        try {
+          var rChk = await fetch(cAt.urlWorker + "/config-alertas", { cache: "no-store" });
+          if (rChk.ok) {
+            var jChk = await rChk.json();
+            var tRem = jChk && jChk.config && jChk.config.ultimoBoletimEm ? Date.parse(jChk.config.ultimoBoletimEm) : 0;
+            if (tRem > ultMs) {
+              gravarUltimoEnvioIso(jChk.config.ultimoBoletimEm);
+              if (cAt.tgIntervaloMin >= 10 && (agoraMs - tRem) < cAt.tgIntervaloMin * 60000) {
+                atualizarTextoStatusAgenda(cAt.tgIntervaloMin, cAt.tgHorariosFixos);
+                return;
+              }
+            }
+          }
+        } catch (eChk) {}
+
+        var textoPer = await montarTextoBoletimOperacional(true, cAt.tgIntervaloMin);
+        await enviarAlertaTelegram(textoPer);
+        var isoAgora = new Date().toISOString();
+        await registrarEnvioNoWorker(cAt.urlWorker, isoAgora);
+        atualizarTextoStatusAgenda(cAt.tgIntervaloMin, cAt.tgHorariosFixos);
+        if ($("msgTelegramBot")) {
+          $("msgTelegramBot").textContent = "✅ Boletim periódico automático enviado às " + formatarHoraCurtaBrt(Date.now()) + "!";
+        }
+      } catch (eEnv) {
+        // Tenta novamente no próximo ciclo
+      } finally {
+        enviandoPeriodico = false;
+      }
+    }
+
+    setInterval(verificarDisparoPeriodicoNavegador, 30000);
 
     if ($("btnSyncAgora")) {
       $("btnSyncAgora").onclick = async function () {
@@ -449,128 +705,16 @@
       $("btnTestarTelegram").onclick = async function () {
         var b = this;
         var msg = $("msgTelegramBot");
-        salvarDaTela();
+        var novaCfg = salvarDaTela();
         b.disabled = true;
         if (msg) msg.textContent = "📲 Enviando mensagem para o grupo do Telegram…";
         try {
           var hora = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-          var tit = $("heroTitulo") ? $("heroTitulo").textContent.trim() : "Monitoramento ativo";
-          var sub = $("heroSub") ? $("heroSub").textContent.trim() : "";
-          var partesBol = [
-            "🛡️ *DEFESA CIVIL DE CAJAMAR — BOLETIM OPERACIONAL COMPLETO*",
-            "🕒 *Emissão:* " + hora + " (BRT)",
-            "📌 *Situação Geral:* " + tit + (sub ? " — " + sub : "")
-          ];
-
-          // 1. Condição meteorológica atual no painel (#agora)
-          var boxAgora = $("agora");
-          if (boxAgora && boxAgora.textContent && boxAgora.textContent.indexOf("Carregando") < 0) {
-            var kItens = boxAgora.querySelectorAll(".k > div");
-            var medAgora = [];
-            for (var ki = 0; ki < kItens.length; ki++) {
-              var sp = kItens[ki].querySelector("span"), st = kItens[ki].querySelector("strong");
-              if (sp && st) medAgora.push(sp.textContent.trim() + ": " + st.textContent.trim());
-            }
-            if (medAgora.length) {
-              partesBol.push("", "🌡️ *Condição Agora em Cajamar:*", "• " + medAgora.join(" | "));
-            }
-          }
-
-          // 2. Todos os avisos ativos do INMET (#alertas) — sem cortar palavras ao meio
-          var boxAlertas = $("alertas");
-          if (boxAlertas) {
-            var cardsInmet = boxAlertas.querySelectorAll(".alert");
-            if (cardsInmet.length > 0) {
-              partesBol.push("", "⚠️ *Avisos do INMET Ativos para Cajamar (" + cardsInmet.length + "):*");
-              for (var ai = 0; ai < cardsInmet.length; ai++) {
-                var stTit = cardsInmet[ai].querySelector("strong");
-                var smVig = cardsInmet[ai].querySelector("small");
-                var spRisco = cardsInmet[ai].querySelector("p, span:not(.selo-sev)");
-                if (stTit) {
-                  var txtRisco = spRisco && spRisco.textContent ? spRisco.textContent.trim() : "";
-                  partesBol.push(
-                    (ai + 1) + ". *" + stTit.textContent.trim() + "*" +
-                    (smVig ? " (" + smVig.textContent.trim() + ")" : "") +
-                    (txtRisco ? "\n   ↳ " + txtRisco : "")
-                  );
-                }
-              }
-            }
-          }
-
-          // 3. Painel de Deslizamento (#deslizamentoPainel)
-          var boxDesl = $("deslizamentoPainel");
-          if (boxDesl) {
-            var banDesl = boxDesl.querySelector(".desliz-banner strong");
-            var cxsDesl = boxDesl.querySelectorAll(".desliz-cx");
-            if (banDesl) {
-              var vols = [];
-              for (var di = 0; di < cxsDesl.length; di++) {
-                var rD = cxsDesl[di].querySelector("span"), vD = cxsDesl[di].querySelector("strong");
-                if (rD && vD) vols.push(rD.textContent.replace(/^[^A-Za-z0-9]+/, "").trim() + ": " + vD.textContent.trim());
-              }
-              partesBol.push("", "⛰️ *Risco de Deslizamento (Pinheiro / AlertaRio):*", "• " + banDesl.textContent.trim());
-              if (vols.length) partesBol.push("• " + vols.join(" | "));
-            }
-          }
-
-          // 4. Estações e Réguas de Cajamar AO VIVO (Catavento-Surya em tempo real)
-          var catLive = null;
-          var cfgAt = lerConfig();
-          var urlsCat = [
-            cfgAt.urlWorker + "/catavento",
-            "data/catavento.json?t=" + Math.floor(Date.now() / 60000),
-            "https://theolindolfo02.github.io/cajamar-ao-vivo/data/catavento.json?t=" + Math.floor(Date.now() / 60000)
-          ];
-          for (var ci = 0; ci < urlsCat.length; ci++) {
-            try {
-              var rCat = await fetch(urlsCat[ci], { cache: "no-store" });
-              if (rCat.ok) {
-                var jCat = await rCat.json();
-                if (jCat && Array.isArray(jCat.estacoes) && jCat.estacoes.length) { catLive = jCat; break; }
-              }
-            } catch (eCat) {}
-          }
-
-          if (catLive && Array.isArray(catLive.estacoes)) {
-            var refMs = Date.now();
-            var linOnline = [], linOffline = [];
-            catLive.estacoes.forEach(function (e) {
-              var tsL = e.leitura ? Date.parse(e.leitura) : NaN;
-              var dhBrt = !isNaN(tsL)
-                ? new Date(tsL).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", "")
-                : (e.leitura || "—");
-              var offline = !isNaN(tsL) && (refMs - tsL > 6 * 3600000);
-              if (offline) {
-                linOffline.push("• *" + e.nome + ":* ⚠️ _Sem conexão (último sinal em " + dhBrt + ")_");
-                return;
-              }
-              var p = [];
-              if (typeof e.chuva1h === "number" || typeof e.chuva24h === "number") {
-                var ch1 = typeof e.chuva1h === "number" ? e.chuva1h.toFixed(1).replace(".", ",") + " mm" : "—";
-                var ch24 = typeof e.chuva24h === "number" ? e.chuva24h.toFixed(1).replace(".", ",") + " mm" : "—";
-                p.push("🌧️ Chuva 1h: " + ch1 + " / 24h: " + ch24);
-              }
-              if (typeof e.temperatura === "number") p.push("🌡️ " + e.temperatura.toFixed(1).replace(".", ",") + "°C");
-              if (typeof e.umidade === "number") p.push("💧 " + Math.round(e.umidade) + "%");
-              if (typeof e.vento === "number") p.push("💨 Vento " + e.vento.toFixed(1).replace(".", ",") + " km/h");
-              if (typeof e.pressao === "number") p.push("🧭 " + Math.round(e.pressao) + " hPa");
-              if (typeof e.nivelRio === "number") {
-                var stR = e.statusRio ? " (" + (e.statusRio === "normal" ? "Normal" : e.statusRio) + ")" : "";
-                p.push("🌊 Rio: " + e.nivelRio.toFixed(2).replace(".", ",") + " m" + stR);
-              }
-              linOnline.push("• *" + e.nome + "* (" + dhBrt + "): " + p.join(" · "));
-            });
-            if (linOnline.length || linOffline.length) {
-              partesBol.push("", "📍 *Estações e Réguas de Cajamar (Ao Vivo — Catavento):*");
-              if (linOnline.length) partesBol.push(linOnline.join("\n"));
-              if (linOffline.length) partesBol.push(linOffline.join("\n"));
-            }
-          }
-
-          partesBol.push("", "🔗 *Painel ao vivo:* https://theolindolfo02.github.io/cajamar-ao-vivo/");
-          var texto = partesBol.join("\n");
+          var texto = await montarTextoBoletimOperacional(false, novaCfg.tgIntervaloMin);
           await enviarAlertaTelegram(texto);
+          var isoAgora = new Date().toISOString();
+          await registrarEnvioNoWorker(novaCfg.urlWorker, isoAgora);
+          atualizarTextoStatusAgenda(novaCfg.tgIntervaloMin, novaCfg.tgHorariosFixos);
           if (msg) msg.textContent = "✅ Alerta enviado com sucesso para o Telegram às " + hora.slice(-5) + "!";
         } catch (e) {
           if (msg) msg.textContent = "❌ " + (e && e.message ? e.message : "Falha ao enviar para o Telegram");

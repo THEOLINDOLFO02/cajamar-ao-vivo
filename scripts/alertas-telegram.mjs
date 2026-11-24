@@ -833,8 +833,9 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   // Lê o intervalo personalizado configurado no painel ("Dados e fontes" -> Cloudflare Worker /config-alertas), padrão 180 min (3 em 3 horas)
   let intervaloBoletimMin = process.env.ALERTAS_INTERVALO_MIN !== undefined ? Number(process.env.ALERTAS_INTERVALO_MIN) : INTERVALO_PADRAO_BOLETIM_MIN;
   let horariosFixos = process.env.ALERTAS_HORARIOS_FIXOS || "";
+  let ultimoBoletimWorker = null;
+  const urlCfg = (process.env.WORKER_CONFIG_URL || "https://cajamar-cemaden.theolindolfo02.workers.dev/config-alertas");
   try {
-    const urlCfg = (process.env.WORKER_CONFIG_URL || "https://cajamar-cemaden.theolindolfo02.workers.dev/config-alertas");
     const ctlCfg = new AbortController();
     const tCfg = setTimeout(() => ctlCfg.abort(), 6000);
     const rCfg = await fetch(urlCfg, { signal: ctlCfg.signal, headers: { "User-Agent": USER_AGENT } });
@@ -844,11 +845,17 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
       if (jCfg && jCfg.config) {
         if (typeof jCfg.config.intervaloMinutos === "number") intervaloBoletimMin = jCfg.config.intervaloMinutos;
         if (typeof jCfg.config.horariosFixos === "string") horariosFixos = jCfg.config.horariosFixos;
+        if (jCfg.config.ultimoBoletimEm) ultimoBoletimWorker = jCfg.config.ultimoBoletimEm;
       }
     }
   } catch (e) { /* usa padrão de 180 min (3 em 3 horas) */ }
 
   const estado = (await lerJson(caminhoEstado)) || { alertas: {} };
+  if (ultimoBoletimWorker) {
+    const tLoc = estado.ultimoBoletimPeriodicoEm ? Date.parse(estado.ultimoBoletimPeriodicoEm) : 0;
+    const tRem = Date.parse(ultimoBoletimWorker) || 0;
+    if (tRem > tLoc) estado.ultimoBoletimPeriodicoEm = ultimoBoletimWorker;
+  }
   const dec = decidirEnvio(estado, alertas, {
     agoraMs,
     fontesOk,
@@ -879,6 +886,13 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   try {
     await enviarTelegram(token, chat, msg);
     await gravarEstado(caminhoEstado, dec.estadoNovo);
+    try {
+      await fetch(urlCfg, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "User-Agent": USER_AGENT },
+        body: JSON.stringify({ marcarEnvio: true, ultimoBoletimEm: dec.estadoNovo.ultimoBoletimPeriodicoEm })
+      });
+    } catch (eSync) { /* não interrompe se o Worker oscilar */ }
     console.log("[alertas-telegram] Mensagem enviada ao Telegram e estado gravado.");
   } catch (e) {
     console.log(`::warning::Falha ao enviar ao Telegram (${e.message}). O estado não foi gravado: tentará de novo no próximo ciclo.`);

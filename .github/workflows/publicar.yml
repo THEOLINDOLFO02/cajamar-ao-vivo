@@ -91,4 +91,5 @@ jobs:
         with:
           path: _site
       - id: deploy
+        continue-on-error: ${{ github.event_name == 'schedule' }}
         uses: actions/deploy-pages@v4
