@@ -423,8 +423,10 @@
       var cabecalho = ehPeriodico
         ? "⏱️ *BOLETIM PERIÓDICO AUTOMÁTICO DAS ESTAÇÕES (" + rotInt + ") — DEFESA CIVIL DE CAJAMAR*"
         : "🛡️ *DEFESA CIVIL DE CAJAMAR — BOLETIM OPERACIONAL COMPLETO*";
+
       var partesBol = [
         cabecalho,
+        "",
         "🕒 *Emissão:* " + hora + " (BRT)",
         "📌 *Situação Geral:* " + tit + (sub ? " — " + sub : "")
       ];
@@ -436,36 +438,49 @@
         var medAgora = [];
         for (var ki = 0; ki < kItens.length; ki++) {
           var sp = kItens[ki].querySelector("span"), st = kItens[ki].querySelector("strong");
-          if (sp && st) medAgora.push(sp.textContent.trim() + ": " + st.textContent.trim());
+          if (sp && st) medAgora.push(sp.textContent.trim() + ": *" + st.textContent.trim() + "*");
         }
         if (medAgora.length) {
-          partesBol.push("", "🌡️ *Condição Agora em Cajamar:*", "• " + medAgora.join(" | "));
+          partesBol.push(
+            "",
+            "━━━━━━━━━━━━━━━━━━━━",
+            "🌡️ *Condição Agora em Cajamar:*",
+            "",
+            "• " + medAgora.join(" | ")
+          );
         }
       }
 
-      // 2. Todos os avisos ativos do INMET (#alertas) — sem cortar palavras ao meio
+      // 2. Todos os avisos ativos do INMET (#alertas) — com linha em branco entre cada aviso
       var boxAlertas = $("alertas");
       if (boxAlertas) {
         var cardsInmet = boxAlertas.querySelectorAll(".alert");
         if (cardsInmet.length > 0) {
-          partesBol.push("", "⚠️ *Avisos do INMET Ativos para Cajamar (" + cardsInmet.length + "):*");
+          partesBol.push(
+            "",
+            "━━━━━━━━━━━━━━━━━━━━",
+            "⚠️ *Avisos do INMET Ativos para Cajamar (" + cardsInmet.length + "):*"
+          );
           for (var ai = 0; ai < cardsInmet.length; ai++) {
             var stTit = cardsInmet[ai].querySelector("strong");
+            var seloSev = cardsInmet[ai].querySelector(".selo-sev");
             var smVig = cardsInmet[ai].querySelector("small");
             var spRisco = cardsInmet[ai].querySelector("p, span:not(.selo-sev)");
             if (stTit) {
+              var txtSev = seloSev && seloSev.textContent ? " — " + seloSev.textContent.trim() : "";
               var txtRisco = spRisco && spRisco.textContent ? spRisco.textContent.trim() : "";
               partesBol.push(
-                (ai + 1) + ". *" + stTit.textContent.trim() + "*" +
+                "",
+                (ai + 1) + ". *" + stTit.textContent.trim() + txtSev + "*" +
                 (smVig ? " (" + smVig.textContent.trim() + ")" : "") +
-                (txtRisco ? "\n   ↳ " + txtRisco : "")
+                (txtRisco ? "\n↳ " + txtRisco : "")
               );
             }
           }
         }
       }
 
-      // 3. Painel de Deslizamento (#deslizamentoPainel)
+      // 3. Painel de Deslizamento (#deslizamentoPainel) — com espaçamento entre linhas
       var boxDesl = $("deslizamentoPainel");
       if (boxDesl) {
         var banDesl = boxDesl.querySelector(".desliz-banner strong");
@@ -474,14 +489,22 @@
           var vols = [];
           for (var di = 0; di < cxsDesl.length; di++) {
             var rD = cxsDesl[di].querySelector("span"), vD = cxsDesl[di].querySelector("strong");
-            if (rD && vD) vols.push(rD.textContent.replace(/^[^A-Za-z0-9]+/, "").trim() + ": " + vD.textContent.trim());
+            if (rD && vD) vols.push(rD.textContent.replace(/^[^A-Za-z0-9]+/, "").trim() + ": *" + vD.textContent.trim() + "*");
           }
-          partesBol.push("", "⛰️ *Risco de Deslizamento (Pinheiro / AlertaRio):*", "• " + banDesl.textContent.trim());
-          if (vols.length) partesBol.push("• " + vols.join(" | "));
+          partesBol.push(
+            "",
+            "━━━━━━━━━━━━━━━━━━━━",
+            "⛰️ *Risco de Deslizamento (Pinheiro / AlertaRio):*",
+            "",
+            "• " + banDesl.textContent.trim()
+          );
+          if (vols.length) {
+            partesBol.push("", "• " + vols.join(" | "));
+          }
         }
       }
 
-      // 4. Estações e Réguas de Cajamar AO VIVO (Catavento-Surya em tempo real)
+      // 4. Estações e Réguas de Cajamar AO VIVO (Catavento-Surya em tempo real) — com linha em branco entre cada estação
       var catLive = null;
       var cfgAt = lerConfig();
       var urlsCat = [
@@ -516,7 +539,7 @@
           if (typeof e.chuva1h === "number" || typeof e.chuva24h === "number") {
             var ch1 = typeof e.chuva1h === "number" ? e.chuva1h.toFixed(1).replace(".", ",") + " mm" : "—";
             var ch24 = typeof e.chuva24h === "number" ? e.chuva24h.toFixed(1).replace(".", ",") + " mm" : "—";
-            p.push("🌧️ Chuva 1h: " + ch1 + " / 24h: " + ch24);
+            p.push("🌧️ Chuva 1h: " + ch1 + " / 24h: *" + ch24 + "*");
           }
           if (typeof e.temperatura === "number") p.push("🌡️ " + e.temperatura.toFixed(1).replace(".", ",") + "°C");
           if (typeof e.umidade === "number") p.push("💧 " + Math.round(e.umidade) + "%");
@@ -524,18 +547,27 @@
           if (typeof e.pressao === "number") p.push("🧭 " + Math.round(e.pressao) + " hPa");
           if (typeof e.nivelRio === "number") {
             var stR = e.statusRio ? " (" + (e.statusRio === "normal" ? "Normal" : e.statusRio) + ")" : "";
-            p.push("🌊 Rio: " + e.nivelRio.toFixed(2).replace(".", ",") + " m" + stR);
+            p.push("🌊 Rio: *" + e.nivelRio.toFixed(2).replace(".", ",") + " m*" + stR);
           }
-          linOnline.push("• *" + e.nome + "* (" + dhBrt + "): " + p.join(" · "));
+          linOnline.push("• *" + e.nome + "* (" + dhBrt + "):\n  " + p.join(" · "));
         });
-        if (linOnline.length || linOffline.length) {
-          partesBol.push("", "📍 *Estações e Réguas de Cajamar (Ao Vivo — Catavento):*");
-          if (linOnline.length) partesBol.push(linOnline.join("\n"));
-          if (linOffline.length) partesBol.push(linOffline.join("\n"));
+        var todasLinhasEst = linOnline.concat(linOffline);
+        if (todasLinhasEst.length) {
+          partesBol.push(
+            "",
+            "━━━━━━━━━━━━━━━━━━━━",
+            "📍 *Estações e Réguas de Cajamar (Ao Vivo — Catavento):*",
+            "",
+            todasLinhasEst.join("\n\n")
+          );
         }
       }
 
-      partesBol.push("", "🔗 *Painel ao vivo:* https://theolindolfo02.github.io/cajamar-ao-vivo/");
+      partesBol.push(
+        "",
+        "━━━━━━━━━━━━━━━━━━━━",
+        "🔗 *Painel ao vivo:* https://theolindolfo02.github.io/cajamar-ao-vivo/"
+      );
       return partesBol.join("\n");
     }
 

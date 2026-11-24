@@ -912,10 +912,12 @@ async function executarBoletimPeriodicoWorker(env, agoraMs = Date.now()) {
   const intMin = Number(cfg.intervaloMinutos) || 180;
   const rotInt = intMin % 60 === 0 ? (intMin / 60) + " em " + (intMin / 60) + " horas" : intMin + " minutos";
   const linhas = [
-    "⏱️ *BOLETIM PERIÓDICO AUTOMÁTICO DAS ESTAÇÕES — DEFESA CIVIL DE CAJAMAR*",
-    "🕒 *Horário:* " + horaBrt + " (BRT) · *Frequência:* a cada " + rotInt,
+    "⏱️ *BOLETIM PERIÓDICO AUTOMÁTICO DAS ESTAÇÕES (" + rotInt + ") — DEFESA CIVIL DE CAJAMAR*",
+    "",
+    "🕒 *Emissão:* " + horaBrt + " (BRT)",
     "━━━━━━━━━━━━━━━━━━━━",
-    "📊 *PANORAMA AO VIVO — ESTAÇÕES E RÉGUAS DE CAJAMAR:*"
+    "📍 *Estações e Réguas de Cajamar (Ao Vivo — Catavento):*",
+    ""
   ];
   const online = [], offline = [];
   for (const e of estacoes) {
@@ -943,7 +945,7 @@ async function executarBoletimPeriodicoWorker(env, agoraMs = Date.now()) {
     }
     online.push("• *" + e.nome + "* (" + dh + "): " + p.join(" · "));
   }
-  linhas.push(...online, ...offline, "", "🔗 *Painel ao vivo:* https://theolindolfo02.github.io/cajamar-ao-vivo/");
+  linhas.push([].concat(online, offline).join("\n\n"), "", "━━━━━━━━━━━━━━━━━━━━", "🔗 *Painel ao vivo:* https://theolindolfo02.github.io/cajamar-ao-vivo/");
 
   const rTg = await buscar("https://api.telegram.org/bot" + botToken + "/sendMessage", {
     method: "POST",

@@ -537,9 +537,11 @@ export function formatarMensagemTelegram(alertas, dataHoraBrt, extra = {}) {
 
   const linhas = [
     `🚨 <b>ALERTA AUTOMÁTICO — DEFESA CIVIL DE CAJAMAR</b>`,
+    "",
     subtituloTipo,
     `🕒 <b>Verificação:</b> ${esc(dataHoraBrt)} (BRT)`,
-    `━━━━━━━━━━━━━━━━━━━━`
+    `━━━━━━━━━━━━━━━━━━━━`,
+    ""
   ];
 
   let itens = 0;
@@ -614,16 +616,17 @@ export function formatarMensagemTelegram(alertas, dataHoraBrt, extra = {}) {
       if (!Number.isNaN(refPanMs) && estacaoEstaOffline(est, refPanMs)) offline.push(est);
       else online.push(est);
     }
-    linhas.push(`━━━━━━━━━━━━━━━━━━━━`, `📊 <b>PANORAMA AO VIVO — ESTAÇÕES DE CAJAMAR:</b>`);
+    linhas.push(`━━━━━━━━━━━━━━━━━━━━`, `📊 <b>PANORAMA AO VIVO — ESTAÇÕES DE CAJAMAR:</b>`, "");
+    const blocosPan = [];
     for (const est of online) {
       const resumoEst = resumirMedicoesEstacao(est, refPanMs);
-      if (resumoEst) linhas.push(`• <b>${esc(est.nome || est.id)}:</b> ${resumoEst}`);
+      if (resumoEst) blocosPan.push(`• <b>${esc(est.nome || est.id)}:</b> ${resumoEst}`);
     }
     for (const est of offline) {
       const leitOff = formatarIsoParaBrtCurto(est.leitura);
-      linhas.push(`• <b>${esc(est.nome || est.id)}:</b> ⚠️ <i>Sem conexão (último dado em ${esc(leitOff || est.leitura)})</i>`);
+      blocosPan.push(`• <b>${esc(est.nome || est.id)}:</b> ⚠️ <i>Sem conexão (último dado em ${esc(leitOff || est.leitura)})</i>`);
     }
-    linhas.push("");
+    if (blocosPan.length) linhas.push(blocosPan.join("\n\n"), "");
   }
 
   linhas.push(`🔗 <b>Painel ao vivo:</b> https://theolindolfo02.github.io/cajamar-ao-vivo/`);
